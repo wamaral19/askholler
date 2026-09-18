@@ -72,7 +72,13 @@ npm run db:generate
 
 Never point development commands at a production database.
 
-Durable jobs use the PostgreSQL `durable_jobs` table, idempotency keys, retry state, and `FOR UPDATE SKIP LOCKED` claims. The worker handler registry that connects live Shopify normalization to qualification remains a follow-on adapter; current persisted verification seeds the synthetic facts directly.
+Graphile Worker is the only background execution engine. Application transactions write opaque-ID-only records to `outbox_events`; the worker's bounded dispatcher claims committed rows with `FOR UPDATE SKIP LOCKED`, calls `graphile_worker.add_job` in the same transaction, and only then marks each row dispatched. Stable Graphile job keys make a crash/replay converge on one logical job. The historical `durable_jobs` table remains only for forward-compatible data preservation and has no runtime consumer.
+
+The explicit task registry contains `normalize_webhook`, `evaluate_commerce_event`, `expire_assignments`, and `render_report`. Their service ports currently fail closed with `JOB_SERVICE_UNAVAILABLE` until the corresponding Shopify, research, assignment-expiry, and reporting compositions are added. Payloads contain only merchant and resource UUIDs; payload validation and a recursive sensitive-key denylist run before publication and execution.
+
+Worker configuration requires `DATABASE_URL` and accepts `WORKER_CONCURRENCY`, `WORKER_POLL_INTERVAL_MS`, `OUTBOX_BATCH_SIZE`, `OUTBOX_POLL_INTERVAL_MS`, and `WORKER_SHUTDOWN_TIMEOUT_MS`. It does not require web-only settings such as `APP_BASE_URL`.
+
+To replay a stranded event, first inspect and correct its safe event type/payload, then clear `outbox_events.dispatched_at`. The dispatcher republishes it under the same task-specific job key. Graphile's replacement semantics prevent a second logical job. Never copy a row to replay it or alter its idempotency identity.
 
 ## Repository structure
 

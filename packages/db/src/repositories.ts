@@ -7,13 +7,11 @@ export type HollerDatabase = NodePgDatabase<typeof schema>;
 
 type JsonObject = Readonly<Record<string, unknown>>;
 
-function assertNonPiiJobPayload(payload: JsonObject): void {
+export function assertOperationalJobPayload(payload: JsonObject): void {
   const forbidden =
-    /phone|email|name|address|transcript|recording|customerprivate/i;
+    /phone|email|name|address|transcript|recording|customerprivate|response|notes?|raw(?:_|)body|access(?:_|)token|signed(?:_|)url|encrypted/i;
   const visit = (value: unknown, path: string): void => {
-    if (typeof value === "string" && forbidden.test(path)) {
-      throw new Error(`PII is not permitted in durable job payloads: ${path}`);
-    }
+    if (forbidden.test(path)) throw new Error("JOB_PAYLOAD_FORBIDDEN_KEY");
     if (value && typeof value === "object") {
       for (const [key, child] of Object.entries(value))
         visit(child, `${path}.${key}`);
@@ -500,85 +498,31 @@ export class PostgresJobDispatcher {
     idempotencyKey: string;
     payload: Readonly<Record<string, string | number | boolean | null>>;
   }): Promise<void> {
-    assertNonPiiJobPayload(input.payload);
+    assertOperationalJobPayload(input.payload);
+    const aggregateId = Object.values(input.payload).find(
+      (value): value is string =>
+        typeof value === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          value,
+        ),
+    );
+    if (!aggregateId) throw new Error("JOB_PAYLOAD_MISSING_OPAQUE_ID");
     await this.db
-      .insert(schema.durableJobs)
-      .values({ id: randomUUID(), merchantId: this.merchantId, ...input })
-      .onConflictDoNothing({
-        target: [
-          schema.durableJobs.merchantId,
-          schema.durableJobs.jobType,
-          schema.durableJobs.idempotencyKey,
-        ],
-      });
-  }
-}
-
-export class PostgresJobQueue {
-  constructor(private readonly db: HollerDatabase) {}
-
-  async claim(workerId: string, now = new Date()) {
-    const result = await this.db.execute(sql`
-      WITH candidate AS (
-        SELECT id FROM durable_jobs
-        WHERE status IN ('pending', 'retry') AND available_at <= ${now}
-        ORDER BY available_at, created_at
-        FOR UPDATE SKIP LOCKED LIMIT 1
-      )
-      UPDATE durable_jobs j SET status = 'running', locked_at = ${now}, locked_by = ${workerId},
-        attempts = attempts + 1, updated_at = ${now}
-      FROM candidate WHERE j.id = candidate.id RETURNING j.*
-    `);
-    return result.rows[0];
-  }
-
-  async complete(
-    merchantId: string,
-    jobId: string,
-    workerId: string,
-    now = new Date(),
-  ) {
-    const [row] = await this.db
-      .update(schema.durableJobs)
-      .set({ status: "completed", completedAt: now, updatedAt: now })
-      .where(
-        and(
-          eq(schema.durableJobs.id, jobId),
-          eq(schema.durableJobs.merchantId, merchantId),
-          eq(schema.durableJobs.status, "running"),
-          eq(schema.durableJobs.lockedBy, workerId),
-        ),
-      )
-      .returning();
-    return row;
-  }
-
-  async retry(
-    merchantId: string,
-    jobId: string,
-    workerId: string,
-    availableAt: Date,
-    errorCode: string,
-  ) {
-    const [row] = await this.db
-      .update(schema.durableJobs)
-      .set({
-        status: "retry",
-        availableAt,
-        lastErrorCode: errorCode,
-        lockedAt: null,
-        lockedBy: null,
-        updatedAt: new Date(),
+      .insert(schema.outboxEvents)
+      .values({
+        id: randomUUID(),
+        merchantId: this.merchantId,
+        aggregateType: input.jobType,
+        aggregateId,
+        eventType: input.jobType,
+        payload: input.payload,
+        schemaVersion: 1,
+        idempotencyKey: `job:${this.merchantId}:${input.jobType}:${input.idempotencyKey}`,
+        correlationId: randomUUID(),
       })
-      .where(
-        and(
-          eq(schema.durableJobs.id, jobId),
-          eq(schema.durableJobs.merchantId, merchantId),
-          eq(schema.durableJobs.lockedBy, workerId),
-        ),
-      )
-      .returning();
-    return row;
+      .onConflictDoNothing({
+        target: schema.outboxEvents.idempotencyKey,
+      });
   }
 }
 
