@@ -1,0 +1,68 @@
+-- Forward-only tenant and domain integrity repair.
+
+CREATE UNIQUE INDEX customers_merchant_id_uidx ON customers (merchant_id, id);
+CREATE UNIQUE INDEX products_merchant_id_uidx ON products (merchant_id, id);
+CREATE UNIQUE INDEX product_categories_merchant_id_uidx ON product_categories (merchant_id, id);
+CREATE UNIQUE INDEX orders_merchant_id_uidx ON orders (merchant_id, id);
+CREATE UNIQUE INDEX commerce_events_merchant_id_uidx ON commerce_events (merchant_id, id);
+CREATE UNIQUE INDEX research_moments_merchant_id_uidx ON research_moments (merchant_id, id);
+CREATE UNIQUE INDEX research_moment_versions_merchant_id_uidx ON research_moment_versions (merchant_id, id);
+CREATE UNIQUE INDEX qualification_evaluations_merchant_id_uidx ON qualification_evaluations (merchant_id, id);
+CREATE UNIQUE INDEX research_assignments_merchant_id_uidx ON research_assignments (merchant_id, id);
+CREATE UNIQUE INDEX interviews_merchant_id_uidx ON interviews (merchant_id, id);
+CREATE UNIQUE INDEX transcripts_merchant_id_uidx ON transcripts (merchant_id, id);
+CREATE UNIQUE INDEX transcript_segments_merchant_id_uidx ON transcript_segments (merchant_id, id);
+CREATE UNIQUE INDEX interview_responses_merchant_id_uidx ON interview_responses (merchant_id, id);
+CREATE UNIQUE INDEX angle_revisions_merchant_id_uidx ON angle_revisions (merchant_id, id);
+CREATE UNIQUE INDEX report_revisions_merchant_id_uidx ON report_revisions (merchant_id, id);
+
+ALTER TABLE customer_private ADD CONSTRAINT customer_private_customer_tenant_fk FOREIGN KEY (merchant_id, customer_id) REFERENCES customers (merchant_id, id);
+ALTER TABLE product_category_assignments ADD CONSTRAINT product_category_assignments_product_tenant_fk FOREIGN KEY (merchant_id, product_id) REFERENCES products (merchant_id, id);
+ALTER TABLE product_category_assignments ADD CONSTRAINT product_category_assignments_category_tenant_fk FOREIGN KEY (merchant_id, category_id) REFERENCES product_categories (merchant_id, id);
+ALTER TABLE orders ADD CONSTRAINT orders_customer_tenant_fk FOREIGN KEY (merchant_id, customer_id) REFERENCES customers (merchant_id, id);
+ALTER TABLE order_line_items ADD CONSTRAINT order_line_items_order_tenant_fk FOREIGN KEY (merchant_id, order_id) REFERENCES orders (merchant_id, id);
+ALTER TABLE order_line_items ADD CONSTRAINT order_line_items_product_tenant_fk FOREIGN KEY (merchant_id, product_id) REFERENCES products (merchant_id, id);
+ALTER TABLE commerce_events ADD CONSTRAINT commerce_events_customer_tenant_fk FOREIGN KEY (merchant_id, customer_id) REFERENCES customers (merchant_id, id);
+ALTER TABLE commerce_events ADD CONSTRAINT commerce_events_order_tenant_fk FOREIGN KEY (merchant_id, order_id) REFERENCES orders (merchant_id, id);
+ALTER TABLE research_moment_versions ADD CONSTRAINT research_moment_versions_moment_tenant_fk FOREIGN KEY (merchant_id, research_moment_id) REFERENCES research_moments (merchant_id, id);
+ALTER TABLE qualification_evaluations ADD CONSTRAINT qualification_evaluations_event_tenant_fk FOREIGN KEY (merchant_id, commerce_event_id) REFERENCES commerce_events (merchant_id, id);
+ALTER TABLE qualification_evaluations ADD CONSTRAINT qualification_evaluations_moment_tenant_fk FOREIGN KEY (merchant_id, research_moment_version_id) REFERENCES research_moment_versions (merchant_id, id);
+ALTER TABLE research_assignments ADD CONSTRAINT research_assignments_evaluation_tenant_fk FOREIGN KEY (merchant_id, qualification_evaluation_id) REFERENCES qualification_evaluations (merchant_id, id);
+ALTER TABLE research_assignments ADD CONSTRAINT research_assignments_event_tenant_fk FOREIGN KEY (merchant_id, commerce_event_id) REFERENCES commerce_events (merchant_id, id);
+ALTER TABLE research_assignments ADD CONSTRAINT research_assignments_customer_tenant_fk FOREIGN KEY (merchant_id, customer_id) REFERENCES customers (merchant_id, id);
+ALTER TABLE research_assignments ADD CONSTRAINT research_assignments_order_tenant_fk FOREIGN KEY (merchant_id, order_id) REFERENCES orders (merchant_id, id);
+ALTER TABLE research_assignments ADD CONSTRAINT research_assignments_moment_tenant_fk FOREIGN KEY (merchant_id, research_moment_version_id) REFERENCES research_moment_versions (merchant_id, id);
+ALTER TABLE interviews ADD CONSTRAINT interviews_assignment_tenant_fk FOREIGN KEY (merchant_id, research_assignment_id) REFERENCES research_assignments (merchant_id, id);
+ALTER TABLE assignment_transitions ADD CONSTRAINT assignment_transitions_assignment_tenant_fk FOREIGN KEY (merchant_id, assignment_id) REFERENCES research_assignments (merchant_id, id);
+ALTER TABLE calls ADD CONSTRAINT calls_interview_tenant_fk FOREIGN KEY (merchant_id, interview_id) REFERENCES interviews (merchant_id, id);
+ALTER TABLE recordings ADD CONSTRAINT recordings_interview_tenant_fk FOREIGN KEY (merchant_id, interview_id) REFERENCES interviews (merchant_id, id);
+ALTER TABLE transcripts ADD CONSTRAINT transcripts_interview_tenant_fk FOREIGN KEY (merchant_id, interview_id) REFERENCES interviews (merchant_id, id);
+ALTER TABLE transcript_segments ADD CONSTRAINT transcript_segments_transcript_tenant_fk FOREIGN KEY (merchant_id, transcript_id) REFERENCES transcripts (merchant_id, id);
+ALTER TABLE transcript_segments ADD CONSTRAINT transcript_segments_interview_tenant_fk FOREIGN KEY (merchant_id, interview_id) REFERENCES interviews (merchant_id, id);
+ALTER TABLE interview_responses ADD CONSTRAINT interview_responses_interview_tenant_fk FOREIGN KEY (merchant_id, interview_id) REFERENCES interviews (merchant_id, id);
+ALTER TABLE response_evidence ADD CONSTRAINT response_evidence_response_tenant_fk FOREIGN KEY (merchant_id, response_id) REFERENCES interview_responses (merchant_id, id);
+ALTER TABLE response_evidence ADD CONSTRAINT response_evidence_segment_tenant_fk FOREIGN KEY (merchant_id, transcript_segment_id) REFERENCES transcript_segments (merchant_id, id);
+ALTER TABLE interview_observations ADD CONSTRAINT interview_observations_interview_tenant_fk FOREIGN KEY (merchant_id, interview_id) REFERENCES interviews (merchant_id, id);
+ALTER TABLE angle_evidence ADD CONSTRAINT angle_evidence_revision_tenant_fk FOREIGN KEY (merchant_id, angle_revision_id) REFERENCES angle_revisions (merchant_id, id);
+ALTER TABLE angle_evidence ADD CONSTRAINT angle_evidence_response_tenant_fk FOREIGN KEY (merchant_id, response_id) REFERENCES interview_responses (merchant_id, id);
+ALTER TABLE angle_evidence ADD CONSTRAINT angle_evidence_segment_tenant_fk FOREIGN KEY (merchant_id, transcript_segment_id) REFERENCES transcript_segments (merchant_id, id);
+ALTER TABLE report_artifacts ADD CONSTRAINT report_artifacts_revision_tenant_fk FOREIGN KEY (merchant_id, report_revision_id) REFERENCES report_revisions (merchant_id, id);
+
+ALTER TABLE merchants ADD CONSTRAINT merchants_weekly_target_nonnegative CHECK (weekly_interview_target >= 0);
+ALTER TABLE customers ADD CONSTRAINT customers_counts_nonnegative CHECK (order_count >= 0 AND lifetime_revenue_minor >= 0);
+ALTER TABLE orders ADD CONSTRAINT orders_total_nonnegative CHECK (total_minor >= 0 AND (customer_order_sequence IS NULL OR customer_order_sequence > 0));
+ALTER TABLE order_line_items ADD CONSTRAINT order_line_items_values_valid CHECK (quantity > 0 AND unit_price_minor >= 0);
+ALTER TABLE research_assignments ADD CONSTRAINT research_assignments_status_check CHECK (status IN ('queued','claimed','interview_started','completed','declined','no_answer','expired','cancelled'));
+ALTER TABLE research_assignments ADD CONSTRAINT research_assignments_counts_nonnegative CHECK (attempt_count >= 0 AND lock_version >= 0);
+ALTER TABLE interviews ADD CONSTRAINT interviews_status_check CHECK (status IN ('created','in_progress','completed','aborted'));
+ALTER TABLE calls ADD CONSTRAINT calls_status_check CHECK (status IN ('created','manual_dial_ready','dialing','ringing','answered','completed','no_answer','failed'));
+ALTER TABLE transcript_segments ADD CONSTRAINT transcript_segments_offsets_valid CHECK (sequence >= 0 AND (start_ms IS NULL OR start_ms >= 0) AND (end_ms IS NULL OR end_ms >= 0) AND (start_ms IS NULL OR end_ms IS NULL OR end_ms >= start_ms));
+ALTER TABLE response_evidence ADD CONSTRAINT response_evidence_span_valid CHECK (start_char >= 0 AND end_char > start_char);
+ALTER TABLE interview_observations ADD CONSTRAINT interview_observations_offsets_valid CHECK ((interview_offset_seconds IS NULL OR interview_offset_seconds >= 0) AND (interview_offset_ms IS NULL OR interview_offset_ms >= 0));
+ALTER TABLE angles ADD CONSTRAINT angles_period_ordered CHECK (reporting_period_end > reporting_period_start);
+ALTER TABLE reports ADD CONSTRAINT reports_period_ordered CHECK (period_end > period_start);
+ALTER TABLE angle_metrics ADD CONSTRAINT angle_metrics_fraction_valid CHECK ((numerator IS NULL AND denominator IS NULL) OR (numerator >= 0 AND denominator > 0 AND numerator <= denominator));
+ALTER TABLE durable_jobs ADD CONSTRAINT durable_jobs_attempts_nonnegative CHECK (attempts >= 0);
+
+CREATE INDEX research_assignments_actionable_idx ON research_assignments (merchant_id, priority DESC, created_at) WHERE status IN ('queued','claimed','no_answer');
+CREATE INDEX outbox_events_undispatched_idx ON outbox_events (created_at) WHERE dispatched_at IS NULL;
