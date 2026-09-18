@@ -1,0 +1,12 @@
+{
+  "name": "@holler/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@holler/domain": "*",
+    "drizzle-orm": "latest",
+    "pg": "latest"
+  }
+}

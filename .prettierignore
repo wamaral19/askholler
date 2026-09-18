@@ -1,0 +1,9 @@
+node_modules/
+.next/
+build/
+dist/
+coverage/
+packages/db/migrations/meta/
+HOLLER_DEV_BRIEF.md
+CODEX_AGENTS.md
+.env.example

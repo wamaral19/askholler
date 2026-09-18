@@ -1,0 +1,15 @@
+{
+  "name": "@holler/worker",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@holler/domain": "*",
+    "@holler/db": "*",
+    "graphile-worker": "latest",
+    "zod": "latest"
+  }
+}

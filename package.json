@@ -1,0 +1,37 @@
+{
+  "name": "holler",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22 <25"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspace=@holler/web",
+    "dev:worker": "npm run dev --workspace=@holler/worker",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo:synthetic": "vitest run packages/testkit/src/canonical-synthetic-flow.test.ts --reporter=verbose",
+    "demo:synthetic:persisted": "vitest run packages/testkit/src/persisted-canonical-flow.test.ts --reporter=verbose",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx packages/db/src/migrate.ts"
+  },
+  "devDependencies": {
+    "@shopify/cli": "^4.8.0",
+    "@types/node": "latest",
+    "@types/pg": "latest",
+    "drizzle-kit": "latest",
+    "prettier": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  }
+}

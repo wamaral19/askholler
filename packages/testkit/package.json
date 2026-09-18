@@ -1,0 +1,21 @@
+{
+  "name": "@holler/testkit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run src/canonical-synthetic-flow.test.ts"
+  },
+  "dependencies": {
+    "@holler/db": "*",
+    "@holler/domain": "*",
+    "@holler/evidence": "*",
+    "@holler/providers": "*",
+    "@holler/reporting": "*",
+    "@holler/research": "*",
+    "@holler/shopify": "*",
+    "drizzle-orm": "latest",
+    "pg": "latest"
+  }
+}
