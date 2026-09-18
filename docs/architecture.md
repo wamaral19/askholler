@@ -187,7 +187,20 @@ Legal review of outbound contact, consent, recording, retention, and merchant/cu
 
 ### 16. Background jobs, retries, and failure recovery
 
-Use a PostgreSQL-backed durable job runner and transactional outbox semantics. The transaction that changes domain state also inserts the next work item/outbox record. Workers claim with leases, use bounded exponential backoff with jitter, and move exhausted jobs to a dead-letter state that supports inspected replay.
+Graphile Worker is the sole background job runner and `outbox_events` is the application-owned transactional handoff. A bounded dispatcher locks undispatched rows with `FOR UPDATE SKIP LOCKED`, validates the payload, invokes `graphile_worker.add_job`, and marks the row dispatched in one database transaction. A rollback therefore leaves neither a dispatched marker nor an orphan Graphile job. The old `durable_jobs` table is deprecated, retained only to preserve existing databases, and has no poller or runtime composition.
+
+The event-to-task contract is intentionally explicit:
+
+| Outbox event / task       | Opaque payload                   | Graphile job key                            | Maximum attempts |
+| ------------------------- | -------------------------------- | ------------------------------------------- | ---------------: |
+| `normalize_webhook`       | `merchantId`, `receiptId`        | `normalize_webhook:<receiptId>`             |               10 |
+| `evaluate_commerce_event` | `merchantId`, `commerceEventId`  | `evaluate_commerce_event:<commerceEventId>` |               10 |
+| `expire_assignments`      | `merchantId`, `assignmentId`     | `expire_assignments:<assignmentId>`         |                5 |
+| `render_report`           | `merchantId`, `reportRevisionId` | `render_report:<reportRevisionId>`          |                5 |
+
+Handlers validate strict UUID-only contracts and call injected, replay-safe service ports. Terminal validation failures are logged only as safe codes and complete without retry; operational failures throw a safe code for Graphile's bounded retry policy. The concrete normalization, qualification, expiry, and report-rendering service compositions remain an explicit later integration boundary and currently fail closed.
+
+Operational replay clears `dispatched_at` only after the event has been inspected and any safe contract issue corrected. Republishing uses the same stable Graphile key, so replay replaces the existing logical job rather than duplicating it. Unsupported or sensitive payloads remain undispatched for investigation.
 
 Every handler must define:
 
