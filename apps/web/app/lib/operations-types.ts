@@ -6,6 +6,7 @@ import type {
 export interface TenantContext {
   readonly merchantId: string;
   readonly researcherId: string;
+  readonly correlationId: string;
 }
 
 export interface QueueItem {
@@ -22,6 +23,7 @@ export interface QueueItem {
   readonly priority: "urgent" | "standard";
   readonly status: "queued" | "claimed" | "dialing" | "reached";
   readonly claimedByResearcherId?: string;
+  readonly lockVersion: number;
 }
 
 export interface InterviewWorkspace {
@@ -46,6 +48,9 @@ export interface SaveMomentInput {
 }
 
 export interface OperationsApplicationService {
+  listResearchFields(
+    context: TenantContext,
+  ): Promise<readonly PrototypeResearchField[]>;
   listMoments(
     context: TenantContext,
   ): Promise<readonly ResearchMomentSummary[]>;
@@ -57,14 +62,17 @@ export interface OperationsApplicationService {
   claimAssignment(
     context: TenantContext,
     assignmentId: string,
+    expectedLockVersion: number,
   ): Promise<QueueItem>;
   releaseAssignment(
     context: TenantContext,
     assignmentId: string,
+    expectedLockVersion: number,
   ): Promise<QueueItem>;
   startInterview(
     context: TenantContext,
     assignmentId: string,
+    expectedLockVersion: number,
   ): Promise<InterviewWorkspace>;
   revealPhone(
     context: TenantContext,

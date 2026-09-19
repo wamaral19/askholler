@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { Form, Link, useActionData, useLoaderData } from "react-router";
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
-import { categoryOptions, researchFields } from "../lib/prototype-data";
+import { categoryOptions } from "../lib/prototype-data";
 import {
+  executeOperationsRequest,
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
@@ -349,28 +350,35 @@ function RuleEditor({ node, root, onChange, onRemove }: RuleEditorProps) {
   );
 }
 
-export function loader() {
-  return { fields: researchFields, categories: categoryOptions };
+export async function loader({ request }: { request: Request }) {
+  return executeOperationsRequest(async () => ({
+    fields: await getOperationsService().listResearchFields(
+      getTenantContext(request),
+    ),
+    categories: categoryOptions,
+  }));
 }
 
 export async function action({ request }: { request: Request }) {
-  const form = await request.formData();
-  const expression = JSON.parse(
-    String(form.get("cohortExpression")),
-  ) as unknown;
-  const result = await getOperationsService().saveMoment(
-    getTenantContext(request),
-    {
-      name: String(form.get("name") ?? "").trim(),
-      objective: String(form.get("objective") ?? "").trim(),
-      weeklyTarget: Number(form.get("weeklyTarget") ?? 0),
-      cohortExpression: expression,
-      fieldIds: form.getAll("fieldId").map(String),
-      customFields: form.getAll("customField").map(String),
-      publish: form.get("intent") === "publish",
-    },
-  );
-  return { ...result, published: form.get("intent") === "publish" };
+  return executeOperationsRequest(async () => {
+    const form = await request.formData();
+    const expression = JSON.parse(
+      String(form.get("cohortExpression")),
+    ) as unknown;
+    const result = await getOperationsService().saveMoment(
+      getTenantContext(request),
+      {
+        name: String(form.get("name") ?? "").trim(),
+        objective: String(form.get("objective") ?? "").trim(),
+        weeklyTarget: Number(form.get("weeklyTarget") ?? 0),
+        cohortExpression: expression,
+        fieldIds: form.getAll("fieldId").map(String),
+        customFields: form.getAll("customField").map(String),
+        publish: form.get("intent") === "publish",
+      },
+    );
+    return { ...result, published: form.get("intent") === "publish" };
+  });
 }
 
 export function meta() {

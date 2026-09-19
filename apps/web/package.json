@@ -7,7 +7,9 @@
     "build": "react-router build"
   },
   "dependencies": {
+    "@holler/db": "*",
     "@holler/domain": "*",
+    "drizzle-orm": "latest",
     "@shopify/shopify-app-react-router": "latest",
     "isbot": "latest",
     "react": "latest",

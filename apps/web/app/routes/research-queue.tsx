@@ -8,50 +8,67 @@ import {
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
 import {
+  executeOperationsRequest,
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
 
 export async function loader({ request }: { request: Request }) {
-  return {
+  return executeOperationsRequest(async () => ({
     assignments: await getOperationsService().listQueue(
       getTenantContext(request),
     ),
-  };
+  }));
 }
 
 export async function action({ request }: { request: Request }) {
-  const form = await request.formData();
-  const assignmentId = String(form.get("assignmentId") ?? "");
-  const intent = String(form.get("intent") ?? "");
-  if (!assignmentId)
-    throw new Response("Assignment is required", { status: 400 });
-  const service = getOperationsService();
-  const context = getTenantContext(request);
-  if (intent === "claim")
-    return {
-      intent,
-      assignmentId,
-      assignment: await service.claimAssignment(context, assignmentId),
-    };
-  if (intent === "release")
-    return {
-      intent,
-      assignmentId,
-      assignment: await service.releaseAssignment(context, assignmentId),
-    };
-  if (intent === "start") {
-    const interview = await service.startInterview(context, assignmentId);
-    return redirect(`/interviews/${interview.id}`);
-  }
-  if (intent === "reveal") {
-    const result = await service.revealPhone(context, assignmentId);
-    return Response.json(
-      { intent, assignmentId, phone: result.phone },
-      { headers: { "Cache-Control": "no-store, private", Pragma: "no-cache" } },
-    );
-  }
-  throw new Response("Unsupported action", { status: 400 });
+  return executeOperationsRequest(async () => {
+    const form = await request.formData();
+    const assignmentId = String(form.get("assignmentId") ?? "");
+    const intent = String(form.get("intent") ?? "");
+    if (!assignmentId)
+      throw new Response("Assignment is required", { status: 400 });
+    const service = getOperationsService();
+    const context = getTenantContext(request);
+    if (intent === "claim")
+      return {
+        intent,
+        assignmentId,
+        assignment: await service.claimAssignment(
+          context,
+          assignmentId,
+          Number(form.get("lockVersion")),
+        ),
+      };
+    if (intent === "release")
+      return {
+        intent,
+        assignmentId,
+        assignment: await service.releaseAssignment(
+          context,
+          assignmentId,
+          Number(form.get("lockVersion")),
+        ),
+      };
+    if (intent === "start") {
+      const interview = await service.startInterview(
+        context,
+        assignmentId,
+        Number(form.get("lockVersion")),
+      );
+      return redirect(`/interviews/${interview.id}`);
+    }
+    if (intent === "reveal") {
+      const result = await service.revealPhone(context, assignmentId);
+      return Response.json(
+        { intent, assignmentId, phone: result.phone },
+        {
+          headers: { "Cache-Control": "no-store, private", Pragma: "no-cache" },
+        },
+      );
+    }
+    throw new Response("Unsupported action", { status: 400 });
+  });
 }
 
 export function meta() {
@@ -149,6 +166,11 @@ export default function ResearchQueueRoute() {
                       type="hidden"
                       value={assignment.id}
                     />
+                    <input
+                      name="lockVersion"
+                      type="hidden"
+                      value={assignment.lockVersion}
+                    />
                     <button
                       className="text-button"
                       disabled={!isClaimed || Boolean(revealedPhone)}
@@ -176,6 +198,11 @@ export default function ResearchQueueRoute() {
                       type="hidden"
                       value={assignment.id}
                     />
+                    <input
+                      name="lockVersion"
+                      type="hidden"
+                      value={assignment.lockVersion}
+                    />
                     <button
                       className="button button-primary"
                       name="intent"
@@ -191,6 +218,11 @@ export default function ResearchQueueRoute() {
                       name="assignmentId"
                       type="hidden"
                       value={assignment.id}
+                    />
+                    <input
+                      name="lockVersion"
+                      type="hidden"
+                      value={assignment.lockVersion}
                     />
                     <button
                       className="button button-primary"
@@ -215,6 +247,11 @@ export default function ResearchQueueRoute() {
                       name="assignmentId"
                       type="hidden"
                       value={assignment.id}
+                    />
+                    <input
+                      name="lockVersion"
+                      type="hidden"
+                      value={assignment.lockVersion}
                     />
                     <button
                       className="button button-quiet"

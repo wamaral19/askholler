@@ -10,10 +10,42 @@ import type {
   QueueItem,
   TenantContext,
 } from "./operations-types";
+import { createDatabase } from "@holler/db";
+import {
+  OperationsError,
+  PostgresOperationsApplicationService,
+  PrefixedSyntheticPhoneDecryptor,
+} from "./postgres-operations-service.server";
+import {
+  SyntheticWorkforceContextResolver,
+  WorkforceContextError,
+  syntheticSessionsFromEnvironment,
+  type WorkforceContextResolver,
+} from "./workforce-session.server";
+
+export async function executeOperationsRequest<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (error instanceof Response) throw error;
+    if (error instanceof OperationsError)
+      throw Response.json(
+        { error: { code: error.code } },
+        { status: error.status },
+      );
+    throw Response.json(
+      { error: { code: "OPERATIONS_INTERNAL_ERROR" } },
+      { status: 500 },
+    );
+  }
+}
 
 const SYNTHETIC_CONTEXT: TenantContext = {
   merchantId: "merchant-synthetic-northstar",
   researcherId: "researcher-synthetic-001",
+  correlationId: "synthetic-memory-request",
 };
 
 function createSyntheticService(): OperationsApplicationService {
@@ -28,6 +60,7 @@ function createSyntheticService(): OperationsApplicationService {
     return {
       ...safe,
       status,
+      lockVersion: status === "queued" ? 0 : 1,
       ...(status === "queued"
         ? {}
         : { claimedByResearcherId: SYNTHETIC_CONTEXT.researcherId }),
@@ -43,6 +76,9 @@ function createSyntheticService(): OperationsApplicationService {
   };
 
   return {
+    async listResearchFields() {
+      return researchFields;
+    },
     async listMoments() {
       return researchMoments;
     },
@@ -91,10 +127,10 @@ function createSyntheticService(): OperationsApplicationService {
       return { phone: item.syntheticPhone };
     },
     async getInterview(context, id) {
-      requireClaim(context, id);
+      const assignment = requireClaim(context, id);
       const interview = interviews.get(id);
       if (interview) return interview;
-      return this.startInterview(context, id);
+      return this.startInterview(context, id, assignment.lockVersion);
     },
     async saveResponse(context, id) {
       requireClaim(context, id);
@@ -115,7 +151,8 @@ function createSyntheticService(): OperationsApplicationService {
 }
 
 let configuredService: OperationsApplicationService | undefined;
-const syntheticService = createSyntheticService();
+let constructedService: OperationsApplicationService | undefined;
+let configuredContextResolver: WorkforceContextResolver | undefined;
 
 export function configureOperationsService(
   service: OperationsApplicationService,
@@ -123,11 +160,56 @@ export function configureOperationsService(
   configuredService = service;
 }
 
-export function getOperationsService(): OperationsApplicationService {
-  return configuredService ?? syntheticService;
+export function resetOperationsCompositionForTests(): void {
+  configuredService = undefined;
+  constructedService = undefined;
+  configuredContextResolver = undefined;
 }
 
-export function getTenantContext(_request: Request): TenantContext {
-  // Development-only identity. Production composition must derive this from the authenticated workforce session.
-  return SYNTHETIC_CONTEXT;
+export function getOperationsService(): OperationsApplicationService {
+  if (configuredService) return configuredService;
+  if (constructedService) return constructedService;
+  const mode = process.env.HOLLER_OPERATIONS_MODE;
+  if (mode === "synthetic-memory") {
+    constructedService = createSyntheticService();
+    return constructedService;
+  }
+  if (mode !== "synthetic-postgres") {
+    throw new Error(
+      "HOLLER_OPERATIONS_MODE must explicitly select synthetic-postgres or synthetic-memory",
+    );
+  }
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl)
+    throw new Error("DATABASE_URL is required for synthetic-postgres mode");
+  const { db } = createDatabase(databaseUrl);
+  constructedService = new PostgresOperationsApplicationService(
+    db,
+    new PrefixedSyntheticPhoneDecryptor(),
+  );
+  return constructedService;
+}
+
+export function configureWorkforceContextResolver(
+  resolver: WorkforceContextResolver,
+): void {
+  configuredContextResolver = resolver;
+}
+
+export function getTenantContext(request: Request): TenantContext {
+  const resolver =
+    configuredContextResolver ??
+    new SyntheticWorkforceContextResolver(
+      syntheticSessionsFromEnvironment(process.env),
+    );
+  try {
+    return resolver.resolve(request);
+  } catch (error) {
+    if (error instanceof WorkforceContextError)
+      throw Response.json(
+        { error: { code: error.code } },
+        { status: error.status },
+      );
+    throw error;
+  }
 }

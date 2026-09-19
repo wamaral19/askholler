@@ -3,6 +3,7 @@ import { Form, Link, useActionData, useLoaderData } from "react-router";
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
 import {
+  executeOperationsRequest,
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
@@ -23,12 +24,14 @@ export async function loader({
   request: Request;
   params: { interviewId?: string };
 }) {
-  if (!params.interviewId)
-    throw new Response("Interview is required", { status: 400 });
-  return getOperationsService().getInterview(
-    getTenantContext(request),
-    params.interviewId,
-  );
+  return executeOperationsRequest(async () => {
+    if (!params.interviewId)
+      throw new Response("Interview is required", { status: 400 });
+    return getOperationsService().getInterview(
+      getTenantContext(request),
+      params.interviewId,
+    );
+  });
 }
 
 export async function action({
@@ -38,46 +41,50 @@ export async function action({
   request: Request;
   params: { interviewId?: string };
 }) {
-  if (!params.interviewId)
-    throw new Response("Interview is required", { status: 400 });
-  const form = await request.formData();
-  const intent = String(form.get("intent") ?? "");
-  const service = getOperationsService();
-  const context = getTenantContext(request);
-  if (intent === "reveal") {
-    const result = await service.revealPhone(context, params.interviewId);
-    return Response.json(
-      { intent, phone: result.phone },
-      { headers: { "Cache-Control": "no-store, private", Pragma: "no-cache" } },
-    );
-  }
-  if (intent === "response") {
-    await service.saveResponse(
-      context,
-      params.interviewId,
-      String(form.get("fieldId")),
-      String(form.get("value")),
-    );
-    return { intent, saved: true };
-  }
-  if (intent === "observation") {
-    await service.addObservation(
-      context,
-      params.interviewId,
-      String(form.get("kind")),
-      String(form.get("detail")),
-    );
-    return { intent, saved: true };
-  }
-  if (intent === "complete" || intent === "no_answer") {
-    await service.completeInterview(
-      context,
-      params.interviewId,
-      intent === "complete" ? "completed" : "no_answer",
-    );
-    return { intent, saved: true };
-  }
-  throw new Response("Unsupported action", { status: 400 });
+  return executeOperationsRequest(async () => {
+    if (!params.interviewId)
+      throw new Response("Interview is required", { status: 400 });
+    const form = await request.formData();
+    const intent = String(form.get("intent") ?? "");
+    const service = getOperationsService();
+    const context = getTenantContext(request);
+    if (intent === "reveal") {
+      const result = await service.revealPhone(context, params.interviewId);
+      return Response.json(
+        { intent, phone: result.phone },
+        {
+          headers: { "Cache-Control": "no-store, private", Pragma: "no-cache" },
+        },
+      );
+    }
+    if (intent === "response") {
+      await service.saveResponse(
+        context,
+        params.interviewId,
+        String(form.get("fieldId")),
+        String(form.get("value")),
+      );
+      return { intent, saved: true };
+    }
+    if (intent === "observation") {
+      await service.addObservation(
+        context,
+        params.interviewId,
+        String(form.get("kind")),
+        String(form.get("detail")),
+      );
+      return { intent, saved: true };
+    }
+    if (intent === "complete" || intent === "no_answer") {
+      await service.completeInterview(
+        context,
+        params.interviewId,
+        intent === "complete" ? "completed" : "no_answer",
+      );
+      return { intent, saved: true };
+    }
+    throw new Response("Unsupported action", { status: 400 });
+  });
 }
 
 export function meta() {

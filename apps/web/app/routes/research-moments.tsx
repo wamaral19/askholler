@@ -2,30 +2,33 @@ import { Form, Link, useActionData, useLoaderData } from "react-router";
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
 import {
+  executeOperationsRequest,
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
 
 export async function loader({ request }: { request: Request }) {
-  return {
+  return executeOperationsRequest(async () => ({
     moments: await getOperationsService().listMoments(
       getTenantContext(request),
     ),
-  };
+  }));
 }
 
 export async function action({ request }: { request: Request }) {
-  const form = await request.formData();
-  if (form.get("intent") !== "generate_report") {
-    throw new Response("Unsupported action", { status: 400 });
-  }
-  const period = String(form.get("period") ?? "");
-  if (!/^\d{4}-\d{2}$/.test(period))
-    throw new Response("Invalid report period", { status: 400 });
-  return getOperationsService().generateReport(
-    getTenantContext(request),
-    period,
-  );
+  return executeOperationsRequest(async () => {
+    const form = await request.formData();
+    if (form.get("intent") !== "generate_report") {
+      throw new Response("Unsupported action", { status: 400 });
+    }
+    const period = String(form.get("period") ?? "");
+    if (!/^\d{4}-\d{2}$/.test(period))
+      throw new Response("Invalid report period", { status: 400 });
+    return getOperationsService().generateReport(
+      getTenantContext(request),
+      period,
+    );
+  });
 }
 
 export function meta() {
