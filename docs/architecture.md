@@ -135,6 +135,10 @@ Transition events are appended for audit and recovery; the assignment row holds 
 
 The `operations` UI is an internal, role-protected application, not a merchant analytics dashboard. It provides a live queue, atomic claim, assignment context, read-only published script, call control, notes, outcomes, transcript/tagging workflow, and a script-improvement suggestion. Server actions/API handlers invoke domain services and never write tables directly.
 
+The synthetic durable composition uses `PostgresOperationsApplicationService`. `HOLLER_OPERATIONS_MODE=synthetic-postgres` must be explicit; missing durable configuration fails closed instead of falling back to memory. `synthetic-memory` is an explicitly named development/test option only.
+
+Workforce identity is resolved at a replaceable context boundary. The temporary adapter accepts an opaque development session token and resolves merchant/researcher IDs from a server-side allowlist; route, query, and form values never establish tenancy. It is not production authentication. OIDC/MFA, durable memberships/roles and revocation remain launch requirements.
+
 The queue shows event age, merchant/brand, first name only where authorized, order total, first/repeat status, products/SKUs, observed attribution, objective, priority, and call state. Phone remains masked. Polling is sufficient for MVP; real-time sockets are unnecessary.
 
 ### 9. Scripts and script versions

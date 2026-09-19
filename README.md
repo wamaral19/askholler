@@ -12,8 +12,9 @@ Holler is an evidence-backed customer research operations platform for Shopify e
 - Fake dialer and transcription providers.
 - Versioned research fields, transcript evidence, researcher observations, and AI/human provenance rules.
 - Validated evidence-backed Angles and deterministic monthly HTML report rendering.
-- React Router loaders/actions behind an injectable operations service for Research Moments, cohort construction, queue claim/start, protected phone reveal/manual dialing, live interview capture, completion, and report generation.
-- A development-only synthetic private-customer adapter with claim-gated, short-lived, audited phone reveal.
+- React Router loaders/actions backed by a PostgreSQL operations service for Research Moments, queue claim/start/release, pinned interview definitions, protected phone reveal, interview capture, completion, and report generation.
+- A development-only synthetic workforce-session adapter and replaceable synthetic phone decryptor, with tenant-scoped, claim-gated and audited reveal.
+- Transactional `report.render.requested` application-outbox events for the worker integration branch.
 - PostgreSQL/Drizzle schema and migrations for the initial domain.
 
 All fixtures and UI data are synthetic. Do not introduce production customer PII into development, logs, prompts, fixtures, screenshots, or source control.
@@ -54,7 +55,9 @@ Run the prototype UI:
 npm run dev
 ```
 
-The UI is wired to an injectable application-service boundary and uses a local synthetic adapter by default. PostgreSQL repositories now exist, but production composition, workforce authentication, Shopify authentication/webhooks, a real PII encryption/KMS adapter, and real provider calls remain deliberately out of scope.
+The UI fails closed unless `HOLLER_OPERATIONS_MODE` is explicitly selected. Use `synthetic-postgres` with `DATABASE_URL` for the durable path. `synthetic-memory` exists only for isolated development/tests and is never an implicit fallback. Supply an opaque `holler_workforce_session` cookie (or `x-holler-workforce-session` in tests) mapped by `HOLLER_SYNTHETIC_WORKFORCE_SESSIONS`; merchant and researcher IDs come only from that server-side map.
+
+This session adapter is intentionally non-production and replaceable at the context boundary. Production OIDC/MFA, workforce membership/role storage and revocation, KMS-backed phone encryption, legal approval for outbound contact/recording, reveal rate limits/alerting, and live providers remain launch blockers. Synthetic mode is not completed production authentication or encryption.
 
 ## Database
 
@@ -72,7 +75,7 @@ npm run db:generate
 
 Never point development commands at a production database.
 
-Durable jobs use the PostgreSQL `durable_jobs` table, idempotency keys, retry state, and `FOR UPDATE SKIP LOCKED` claims. The worker handler registry that connects live Shopify normalization to qualification remains a follow-on adapter; current persisted verification seeds the synthetic facts directly.
+Report requests create or identify a report/revision and insert an outbox event in the same transaction. The worker-facing contract is `eventType=report.render.requested`, `schemaVersion=1`, `aggregateType=report_revision`; payload fields are `reportId`, `reportRevisionId`, ISO `periodStart`, ISO `periodEnd`, and `format=html`. The stable idempotency key is `report.render.requested:<reportId>:1`. The Graphile branch may map this to `render_report`; this branch does not dispatch it.
 
 ## Repository structure
 
