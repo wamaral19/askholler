@@ -974,6 +974,10 @@ export const reportArtifacts = pgTable(
   ],
 );
 
+/**
+ * @deprecated Historical custom queue storage. No runtime claims or executes
+ * these rows; Graphile Worker is the only executable job engine.
+ */
 export const durableJobs = pgTable(
   "durable_jobs",
   {

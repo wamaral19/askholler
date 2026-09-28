@@ -9,6 +9,7 @@ export type TestDatabase = ReturnType<typeof createDatabase>["db"];
 export interface IsolatedTestDatabase {
   readonly db: TestDatabase;
   readonly schemaName: string;
+  readonly databaseUrl: string;
   close(): Promise<void>;
 }
 
@@ -51,6 +52,7 @@ export async function createIsolatedTestDatabase(
   return {
     db,
     schemaName,
+    databaseUrl: isolatedUrl.toString(),
     async close() {
       await pool.end();
       await admin.query(`drop database ${schemaName}`);

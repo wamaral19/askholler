@@ -1,33 +1,30 @@
-import { randomUUID } from "node:crypto";
-import { createDatabase, PostgresJobQueue } from "@holler/db";
-import { loadServerEnvironment } from "@holler/domain";
-import { runWorker } from "./worker";
+import { loadWorkerEnvironment } from "@holler/domain";
+import { pathToFileURL } from "node:url";
+import { unavailableWorkerServices } from "./jobs";
+import { startWorkerRuntime } from "./runtime";
+import { createTaskList } from "./tasks";
 
-const environment = loadServerEnvironment(process.env);
+export async function main(): Promise<void> {
+  const environment = loadWorkerEnvironment(process.env);
+  const taskList = createTaskList(unavailableWorkerServices());
+  const runtime = await startWorkerRuntime(environment, taskList);
 
-console.info(
-  JSON.stringify({
-    event: "worker.started",
-    environment: environment.NODE_ENV,
-  }),
-);
-
-const { db, pool } = createDatabase(environment.DATABASE_URL);
-const controller = new AbortController();
-for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.once(signal, () => controller.abort());
-}
-
-try {
-  await runWorker(
-    new PostgresJobQueue(db),
-    {},
-    {
-      workerId: `worker-${randomUUID()}`,
-      signal: controller.signal,
-      onEvent: (event) => console.info(JSON.stringify(event)),
-    },
+  console.info(
+    JSON.stringify({
+      event: "worker.started",
+      environment: environment.NODE_ENV,
+      concurrency: environment.WORKER_CONCURRENCY,
+      tasks: Object.keys(taskList),
+    }),
   );
-} finally {
-  await pool.end();
+
+  for (const signal of ["SIGTERM", "SIGINT"] as const)
+    process.once(signal, () => void runtime.stop(signal));
+  await runtime.done;
 }
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href)
+  void main().catch(() => {
+    console.error(JSON.stringify({ event: "worker.start_failed" }));
+    process.exitCode = 1;
+  });
