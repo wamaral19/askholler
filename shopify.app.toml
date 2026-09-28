@@ -3,19 +3,25 @@
 client_id = "44aa3b7648ef2fd87327306c7035e3ae"
 application_url = "https://shopify.dev/apps/default-app-home"
 embedded = true
-name = """
-Holler
-"""
+name = "Holler"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = ""
+scopes = "read_orders,read_products,read_customers"
 
 [auth]
-redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+redirect_urls = [ "https://shopify.dev/apps/default-app-home/auth/callback" ]
 
 [webhooks]
 api_version = "2026-10"
+
+[[webhooks.subscriptions]]
+topics = [ "orders/create", "app/uninstalled" ]
+uri = "/webhooks"
+
+[[webhooks.subscriptions]]
+compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+uri = "/webhooks"
 
 [build]
 include_config_on_deploy = true

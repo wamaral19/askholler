@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 
 import type { TenantContext } from "./operations-types";
+import { workforceRoles, type WorkforceRole } from "@holler/domain";
 
 export interface SyntheticWorkforceSession {
   readonly merchantId: string;
   readonly researcherId: string;
   readonly enabled: boolean;
+  readonly roles: readonly WorkforceRole[];
 }
 
 export interface WorkforceContextResolver {
@@ -52,6 +54,7 @@ export class SyntheticWorkforceContextResolver implements WorkforceContextResolv
     return {
       merchantId: session.merchantId,
       researcherId: session.researcherId,
+      roles: session.roles,
       correlationId:
         requestId &&
         /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
@@ -89,13 +92,19 @@ export function syntheticSessionsFromEnvironment(
     );
   const sessions = new Map<string, SyntheticWorkforceSession>();
   for (const [token, value] of Object.entries(parsed)) {
+    const configuredRoles = (value as Record<string, unknown> | undefined)
+      ?.roles;
     if (
       !/^[A-Za-z0-9._~-]{8,160}$/.test(token) ||
       !value ||
       typeof value !== "object" ||
       typeof (value as Record<string, unknown>).merchantId !== "string" ||
       typeof (value as Record<string, unknown>).researcherId !== "string" ||
-      typeof (value as Record<string, unknown>).enabled !== "boolean"
+      typeof (value as Record<string, unknown>).enabled !== "boolean" ||
+      !Array.isArray(configuredRoles) ||
+      !configuredRoles.every((role: unknown) =>
+        workforceRoles.includes(role as WorkforceRole),
+      )
     )
       throw new Error(
         "Invalid HOLLER_SYNTHETIC_WORKFORCE_SESSIONS configuration",

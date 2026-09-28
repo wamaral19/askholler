@@ -1,0 +1,49 @@
+# Render Blueprint. See docs/deployment.md before applying.
+#
+# The background worker is intentionally not deployed yet: in production it
+# refuses to start until OIDC workforce auth, KMS phone encryption, and live
+# Twilio/R2 configuration exist (packages/domain/src/config.ts).
+
+databases:
+  - name: holler-db
+    plan: basic-256mb
+    region: virginia
+    postgresMajorVersion: "17"
+    databaseName: holler
+    # Reachable only from services in this Render account.
+    ipAllowList: []
+
+services:
+  - type: web
+    name: holler-web
+    runtime: node
+    plan: starter
+    region: virginia
+    buildCommand: npm ci --include=dev && npm run build --workspace=@holler/web
+    preDeployCommand: npm run db:migrate
+    startCommand: npm run start --workspace=@holler/web
+    healthCheckPath: /
+    domains:
+      - withholler.com
+      - app.withholler.com
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: holler-db
+          property: connectionString
+      - key: HOLLER_MARKETING_URL
+        value: https://withholler.com
+      - key: APP_BASE_URL
+        value: https://app.withholler.com
+      - key: SHOPIFY_APP_URL
+        value: https://app.withholler.com
+      # Public client ID, also in shopify.app.toml.
+      - key: SHOPIFY_API_KEY
+        value: 44aa3b7648ef2fd87327306c7035e3ae
+      # Secrets: entered in the Render dashboard, never committed.
+      - key: SHOPIFY_API_SECRET
+        sync: false

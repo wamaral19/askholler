@@ -580,6 +580,54 @@ export class PostgresJobQueue {
       .returning();
     return row;
   }
+
+  async fail(
+    merchantId: string,
+    jobId: string,
+    workerId: string,
+    errorCode: string,
+    now = new Date(),
+  ) {
+    const [row] = await this.db
+      .update(schema.durableJobs)
+      .set({
+        status: "failed",
+        lastErrorCode: errorCode,
+        lockedAt: null,
+        lockedBy: null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.durableJobs.id, jobId),
+          eq(schema.durableJobs.merchantId, merchantId),
+          eq(schema.durableJobs.status, "running"),
+          eq(schema.durableJobs.lockedBy, workerId),
+        ),
+      )
+      .returning();
+    return row;
+  }
+
+  async recoverStaleLocks(staleBefore: Date, now = new Date()) {
+    return this.db
+      .update(schema.durableJobs)
+      .set({
+        status: "retry",
+        availableAt: now,
+        lockedAt: null,
+        lockedBy: null,
+        lastErrorCode: "stale_worker_lock",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.durableJobs.status, "running"),
+          sql`${schema.durableJobs.lockedAt} < ${staleBefore}`,
+        ),
+      )
+      .returning();
+  }
 }
 
 export class PostgresAuditRepository {

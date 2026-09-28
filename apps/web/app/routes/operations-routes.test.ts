@@ -33,6 +33,21 @@ const assignment: QueueItem = {
 
 function service(): OperationsApplicationService {
   return {
+    getDashboard: vi.fn(async (_context, filters) => ({
+      filters,
+      metrics: {
+        orders: 0,
+        revenueMinor: 0,
+        currency: "USD",
+        newCustomers: 0,
+        repeatCustomers: 0,
+        refundedOrders: 0,
+        repurchaseRate: 0,
+      },
+      attribution: [],
+      cohortExpression: { all: [] },
+      limitations: [],
+    })),
     listResearchFields: vi.fn(async () => []),
     listMoments: vi.fn(async () => []),
     saveMoment: vi.fn(async () => ({ id: "moment" })),
@@ -47,6 +62,7 @@ function service(): OperationsApplicationService {
       fieldSetVersion: 1,
       script: [],
       fields: [],
+      answeredFieldIds: [],
       status: "dialing" as const,
     })),
     revealPhone: vi.fn(async () => ({ phone: "+12025550123" })),
@@ -96,7 +112,10 @@ describe("operations routes", () => {
     configureWorkforceContextResolver(
       new SyntheticWorkforceContextResolver(
         new Map([
-          ["route-session", { merchantId, researcherId, enabled: true }],
+          [
+            "route-session",
+            { merchantId, researcherId, enabled: true, roles: ["researcher"] },
+          ],
         ]),
       ),
     );
@@ -121,7 +140,10 @@ describe("operations routes", () => {
     configureWorkforceContextResolver(
       new SyntheticWorkforceContextResolver(
         new Map([
-          ["route-session", { merchantId, researcherId, enabled: true }],
+          [
+            "route-session",
+            { merchantId, researcherId, enabled: true, roles: ["researcher"] },
+          ],
         ]),
       ),
     );

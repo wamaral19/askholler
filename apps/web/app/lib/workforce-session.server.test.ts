@@ -12,8 +12,14 @@ const researcherId = "00000000-0000-7000-8000-000000000102";
 describe("synthetic workforce context", () => {
   const resolver = new SyntheticWorkforceContextResolver(
     new Map([
-      ["enabled-session", { merchantId, researcherId, enabled: true }],
-      ["disabled-session", { merchantId, researcherId, enabled: false }],
+      [
+        "enabled-session",
+        { merchantId, researcherId, enabled: true, roles: ["researcher"] },
+      ],
+      [
+        "disabled-session",
+        { merchantId, researcherId, enabled: false, roles: ["researcher"] },
+      ],
     ]),
   );
 
@@ -61,6 +67,7 @@ describe("synthetic workforce context", () => {
             merchantId: "not-a-uuid",
             researcherId,
             enabled: true,
+            roles: ["researcher"],
           },
         }),
       }),

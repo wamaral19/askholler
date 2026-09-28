@@ -42,6 +42,11 @@ import type {
   TenantContext,
 } from "./operations-types";
 import type { PrototypeResearchField } from "./prototype-data";
+import {
+  canViewCommerceDashboard,
+  dashboardFiltersToCohort,
+  type DashboardFilters,
+} from "./analytics";
 
 export class OperationsError extends Error {
   constructor(
@@ -102,6 +107,94 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     private readonly phoneDecryptor: SyntheticPhoneDecryptor,
     private readonly now: () => Date = () => new Date(),
   ) {}
+
+  async getDashboard(context: TenantContext, filters: DashboardFilters) {
+    await this.requireAdmin(context);
+    await this.requireMerchant(context);
+    const start = new Date(`${filters.start}T00:00:00.000Z`);
+    const end = new Date(`${filters.end}T23:59:59.999Z`);
+    const rows = await this.db
+      .select({
+        id: orders.id,
+        totalMinor: orders.totalMinor,
+        currency: orders.currency,
+        sequence: orders.customerOrderSequence,
+        financialStatus: orders.financialStatus,
+        observed: orders.observedAttribution,
+      })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.merchantId, context.merchantId),
+          sql`${orders.orderedAt} >= ${start}`,
+          sql`${orders.orderedAt} <= ${end}`,
+        ),
+      );
+    let scoped = rows;
+    if (filters.sku) {
+      const matching = await this.db
+        .select({ id: orderLineItems.orderId })
+        .from(orderLineItems)
+        .where(
+          and(
+            eq(orderLineItems.merchantId, context.merchantId),
+            eq(orderLineItems.sku, filters.sku),
+          ),
+        );
+      const ids = new Set(matching.map((row) => row.id));
+      scoped = scoped.filter((row) => ids.has(row.id));
+    }
+    scoped = scoped.filter((row) => {
+      const source = textValue(
+        safeJson(row.observed).source,
+        "unknown",
+      ).toLowerCase();
+      const typeMatches =
+        filters.customerType === "all" ||
+        (filters.customerType === "new"
+          ? row.sequence === 1
+          : (row.sequence ?? 0) >= 2);
+      return (
+        typeMatches &&
+        (filters.attribution === "all" || source === filters.attribution)
+      );
+    });
+    const attribution = new Map<string, number>();
+    for (const row of scoped) {
+      const source = textValue(
+        safeJson(row.observed).source,
+        "unknown",
+      ).toLowerCase();
+      attribution.set(source, (attribution.get(source) ?? 0) + 1);
+    }
+    const repeats = scoped.filter((row) => (row.sequence ?? 0) >= 2).length;
+    return {
+      filters,
+      metrics: {
+        orders: scoped.length,
+        revenueMinor: scoped.reduce((sum, row) => sum + row.totalMinor, 0),
+        currency: scoped[0]?.currency ?? "USD",
+        newCustomers: scoped.filter((row) => row.sequence === 1).length,
+        repeatCustomers: repeats,
+        refundedOrders: scoped.filter(
+          (row) => row.financialStatus === "refunded",
+        ).length,
+        repurchaseRate: scoped.length
+          ? Number(((repeats / scoped.length) * 100).toFixed(2))
+          : 0,
+      },
+      attribution: [...attribution]
+        .map(([source, orders]) => ({ source, orders }))
+        .sort(
+          (a, b) => b.orders - a.orders || a.source.localeCompare(b.source),
+        ),
+      cohortExpression: dashboardFiltersToCohort(filters),
+      limitations: [
+        "Discount metrics require normalized discount data and are not shown.",
+        "Revenue reflects filtered orders and is not net of partial refunds.",
+      ],
+    };
+  }
 
   async listMoments(context: TenantContext) {
     await this.requireMerchant(context);
@@ -966,11 +1059,11 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           reportId,
           merchantId: context.merchantId,
           revision: 1,
-          title: `Angles Report ${period}`,
+          title: `Disco ${period}`,
           executiveSummary: "Pending generation",
           methodology: "Pending generation",
           sampleNotes: "Pending generation",
-          templateVersion: "angles-v1",
+          templateVersion: "disco-html-v1",
           status: "generating",
         })
         .onConflictDoNothing();
@@ -1010,6 +1103,11 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       )
       .limit(1);
     if (!merchant) throw new OperationsError("MERCHANT_ACCESS_DENIED", 403);
+  }
+
+  private async requireAdmin(context: TenantContext) {
+    if (!canViewCommerceDashboard(context.roles))
+      throw new OperationsError("ADMIN_ROLE_REQUIRED", 403);
   }
 
   private async expireAssignments(merchantId: string, now: Date) {
@@ -1277,6 +1375,20 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       .limit(1);
     const content = safeJson(script.content);
     const prompts = Array.isArray(content.prompts) ? content.prompts : [];
+    const answered = await this.db
+      .select({ id: interviewResponses.researchFieldVersionId })
+      .from(interviewResponses)
+      .where(
+        and(
+          eq(interviewResponses.merchantId, context.merchantId),
+          eq(interviewResponses.interviewId, interviewId),
+          eq(
+            interviewResponses.researchFieldSetVersionId,
+            interview.researchFieldSetVersionId,
+          ),
+          eq(interviewResponses.reviewStatus, "accepted"),
+        ),
+      );
     return {
       id: interview.id,
       assignment,
@@ -1320,6 +1432,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           },
         ];
       }),
+      answeredFieldIds: [...new Set(answered.map((row) => row.id))],
       status:
         interview.status === "completed"
           ? "completed"

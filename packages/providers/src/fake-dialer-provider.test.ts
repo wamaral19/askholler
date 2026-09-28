@@ -92,4 +92,26 @@ describe("FakeDialerProvider", () => {
       provider.simulateAnswered(session.providerCallReference),
     ).rejects.toBeInstanceOf(FakeDialerTransitionError);
   });
+
+  it("supports consent-controlled recording lifecycle", async () => {
+    const provider = new FakeDialerProvider();
+    const call = await provider.startCall(callInput);
+    const recording = await provider.startRecording({
+      providerCallReference: call.providerCallReference,
+      idempotencyKey: "record-after-consent",
+    });
+
+    expect(recording.status).toBe("in_progress");
+    await expect(
+      provider.downloadRecording(recording.providerRecordingReference),
+    ).rejects.toBeInstanceOf(FakeDialerTransitionError);
+    await provider.stopRecording(
+      call.providerCallReference,
+      recording.providerRecordingReference,
+    );
+    await expect(
+      provider.downloadRecording(recording.providerRecordingReference),
+    ).resolves.toMatchObject({ mediaType: "audio/mpeg" });
+    await provider.deleteRecording(recording.providerRecordingReference);
+  });
 });

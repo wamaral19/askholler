@@ -692,14 +692,14 @@ export async function seedPersistedCanonicalFlow(
         reportId: canonicalIds.report,
         merchantId: canonicalIds.merchant,
         revision: 1,
-        title: "Juniper Row — September 2026 Angles",
+        title: "Juniper Row — September 2026 Disco",
         executiveSummary:
           "Creator discovery and email purchase trigger differed from observed Meta session attribution.",
         methodology:
           "Synthetic second-purchase cohort with evidence-linked human-reviewed responses.",
         sampleNotes:
           "One completed synthetic interview; not statistically representative.",
-        templateVersion: "angles-html-v1",
+        templateVersion: "disco-html-v1",
         status: "published",
         publishedAt: at("2026-10-01T14:00:00.000Z"),
       })

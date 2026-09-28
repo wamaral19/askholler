@@ -1035,6 +1035,102 @@ export const auditEvents = pgTable(
   ],
 );
 
+export const workforceUsers = pgTable(
+  "workforce_users",
+  {
+    id: uuid("id").primaryKey(),
+    oidcIssuer: text("oidc_issuer").notNull(),
+    oidcSubject: text("oidc_subject").notNull(),
+    status: text("status").notNull(),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("workforce_users_oidc_identity_uidx").on(
+      table.oidcIssuer,
+      table.oidcSubject,
+    ),
+  ],
+);
+
+export const merchantMemberships = pgTable(
+  "merchant_memberships",
+  {
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => workforceUsers.id),
+    role: text("role").notNull(),
+    status: text("status").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    primaryKey({ columns: [table.merchantId, table.userId, table.role] }),
+  ],
+);
+
+export const retentionPolicies = pgTable("retention_policies", {
+  id: uuid("id").primaryKey(),
+  merchantId: uuid("merchant_id")
+    .notNull()
+    .references(() => merchants.id),
+  piiDays: integer("pii_days").notNull(),
+  recordingDays: integer("recording_days").notNull(),
+  transcriptDays: integer("transcript_days").notNull(),
+  evidenceDays: integer("evidence_days").notNull(),
+  artifactDays: integer("artifact_days").notNull(),
+  status: text("status").notNull(),
+  ...timestamps,
+});
+
+export const deletionRequests = pgTable(
+  "deletion_requests",
+  {
+    id: uuid("id").primaryKey(),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    scope: text("scope").notNull(),
+    subjectRefHash: text("subject_ref_hash").notNull(),
+    status: text("status").notNull(),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    legalHold: boolean("legal_hold").notNull().default(false),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("deletion_requests_identity_uidx").on(
+      table.merchantId,
+      table.scope,
+      table.subjectRefHash,
+    ),
+  ],
+);
+
+export const deletionSteps = pgTable(
+  "deletion_steps",
+  {
+    requestId: uuid("request_id")
+      .notNull()
+      .references(() => deletionRequests.id),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    stepKey: text("step_key").notNull(),
+    status: text("status").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    safeErrorCode: text("safe_error_code"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    primaryKey({ columns: [table.requestId, table.stepKey] }),
+    index("deletion_steps_pending_idx").on(table.merchantId, table.status),
+  ],
+);
+
 export const outboxEvents = pgTable(
   "outbox_events",
   {

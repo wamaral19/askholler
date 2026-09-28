@@ -11,7 +11,7 @@ Holler is an evidence-backed customer research operations platform for Shopify e
 - Atomic, optimistic assignment claim/start transitions with append-only transition records; qualification never starts an interview or call.
 - Fake dialer and transcription providers.
 - Versioned research fields, transcript evidence, researcher observations, and AI/human provenance rules.
-- Validated evidence-backed Angles and deterministic monthly HTML report rendering.
+- Validated evidence-backed Angles and deterministic monthly HTML Disco rendering (the code still uses the generic `Report` domain name).
 - React Router loaders/actions backed by a PostgreSQL operations service for Research Moments, queue claim/start/release, pinned interview definitions, protected phone reveal, interview capture, completion, and report generation.
 - A development-only synthetic workforce-session adapter and replaceable synthetic phone decryptor, with tenant-scoped, claim-gated and audited reveal.
 - Transactional `report.render.requested` application-outbox events for the worker integration branch.
@@ -55,9 +55,44 @@ Run the prototype UI:
 npm run dev
 ```
 
-The UI fails closed unless `HOLLER_OPERATIONS_MODE` is explicitly selected. Use `synthetic-postgres` with `DATABASE_URL` for the durable path. `synthetic-memory` exists only for isolated development/tests and is never an implicit fallback. Supply an opaque `holler_workforce_session` cookie (or `x-holler-workforce-session` in tests) mapped by `HOLLER_SYNTHETIC_WORKFORCE_SESSIONS`; merchant and researcher IDs come only from that server-side map.
+Run the embedded Shopify surface against the linked development app/store:
+
+```bash
+npx shopify app dev --store hollers-test-store-version-zero.myshopify.com
+```
+
+Shopify CLI supplies the app credentials and tunnel URL to the React Router
+process. `DATABASE_URL` must point to a running PostgreSQL database. Shopify
+sessions are stored durably in that database by the official PostgreSQL session
+adapter. The app must have development access to protected customer data before
+Shopify will activate the `orders/create` subscription and the `read_orders` /
+`read_customers` scopes.
+
+Credential-free readiness checks are part of the normal suite:
+
+```bash
+npm test -- packages/shopify apps/worker/src/worker.test.ts
+npm run typecheck
+```
+
+For a real development-store check, use only synthetic customers and orders:
+
+1. Run migrations and start the worker in a second terminal with `npm run dev:worker`.
+2. Start `shopify app dev` and approve only the scopes in `shopify.app.toml`.
+3. Confirm the embedded `/app` page displays the expected shop domain.
+4. Create one synthetic test order, then replay its `orders/create` delivery from Shopify's developer tools.
+5. Confirm the invalid-signature case is rejected, the replay is deduplicated, and neither process logs the webhook body or customer contact fields.
+6. Uninstall the app and confirm its stored Shopify sessions are removed.
+
+The repository cannot prove protected-customer-data approval, delivery from Shopify's infrastructure, or historical API access without a Partner app and development store. Those remain external launch checks. The current webhook route authenticates and acknowledges Shopify callbacks, but durable `orders/create` persistence and bounded history reconciliation remain implementation work; do not treat a successful install as ingestion readiness.
+
+The UI fails closed unless `HOLLER_OPERATIONS_MODE` is explicitly selected. Use `synthetic-postgres` with `DATABASE_URL` for the durable path. `synthetic-memory` exists only for isolated development/tests and is never an implicit fallback. Supply an opaque `holler_workforce_session` cookie (or `x-holler-workforce-session` in tests) mapped by `HOLLER_SYNTHETIC_WORKFORCE_SESSIONS`; merchant, researcher, and role grants come only from that server-side map. The commerce dashboard at `/admin/dashboard` requires `merchant_admin` or `platform_admin`.
 
 This session adapter is intentionally non-production and replaceable at the context boundary. Production OIDC/MFA, workforce membership/role storage and revocation, KMS-backed phone encryption, legal approval for outbound contact/recording, reveal rate limits/alerting, and live providers remain launch blockers. Synthetic mode is not completed production authentication or encryption.
+
+## Deployment
+
+Production runs on Render (web service + PostgreSQL, defined in `render.yaml`) behind Cloudflare DNS. `withholler.com` serves only the landing page; `app.withholler.com` serves Shopify, Twilio, and workforce routes. The worker, operations UI, and live calls are intentionally not enabled yet. Setup, DNS records, and provider URLs are in `docs/deployment.md`.
 
 ## Database
 
@@ -93,6 +128,12 @@ packages/testkit  Canonical synthetic end-to-end flow
 docs              Architecture, data model, plan, security review, and demo contract
 ```
 
+## Product deliverables
+
+- **Earshot:** the reporting package now validates and renders deterministic weekly CSVs from pinned columns and reviewed rows, neutralizes spreadsheet formulas, and exposes same-tenant admin/private-store/audit contracts. Database assembly, scheduling, and signed-download delivery remain to be wired.
+- **Disco:** monthly evidence-backed synthesis of what changed, why, supporting customer conversations, and recommended actions. The current generic report renderer is its technical foundation.
+- **Angles:** individual evidence-backed findings assembled inside a Disco, not a separate customer deliverable.
+
 ## Next implementation boundary
 
-Wire the currently in-memory synthetic slice to PostgreSQL repositories and durable jobs, then connect UI actions to those services with workforce authentication and tenant authorization. Shopify installation/webhook handling and a real dialer remain separate adapters behind the established contracts.
+Finish durable worker orchestration and development-store verification, then wire the Earshot generator to reviewed PostgreSQL evidence, a weekly job, and private signed-download delivery. Before a live pilot, replace synthetic workforce/PII adapters, complete protected-data approval and legal review, and integrate production dialer/transcription providers. The detailed ordered backlog is in `docs/mvp-plan.md`.

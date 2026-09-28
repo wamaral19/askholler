@@ -646,11 +646,11 @@ function buildCanonicalReport(
     canonicalAngle,
     report: {
       schemaVersion: 1,
-      templateVersion: "angles-html-v1",
+      templateVersion: "disco-html-v1",
       reportId: canonicalIds.report,
       revisionId: canonicalIds.reportRevision,
       merchantName: "Juniper Row",
-      title: "Juniper Row — September 2026 Angles",
+      title: "Juniper Row — September 2026 Disco",
       period,
       generatedAt: "2026-10-01T14:00:00.000Z",
       methodology:

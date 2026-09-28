@@ -123,7 +123,7 @@ function canonicalReport(): ReportRenderModel {
     reportId: "00000000-0000-7000-8000-000000000711",
     revisionId: "00000000-0000-7000-8000-000000000712",
     merchantName: "Juniper Row",
-    title: "Juniper Row — September 2026 Angles",
+    title: "Juniper Row — September 2026 Disco",
     period,
     generatedAt: "2026-10-01T14:00:00.000Z",
     methodology:
@@ -201,13 +201,15 @@ describe("renderReportHtml", () => {
 
     expect(replay).toBe(first);
     expect(createHash("sha256").update(first).digest("hex")).toBe(
-      "886fe02a77264950489037a8498a3dacd4815b5fdec1ca5b029f03a6f9e89d0a",
+      "4619e817b90ae592581a04e758add00ca0fd5857aeb50dbd3e0939eb699923e6",
     );
     expect(first).toContain(
       "Meta captured the session; creator discovery and email drove the journey",
     );
     expect(first).toContain("Methodology");
     expect(first).toContain("Sample notes");
+    expect(first).toContain("Monthly Disco");
+    expect(first).not.toContain("Monthly Angles Report");
     expect(first).toContain('data-population="commerce_population"');
     expect(first).toContain('data-population="interview_sample"');
     expect(first).toContain("00000000-0000-7000-8000-000000000611");

@@ -368,7 +368,7 @@ Use one row per scalar/category answer; multi-select can use multiple rows or a 
 
 Primary key `(interview_tag_id, transcript_segment_id, start_char)`. At least one evidence row is required before an evidence-bearing tag can become `accepted`, enforced in the service transaction and verified by integrity tests.
 
-## Angles and reports
+## Angles, Earshots, and Disco reports
 
 ### Angle
 
@@ -419,7 +419,7 @@ Observed-versus-self-reported comparisons use two metrics with different populat
 
 ### Report
 
-Stable monthly identity.
+Stable monthly Disco identity. `report_type` is fixed to `disco` in the MVP so the generic storage name does not leak into customer-facing terminology.
 
 | Column                        | Type             | Notes                                                     |
 | ----------------------------- | ---------------- | --------------------------------------------------------- |
@@ -429,6 +429,7 @@ Stable monthly identity.
 | `display_month`               | date             | First local day of month                                  |
 | `status`                      | text             | `draft`, `rendering`, `published`, `failed`, `superseded` |
 | `current_revision_id`         | uuid nullable FK | Published/current revision                                |
+| `report_type`                 | text             | `disco` in MVP                                            |
 
 Unique `(merchant_id, period_start, period_end)`.
 
@@ -437,6 +438,10 @@ Unique `(merchant_id, period_start, period_end)`.
 `ReportRevision(id, report_id, merchant_id, revision, title, executive_summary, methodology, sample_notes, template_version, status, created_by, published_by, published_at)` is immutable once published.
 
 `ReportAngle(report_revision_id, angle_revision_id, section, display_order, promoted_to_executive_summary)` pins exact findings. `ReportArtifact(id, report_revision_id, merchant_id, format, object_key, checksum, byte_size, rendered_at, expires_at, deleted_at)` stores private generated outputs.
+
+### EarshotExport
+
+`EarshotExport(id, merchant_id, period_start, period_end, field_set_schema_version, status, object_key, checksum, byte_size, generated_by, generated_at, expires_at, deleted_at)` records a private weekly export artifact. Its rows are generated from tenant-scoped interviews, assignments, qualification snapshots, reviewed responses/tags, and authorized evidence references; the export does not become a second source of truth. `EarshotExportColumn(export_id, field_definition_version_id nullable, key, label, value_type, display_order)` freezes column meaning for reproducibility. Export creation/download is authorized and audited.
 
 ## Jobs, audit, retention, and deletion
 

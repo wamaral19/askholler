@@ -32,6 +32,7 @@ export function AppShell({
           </NavLink>
           <NavLink to="/moments/new">Cohort builder</NavLink>
           <NavLink to="/queue">Research queue</NavLink>
+          <NavLink to="/admin/dashboard">Commerce dashboard</NavLink>
         </nav>
         <div className="sidebar-note">
           <span className="status-dot" />

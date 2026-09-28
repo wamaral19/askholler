@@ -2,11 +2,33 @@
 
 ## Goal and sequencing rule
 
-The MVP is complete when a Shopify merchant can install Holler, new orders can safely enter the system, eligible customers appear in a live human-research queue, completed interviews become auditable evidence, and an internal analyst can publish a monthly Angles Report that traces every finding to that evidence.
+The MVP is complete when a Shopify merchant can install Holler, new orders can safely enter the system, eligible customers appear in a live human-research queue, completed interviews become auditable evidence, and an internal analyst can export a weekly Earshot and publish a monthly Disco that traces every finding to that evidence.
 
 Implementation follows a vertical-slice rule: establish the smallest shared contracts first, then make the complete synthetic path work before expanding production integrations. No broad feature work starts until the architecture/data model and shared types are reviewed.
 
-## Repository assessment
+## Current status (2026-09-24)
+
+The repository is no longer greenfield. It now contains a strict TypeScript workspace, React Router web application, worker entrypoint, PostgreSQL/Drizzle schema and migrations, Shopify application/auth/webhook scaffolding, a versioned qualification engine, assignment/interview services, evidence and reporting modules, synthetic providers, and deterministic synthetic demo paths.
+
+Working foundations include:
+
+- provider-neutral commerce normalization and idempotent domain contracts
+- versioned Research Moments, cohort predicates, field sets, and qualification audit
+- atomic queue claim/start/release and protected phone reveal in synthetic modes
+- interview/transcript/tag/evidence persistence and evidence-backed Angle validation
+- deterministic monthly HTML report rendering and transactional render-request outbox events
+
+The product is not pilot-ready. The next work is integration and production hardening rather than another architecture scaffold:
+
+1. finish the durable worker path and verify end-to-end PostgreSQL orchestration
+2. complete Shopify development-store install/webhook/history tests and protected-data approval
+3. implement production workforce auth/MFA, tenant roles, KMS-backed PII encryption, and retention/deletion operations
+4. add the internal metric/cohort dashboard and the question-coverage interview UX
+5. add weekly Earshot generation and rename the customer-facing monthly artifact to Disco
+6. integrate and validate a live dialer/transcription provider after legal/consent review
+7. add alerting, reconciliation, failure replay, export auditing, and pilot runbooks
+
+## Original repository assessment
 
 As of 2026-09-17 the repository is greenfield. It has no commits and contains only `HOLLER_DEV_BRIEF.md`, `CODEX_AGENTS.md`, and these planning documents. There is no existing framework, deployment, database, authentication, Shopify integration, test framework, job system, or secrets convention. The remote is configured as `https://github.com/wamaral19/holler.git` (repository spelling differs from the product name).
 
@@ -54,7 +76,7 @@ Gate 0 is complete. No real customer PII, live phone call, or production credent
 7. Persist a synthetic transcript, transcript segments, reviewed tag values, and exact evidence links.
 8. Show an attribution comparison with observed source (order/event) separate from self-reported discovery source, purchase trigger, and influence (evidence-backed tags).
 9. Create an Angle revision with at least one evidence link, separate population metrics, denominator/sample size, action, and caveat.
-10. Generate a private monthly HTML Angles Report with executive summary, detailed angle, methodology/sample notes, and evidence references.
+10. Generate a private monthly HTML Disco with executive summary, detailed angle, methodology/sample notes, and evidence references.
 
 ### Acceptance criteria
 
@@ -166,7 +188,7 @@ Interview/transcript lifecycle and versioned tag definitions are stable.
 - Attribution comparison labels source, sample, cohort, and missing/unknown values accurately.
 - Exports are authorized, audited, private, and contain only approved fields.
 
-## Milestone 6: analyst Angle builder and monthly reports
+## Milestone 6: analyst workspace, Earshot, and Disco
 
 ### Dependencies
 
@@ -175,9 +197,12 @@ Evidence integrity and attribution comparison are complete.
 ### Scope
 
 - Period/cohort filters and tag distributions for internal analysts.
+- Admin-only commerce dashboard with merchant, date/granularity, new/repeat, attribution, cohort, discount, SKU/category, returns, and repurchase metrics.
+- Reusable filtered cohorts that compile to validated Research Moment predicates.
 - Draft/review/publish Angle workflow with selected evidence and metrics.
+- Weekly, auditable Earshot spreadsheet export with pinned column definitions and reviewed values.
 - 3-5 finding executive summary and detailed Angle ordering.
-- Versioned HTML report template, private artifact delivery, and optional PDF rendering.
+- Versioned monthly Disco HTML template, private artifact delivery, and optional PDF rendering.
 - Corrections through superseding revisions, not mutation.
 
 ### Acceptance criteria
@@ -185,6 +210,7 @@ Evidence integrity and attribution comparison are complete.
 - Publishing refuses an Angle without evidence and a caveat; percentage metrics require numerator/denominator/population.
 - Commerce-population metrics and interview-sample metrics are visibly distinct.
 - A monthly report is reproducible from pinned angle revisions and template version.
+- An Earshot is reproducible from its period, filters, schema version, and reviewed source records.
 - Evidence backlinks resolve for authorized users and never expose public object URLs.
 - Report generation is retry-safe, and a failed render leaves the prior published revision intact.
 

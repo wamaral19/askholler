@@ -34,7 +34,7 @@ export function renderReportHtml(input: unknown): string {
     "</head>",
     "<body>",
     "<main>",
-    `<header><p class="label">Monthly Angles Report</p><h1>${escapeHtml(report.title)}</h1>`,
+    `<header><p class="label">Monthly Disco</p><h1>${escapeHtml(report.title)}</h1>`,
     `<p>${escapeHtml(report.merchantName)}</p><p class="meta">${escapeHtml(report.period.displayMonth)} · Generated ${escapeHtml(report.generatedAt)} · Template ${escapeHtml(report.templateVersion)}</p></header>`,
     '<section aria-labelledby="executive-summary"><h2 id="executive-summary">Executive summary</h2>',
     ...executiveAngles.map(renderExecutiveAngle),

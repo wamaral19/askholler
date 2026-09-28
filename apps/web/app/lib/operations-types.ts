@@ -2,11 +2,14 @@ import type {
   PrototypeResearchField,
   ResearchMomentSummary,
 } from "./prototype-data";
+import type { WorkforceRole } from "@holler/domain";
+import type { DashboardFilters, DashboardSnapshot } from "./analytics";
 
 export interface TenantContext {
   readonly merchantId: string;
   readonly researcherId: string;
   readonly correlationId: string;
+  readonly roles: readonly WorkforceRole[];
 }
 
 export interface QueueItem {
@@ -34,6 +37,8 @@ export interface InterviewWorkspace {
   readonly fieldSetVersion: number;
   readonly script: readonly { id: string; title: string; prompt: string }[];
   readonly fields: readonly PrototypeResearchField[];
+  /** Accepted responses for the pinned field-set version only. */
+  readonly answeredFieldIds: readonly string[];
   readonly status: "dialing" | "reached" | "completed" | "no_answer";
 }
 
@@ -48,6 +53,10 @@ export interface SaveMomentInput {
 }
 
 export interface OperationsApplicationService {
+  getDashboard(
+    context: TenantContext,
+    filters: DashboardFilters,
+  ): Promise<DashboardSnapshot>;
   listResearchFields(
     context: TenantContext,
   ): Promise<readonly PrototypeResearchField[]>;

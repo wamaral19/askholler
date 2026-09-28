@@ -5,6 +5,11 @@ export interface StartCallInput {
   readonly interviewId: string;
   readonly customerPrivateRef: string;
   readonly idempotencyKey: string;
+  /**
+   * Decrypted only at the telephony boundary. Callers must never persist or log
+   * this value. Fake providers may omit it; production dialers must require it.
+   */
+  readonly destinationPhoneE164?: string;
 }
 
 export interface CallSession {
@@ -13,10 +18,39 @@ export interface CallSession {
   readonly status: CallStatus;
 }
 
+export interface StartRecordingInput {
+  readonly providerCallReference: string;
+  /** An opaque Holler correlation value; never include customer PII. */
+  readonly idempotencyKey: string;
+  readonly statusCallbackUrl?: string;
+}
+
+export interface RecordingSession {
+  readonly provider: string;
+  readonly providerRecordingReference: string;
+  readonly providerCallReference: string;
+  readonly status: "in_progress" | "completed" | "failed";
+}
+
+export interface RecordingMedia {
+  readonly mediaType: "audio/mpeg" | "audio/wav";
+  readonly bytes: Uint8Array;
+}
+
 export interface DialerProvider {
   startCall(input: StartCallInput): Promise<CallSession>;
   endCall(providerCallReference: string): Promise<void>;
   getCallStatus(providerCallReference: string): Promise<CallStatus>;
+  startRecording(input: StartRecordingInput): Promise<RecordingSession>;
+  stopRecording(
+    providerCallReference: string,
+    providerRecordingReference: string,
+  ): Promise<RecordingSession>;
+  getRecording(providerRecordingReference: string): Promise<RecordingSession>;
+  downloadRecording(
+    providerRecordingReference: string,
+  ): Promise<RecordingMedia>;
+  deleteRecording(providerRecordingReference: string): Promise<void>;
 }
 
 export interface TranscriptSegmentInput {

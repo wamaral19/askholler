@@ -1,13 +1,35 @@
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import {
+  Links,
+  Meta,
+  Outlet,
+  Scripts,
+  ScrollRestoration,
+  type LoaderFunctionArgs,
+  type MetaArgs,
+} from "react-router";
 import "./styles.css";
 
-export function meta() {
+export function loader({ request }: LoaderFunctionArgs) {
+  return { origin: new URL(request.url).origin };
+}
+
+export function meta({ data }: MetaArgs<typeof loader>) {
+  const title = "Holler — Hear what your customers think";
+  const description =
+    "Holler has human, 1:1 conversations with your customers at exactly the moments you want to hear from them.";
+  const socialImage = `${data?.origin ?? ""}/og.png`;
+
   return [
-    { title: "Holler Research Operations" },
-    {
-      name: "description",
-      content: "Configure cohorts and conduct evidence-backed interviews.",
-    },
+    { title },
+    { name: "description", content: description },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:type", content: "website" },
+    { property: "og:image", content: socialImage },
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+    { name: "twitter:image", content: socialImage },
   ];
 }
 

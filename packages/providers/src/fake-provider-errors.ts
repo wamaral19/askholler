@@ -1,5 +1,5 @@
 export class FakeProviderNotFoundError extends Error {
-  constructor(resource: "call" | "transcription job") {
+  constructor(resource: "call" | "recording" | "transcription job") {
     super(`Unknown fake ${resource} reference`);
     this.name = "FakeProviderNotFoundError";
   }

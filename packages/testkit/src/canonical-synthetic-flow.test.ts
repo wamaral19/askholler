@@ -80,13 +80,13 @@ describe("canonical synthetic MVP integration", () => {
       }),
     ]);
     expect(result.report.executiveAngleIds).toHaveLength(3);
-    expect(result.html).toContain("Monthly Angles Report");
+    expect(result.html).toContain("Monthly Disco");
     expect(result.html).toContain(canonicalIds.creatorEvidence);
     expect(result.html).toContain(canonicalIds.emailEvidence);
     expect(result.html).not.toContain("Casey Example");
     expect(result.html).not.toContain("+12025550142");
     expect(createHash("sha256").update(result.html).digest("hex")).toBe(
-      "c328e0a21c2a4c41c4954bb863274fe4e0a6e11009b452afd38f3f8bb9f16b5f",
+      "1eec3c114e1787a9a7427a3d43925077096a76d1e4dbafa93db4a981a6cba7c6",
     );
   });
 });

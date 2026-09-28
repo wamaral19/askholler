@@ -134,24 +134,25 @@ Future moments may include:
 8. Interview is recorded/transcribed subject to applicable consent requirements.
 9. Interview receives structured metadata and tags.
 10. Raw evidence is retained according to customer/company policy.
-11. Findings accumulate throughout the month.
-12. Holler generates monthly Angles Report.
-13. Customer receives:
-   - one-page executive summary
-   - detailed segmented findings
-   - source interview recordings
-   - transcripts
-   - structured raw research data
+11. Findings accumulate into two deliverables:
+   - a weekly **Earshot**, the approved raw research dataset
+   - a monthly **Disco**, the decision-oriented synthesis of trends and their likely causes
+12. Customer receives the Earshot and Disco through a private, exportable delivery path.
 
 There is no need for a real-time "insights inbox" in the MVP.
 
 ---
 
-## 4. Angles Report
+## 4. Earshot, Disco, and Angles
 
-The Angles Report is the primary deliverable.
+Holler has two named customer deliverables:
 
-It should be designed for a marketing/growth team and answer:
+- **Earshot** is the weekly, filterable raw research export. It contains approved customer/cohort attributes, research-run identity, reviewed field/tag values, and authorized links to recordings and transcripts. Each row represents one customer interview in one research run. Direct identifiers are excluded by default and sensitive links require authorization and audit.
+- **Disco** is the monthly decision document. It explains material changes, uses first-party conversations to investigate why they occurred, distinguishes hypotheses from supported findings, and recommends what the merchant should test or change.
+
+An **Angle** is an evidence-backed finding used inside the Disco; it is not the name of the deliverable.
+
+The Disco should be designed for a marketing/growth team and answer:
 
 > What changed?
 > Why?
@@ -244,6 +245,19 @@ Every Angle should be traceable to:
 - tags
 
 Avoid presenting qualitative samples as statistically representative when they are not.
+
+### Earshot Dataset
+
+The weekly Earshot should be spreadsheet-friendly and include:
+
+- opaque customer/interview ID and research run
+- non-sensitive segmentation fields used to qualify the customer
+- order and cohort context approved for export
+- one column per effective Research Field/Angle, with typed reviewed values
+- tags with provenance and review status
+- authorized recording and transcript references
+
+Columns are derived from the immutable field-set version used by the interview, so exports remain interpretable when a field definition later changes. AI may suggest transcript tags, but only reviewed values enter a customer-facing Earshot.
 
 ---
 
@@ -368,6 +382,16 @@ Do not overbuild anomaly detection initially.
 - tags
 - recording/transcript references
 - research objective shown prominently
+- question coverage state independent from structured answers
+- typed controls for single-select, multi-select, boolean, and rating fields
+- researcher notes and an intentionally positive, brand-approved opening/closing
+
+#### Internal Analytics and Cohort Selection
+- admin-only, tenant-scoped dashboard for human quality checks and research planning
+- merchant, date/granularity, new/repeat, and observed-attribution filters
+- queryable commerce metrics for AOV, repeat behavior, cohorts, discounting, SKU/category behavior, returns/refunds, and repurchase timing
+- validated cohort/rule builder that can turn dashboard filters into Research Moment eligibility criteria
+- saved, clickable Research Moments showing exactly who can enter a call queue and why
 
 #### Reporting Data Model
 - interviews
@@ -378,20 +402,20 @@ Do not overbuild anomaly detection initially.
 - observed attribution fields
 - self-reported attribution fields
 
-#### Angles Report
+#### Earshot and Disco
 For MVP, report generation may be partially manual.
 
 System should provide:
-- exportable interview dataset
+- weekly Earshot export
 - angle builder / structured findings editor
 - one-page summary data
 - links from findings back to evidence
-- PDF/HTML-friendly report output
+- monthly Disco in PDF/HTML-friendly output
 
 ### Explicitly Out of Scope for Initial MVP
 
 - MMM
-- full Triple Whale-style executive dashboard
+- customer-facing self-service BI dashboard
 - automated media buying
 - automated ad optimization
 - large-scale experimentation platform
@@ -439,7 +463,7 @@ Interview + Research Data
 Angle Builder
    |
    v
-Monthly Angles Report
+Weekly Earshot + Monthly Disco
 ```
 
 ### Suggested Stack
@@ -663,8 +687,8 @@ The development system must be fully functional with synthetic phone numbers and
 5. **Observed + stated**
    The value comes from comparing observed commerce/attribution data with customer explanation.
 
-6. **Reports over dashboards**
-   The initial deliverable is a monthly decision document, not another analytics dashboard.
+6. **Deliverables over dashboard theater**
+   Earshot and Disco are the customer deliverables. The initial dashboard is an internal, admin-only tool for quality checks, cohort selection, and investigation—not a replacement for a full analytics platform.
 
 7. **Marketing team is the primary buyer**
    Attribution and messaging are the first two jobs to be done.
@@ -693,7 +717,7 @@ The MVP succeeds if a Shopify merchant can:
 7. Store a transcript and structured tags.
 8. Compare self-reported attribution against observed attribution.
 9. Assemble multiple interviews into a documented Angle.
-10. Generate a monthly Angles Report whose findings link back to source evidence.
+10. Export a weekly Earshot and generate a monthly Disco whose findings link back to source evidence.
 
 Anything beyond this should require a strong reason.
 
@@ -712,7 +736,8 @@ Assumption:
 
 ### Call Timing
 Assumption:
-- checkout-triggered calls target a short SLA such as <5 minutes
+- checkout-triggered opportunities should enter the actionable queue within seconds; Holler targets call initiation within 60 seconds when qualification, staffing, contact policy, and consent allow
+- qualification never auto-dials; a human researcher explicitly initiates the call
 - not every qualifying event must be called
 - the cohort/weekly interview allocation determines sampling
 
@@ -739,7 +764,7 @@ Assumption:
 
 ### Reporting
 Assumption:
-- monthly report is the primary client-facing output
+- weekly Earshot and monthly Disco are the primary client-facing outputs
 - internal software may contain operational dashboards
 - client does not need a constant insight feed in MVP
 

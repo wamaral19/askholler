@@ -2,6 +2,9 @@ import type {
   CallSession,
   CallStatus,
   DialerProvider,
+  RecordingMedia,
+  RecordingSession,
+  StartRecordingInput,
   StartCallInput,
 } from "@holler/domain";
 import {
@@ -31,6 +34,12 @@ interface StoredCall {
   status: CallStatus;
 }
 
+interface StoredRecording {
+  readonly providerRecordingReference: string;
+  readonly providerCallReference: string;
+  status: RecordingSession["status"];
+}
+
 /**
  * A deterministic in-memory dialer for development and tests.
  *
@@ -41,6 +50,11 @@ interface StoredCall {
 export class FakeDialerProvider implements DialerProvider {
   private readonly callsByIdempotencyKey = new Map<string, StoredCall>();
   private readonly callsByReference = new Map<string, StoredCall>();
+  private readonly recordingsByReference = new Map<string, StoredRecording>();
+  private readonly recordingsByIdempotencyKey = new Map<
+    string,
+    StoredRecording
+  >();
 
   get callCount(): number {
     return this.callsByReference.size;
@@ -82,6 +96,65 @@ export class FakeDialerProvider implements DialerProvider {
     }
 
     this.transition(call, "completed");
+  }
+
+  async startRecording(input: StartRecordingInput): Promise<RecordingSession> {
+    this.requireCall(input.providerCallReference);
+    const existing = this.recordingsByIdempotencyKey.get(input.idempotencyKey);
+    if (existing !== undefined) return toRecordingSession(existing);
+
+    const recording: StoredRecording = {
+      providerCallReference: input.providerCallReference,
+      providerRecordingReference: stableFakeReference(
+        "recording",
+        input.idempotencyKey,
+      ),
+      status: "in_progress",
+    };
+    this.recordingsByReference.set(
+      recording.providerRecordingReference,
+      recording,
+    );
+    this.recordingsByIdempotencyKey.set(input.idempotencyKey, recording);
+    return toRecordingSession(recording);
+  }
+
+  async stopRecording(
+    providerCallReference: string,
+    providerRecordingReference: string,
+  ): Promise<RecordingSession> {
+    const recording = this.requireRecording(providerRecordingReference);
+    if (recording.providerCallReference !== providerCallReference) {
+      throw new FakeProviderNotFoundError("recording");
+    }
+    recording.status = "completed";
+    return toRecordingSession(recording);
+  }
+
+  async getRecording(
+    providerRecordingReference: string,
+  ): Promise<RecordingSession> {
+    return toRecordingSession(
+      this.requireRecording(providerRecordingReference),
+    );
+  }
+
+  async downloadRecording(
+    providerRecordingReference: string,
+  ): Promise<RecordingMedia> {
+    const recording = this.requireRecording(providerRecordingReference);
+    if (recording.status !== "completed") {
+      throw new FakeDialerTransitionError("answered", "created");
+    }
+    return {
+      mediaType: "audio/mpeg",
+      bytes: new Uint8Array([0x49, 0x44, 0x33]),
+    };
+  }
+
+  async deleteRecording(providerRecordingReference: string): Promise<void> {
+    this.requireRecording(providerRecordingReference);
+    this.recordingsByReference.delete(providerRecordingReference);
   }
 
   async simulateDialing(providerCallReference: string): Promise<CallSession> {
@@ -132,6 +205,21 @@ export class FakeDialerProvider implements DialerProvider {
     }
     return call;
   }
+
+  private requireRecording(
+    providerRecordingReference: string,
+  ): StoredRecording {
+    const recording = this.recordingsByReference.get(
+      providerRecordingReference,
+    );
+    if (recording === undefined)
+      throw new FakeProviderNotFoundError("recording");
+    return recording;
+  }
+}
+
+function toRecordingSession(recording: StoredRecording): RecordingSession {
+  return { provider: PROVIDER_NAME, ...recording };
 }
 
 function sameStartCallInput(
@@ -142,7 +230,8 @@ function sameStartCallInput(
     left.merchantId === right.merchantId &&
     left.interviewId === right.interviewId &&
     left.customerPrivateRef === right.customerPrivateRef &&
-    left.idempotencyKey === right.idempotencyKey
+    left.idempotencyKey === right.idempotencyKey &&
+    left.destinationPhoneE164 === right.destinationPhoneE164
   );
 }
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Form, Link, useActionData, useLoaderData } from "react-router";
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
+import { TwilioCallPanel } from "../components/twilio-call-panel";
 import {
   executeOperationsRequest,
   getOperationsService,
@@ -27,10 +28,14 @@ export async function loader({
   return executeOperationsRequest(async () => {
     if (!params.interviewId)
       throw new Response("Interview is required", { status: 400 });
-    return getOperationsService().getInterview(
+    const workspace = await getOperationsService().getInterview(
       getTenantContext(request),
       params.interviewId,
     );
+    return {
+      ...workspace,
+      twilioEnabled: process.env.DIALER_PROVIDER === "twilio",
+    };
   });
 }
 
@@ -93,13 +98,16 @@ export function meta() {
 
 export default function LiveInterviewRoute() {
   const {
+    id: interviewId,
     assignment,
     script,
     fields,
     scriptName,
     scriptVersion,
     fieldSetVersion,
+    answeredFieldIds,
     status,
+    twilioEnabled,
   } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [activePrompt, setActivePrompt] = useState(0);
@@ -107,6 +115,12 @@ export default function LiveInterviewRoute() {
     () => new Set(),
   );
   const [observationNote, setObservationNote] = useState("");
+  const answered = new Set(answeredFieldIds);
+  const requiredFields = fields.filter((field) => field.required);
+  const requiredAnswered = requiredFields.filter((field) =>
+    answered.has(field.id),
+  ).length;
+  const requiredComplete = requiredAnswered === requiredFields.length;
 
   if (!assignment) return null;
 
@@ -131,8 +145,9 @@ export default function LiveInterviewRoute() {
       }
     >
       <PrototypeBanner>
-        Manual dial only. Responses and observations are submitted through the
-        application service.
+        {twilioEnabled
+          ? "Calls begin unrecorded. Confirm explicit verbal consent before starting a recording."
+          : "Manual dial only. Responses and observations are submitted through the application service."}
       </PrototypeBanner>
 
       {status === "completed" || actionData?.intent === "complete" ? (
@@ -153,10 +168,14 @@ export default function LiveInterviewRoute() {
       ) : (
         <div className="interview-layout">
           <aside className="interview-context panel">
-            <div className="live-call-label">
-              <span className="pulse-dot" />
-              Manual call in progress
-            </div>
+            {twilioEnabled ? (
+              <TwilioCallPanel interviewId={interviewId} />
+            ) : (
+              <div className="live-call-label">
+                <span className="pulse-dot" />
+                Manual call in progress
+              </div>
+            )}
             <dl>
               <div>
                 <dt>Event age</dt>
@@ -259,12 +278,17 @@ export default function LiveInterviewRoute() {
                   <h2>Research fields</h2>
                 </div>
                 <span className="registry-label">
-                  Pinned field set v{fieldSetVersion}
+                  {requiredAnswered}/{requiredFields.length} required answered ·
+                  pinned v{fieldSetVersion}
                 </span>
               </div>
               <div className="research-field-list">
                 {fields.map((field) => (
-                  <Form className="research-field" key={field.id} method="post">
+                  <Form
+                    className={`research-field${answered.has(field.id) ? " research-field-answered" : ""}`}
+                    key={field.id}
+                    method="post"
+                  >
                     <input name="intent" type="hidden" value="response" />
                     <input name="fieldId" type="hidden" value={field.id} />
                     <span>
@@ -272,6 +296,7 @@ export default function LiveInterviewRoute() {
                       <small>
                         {field.source.replaceAll("_", " ")}
                         {field.required ? " · required" : " · optional"}
+                        {answered.has(field.id) ? " · answered" : ""}
                       </small>
                     </span>
                     {field.valueType === "single_select" ? (
@@ -365,11 +390,14 @@ export default function LiveInterviewRoute() {
             <Form method="post">
               <button
                 className="button button-primary button-full"
+                disabled={!requiredComplete}
                 name="intent"
                 type="submit"
                 value="complete"
               >
-                Complete interview
+                {requiredComplete
+                  ? "Complete interview"
+                  : `Answer ${requiredFields.length - requiredAnswered} required field${requiredFields.length - requiredAnswered === 1 ? "" : "s"}`}
               </button>
             </Form>
             <Form method="post">

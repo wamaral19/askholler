@@ -656,7 +656,7 @@ Shopify event
 → recording/transcript
 → research tags
 → evidence-backed Angle
-→ monthly Angles Report.
+→ weekly Earshot and monthly Disco.
 
 The initial commercial value proposition is:
 
@@ -691,4 +691,4 @@ Before significant implementation, produce:
 
 Then implement in small, reviewable increments.
 
-The MVP is complete when a synthetic Shopify order can flow through the full system and appear in a generated monthly Angles Report with source evidence attached.
+The MVP is complete when a synthetic Shopify order can flow through the full system, its reviewed interview data can appear in a weekly Earshot export, and its evidence-backed findings can appear in a monthly Disco.

@@ -15,10 +15,10 @@ Shopify order (or synthetic equivalent)
   -> human researcher queue and interview
   -> transcript segments and evidence-backed tags
   -> Angle
-  -> monthly Angles Report
+  -> weekly Earshot + monthly Disco
 ```
 
-It deliberately excludes MMM, autonomous interviewers, a broad customer BI dashboard, complex anomaly detection, and non-Shopify commerce integrations.
+It deliberately excludes MMM, autonomous interviewers, a customer-facing BI product, complex anomaly detection, and non-Shopify commerce integrations. A narrow internal analytics surface is in scope because analysts need to validate metrics and construct research cohorts.
 
 ## Architecture decisions
 
@@ -141,6 +141,8 @@ Workforce identity is resolved at a replaceable context boundary. The temporary 
 
 The queue shows event age, merchant/brand, first name only where authorized, order total, first/repeat status, products/SKUs, observed attribution, objective, priority, and call state. Phone remains masked. Polling is sufficient for MVP; real-time sockets are unnecessary.
 
+The live interview surface renders the pinned field set as a top-to-bottom or left-to-right checklist. A researcher can mark a prompt covered without entering a structured answer; answer controls remain optional during the conversation and support single-select, multi-select, boolean, and rating values. Notes and coverage events are stored separately from AI-suggested or reviewed post-call coding.
+
 ### 9. Scripts and script versions
 
 `Script` is a stable identity; immutable `ScriptVersion` rows contain a validated JSON document of sections, prompts, consent language, follow-ups, and referenced tag objectives. Only drafts can change. Publishing assigns a monotonically increasing version and checksum. Each assignment and interview pins the exact version. Researchers cannot edit published content during an interview.
@@ -171,9 +173,11 @@ The `insights` module provides an internal editor. An `Angle` is a versioned fin
 
 `AngleEvidence` links angles to tag evidence/transcript spans and interviews. `AngleMetric` records metric type, population (`commerce` or `interview_sample`), numerator, denominator, unit, filters, and computation provenance. No free-form JSON evidence list is considered sufficient for a published angle.
 
-### 14. Monthly report generation
+### 14. Internal analytics, Earshot, and Disco generation
 
-`Report` is a merchant/month container with draft, rendering, published, failed, and superseded states. `ReportAngle` orders 3-5 executive angles and detailed sections while pinning angle revisions. Methodology and sample notes are mandatory. A render job produces print-friendly HTML first and optionally PDF, stores the artifact privately, and records template version/checksum and failure details. Published reports are immutable; corrections create a new revision.
+The internal dashboard reads from tenant-scoped commerce/reporting projections. It supports merchant, date/granularity, new/repeat, and observed-source filters plus drill-downs needed for cohort construction. Metric definitions are versioned and share the same query services used by reports; the UI never accepts arbitrary SQL. Saved filter sets can seed a validated Research Moment cohort expression.
+
+The weekly `EarshotExport` is a private, auditable, spreadsheet-friendly snapshot of approved interview rows and their pinned field definitions. The monthly `Report` represents the Disco and has draft, rendering, published, failed, and superseded states. `ReportAngle` orders 3-5 executive angles and detailed sections while pinning angle revisions. Methodology and sample notes are mandatory. Render jobs produce the Earshot dataset and print-friendly Disco HTML (optionally PDF), store artifacts privately, and record template/schema versions and checksums. Published artifacts are immutable; corrections create a new revision.
 
 ### 15. Security, tenancy, authorization, retention, and deletion
 

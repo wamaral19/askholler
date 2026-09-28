@@ -42,6 +42,7 @@ const contextA: TenantContext = {
   merchantId: ids.merchantA,
   researcherId: ids.researcherA,
   correlationId: ids.correlation,
+  roles: ["researcher"],
 };
 
 describe.skipIf(databaseUrl === undefined)(
