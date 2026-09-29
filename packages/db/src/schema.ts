@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   index,
@@ -289,6 +290,11 @@ export const scripts = pgTable("scripts", {
   merchantId: uuid("merchant_id").references(() => merchants.id),
   name: text("name").notNull(),
   status: text("status").notNull(),
+  /** "library" scripts are reusable; "research_run" scripts belong to one moment. */
+  kind: text("kind").notNull().default("library"),
+  researchMomentId: uuid("research_moment_id").references(
+    (): AnyPgColumn => researchMoments.id,
+  ),
   ...timestamps,
 });
 
@@ -304,6 +310,10 @@ export const scriptVersions = pgTable(
     status: text("status").notNull(),
     content: jsonb("content").notNull(),
     checksum: text("checksum").notNull(),
+    /** The library script version a research-run script was adapted from. */
+    basedOnScriptVersionId: uuid("based_on_script_version_id").references(
+      (): AnyPgColumn => scriptVersions.id,
+    ),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     ...timestamps,
   },
@@ -342,6 +352,30 @@ export const researchFieldVersions = pgTable(
       table.researchFieldId,
       table.version,
     ),
+  ],
+);
+
+/**
+ * Per-merchant defaults for the research field library: whether a field is
+ * preselected for new research runs, whether it is required, and its order.
+ * Applies to platform fields too, whose wording stays platform-owned.
+ */
+export const merchantResearchFieldSettings = pgTable(
+  "merchant_research_field_settings",
+  {
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    researchFieldId: uuid("research_field_id")
+      .notNull()
+      .references(() => researchFields.id),
+    includedByDefault: boolean("included_by_default").notNull(),
+    requiredByDefault: boolean("required_by_default").notNull(),
+    displayOrder: integer("display_order").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    primaryKey({ columns: [table.merchantId, table.researchFieldId] }),
   ],
 );
 

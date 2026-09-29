@@ -40,6 +40,7 @@ const ids = {
 const now = new Date("2026-09-18T16:00:00.000Z");
 const contextA: TenantContext = {
   merchantId: ids.merchantA,
+  merchantIds: [ids.merchantA],
   researcherId: ids.researcherA,
   correlationId: ids.correlation,
   roles: ["researcher"],
@@ -99,6 +100,12 @@ describe.skipIf(databaseUrl === undefined)(
     afterAll(async () => isolated?.close());
 
     it("lists durable moments and saves retry-idempotent draft/published definitions", async () => {
+      const [moment] = await service.listMoments(contextA);
+      expect(moment).toMatchObject({
+        cohortSummary: "The customer's first order.",
+        completedThisWeek: 0,
+        weeklyTarget: 10,
+      });
       expect(await service.listMoments(contextA)).toHaveLength(1);
       const input = {
         name: "Synthetic repeat study",
@@ -109,8 +116,9 @@ describe.skipIf(databaseUrl === undefined)(
           version: 1,
           config: { operator: "equals", value: 2 },
         },
-        fieldIds: [ids.fieldVersion],
-        customFields: [],
+        fields: [
+          { kind: "library", fieldVersionId: ids.fieldVersion, required: true },
+        ],
         publish: false,
       } as const;
       const first = await service.saveMoment(contextA, input);
@@ -118,6 +126,63 @@ describe.skipIf(databaseUrl === undefined)(
       await expect(
         service.saveMoment({ ...contextA, merchantId: ids.merchantB }, input),
       ).rejects.toMatchObject({ code: "PINNED_SCRIPT_UNAVAILABLE" });
+    });
+
+    it("lists only the merchants the workforce identity may select", async () => {
+      expect(await service.listMerchants(contextA)).toEqual([
+        { id: ids.merchantA, name: "Synthetic Merchant A" },
+      ]);
+      expect(
+        await service.listMerchants({
+          ...contextA,
+          merchantIds: [ids.merchantB, ids.merchantA],
+        }),
+      ).toEqual([
+        { id: ids.merchantA, name: "Synthetic Merchant A" },
+        { id: ids.merchantB, name: "Synthetic Merchant B" },
+      ]);
+    });
+
+    it("pauses, completes, and reopens moments; completed moments leave the queue", async () => {
+      const manager: TenantContext = { ...contextA, roles: ["merchant_admin"] };
+      await expect(
+        service.setMomentStatus(contextA, ids.moment, "paused"),
+      ).rejects.toMatchObject({ code: "MOMENT_MANAGER_ROLE_REQUIRED" });
+      await expect(
+        service.setMomentStatus(
+          { ...manager, merchantId: ids.merchantB },
+          ids.moment,
+          "paused",
+        ),
+      ).rejects.toMatchObject({ code: "RESEARCH_MOMENT_NOT_FOUND" });
+
+      expect(
+        await service.setMomentStatus(manager, ids.moment, "paused"),
+      ).toMatchObject({ status: "paused" });
+      // Paused moments keep the work already waiting for them.
+      expect(await service.listQueue(contextA)).toHaveLength(1);
+      await expect(
+        service.setMomentStatus(manager, ids.moment, "paused"),
+      ).rejects.toMatchObject({ code: "INVALID_MOMENT_TRANSITION" });
+
+      await service.setMomentStatus(manager, ids.moment, "completed");
+      expect(await service.listQueue(contextA)).toHaveLength(0);
+      const audit = await isolated.db.execute(
+        sql`select action from audit_events where subject_id = ${ids.moment} order by occurred_at desc limit 1`,
+      );
+      expect(audit.rows[0]).toMatchObject({
+        action: "research_moment.status_changed",
+      });
+
+      expect(
+        await service.setMomentStatus(manager, ids.moment, "live"),
+      ).toMatchObject({ status: "live" });
+      expect(await service.listQueue(contextA)).toHaveLength(1);
+      const persisted = await isolated.db.execute(
+        sql`select status from research_moments where id = ${ids.moment}`,
+      );
+      // The worker qualifies orders only for "active" moments.
+      expect(persisted.rows[0]).toMatchObject({ status: "active" });
     });
 
     it("returns a masked queue DTO and permits only one concurrent claimant", async () => {
@@ -206,6 +271,8 @@ describe.skipIf(databaseUrl === undefined)(
         "Synthetic hesitation",
       );
       await service.completeInterview(contextA, interview.id, "completed");
+      const [moment] = await service.listMoments(contextA);
+      expect(moment?.completedThisWeek).toBe(1);
 
       const result = await isolated.db.execute(sql`
         select
@@ -231,7 +298,7 @@ describe.skipIf(databaseUrl === undefined)(
         select
           (select count(*)::int from reports where id = ${first.reportId}) reports,
           (select count(*)::int from report_revisions where report_id = ${first.reportId}) revisions,
-          (select count(*)::int from outbox_events where aggregate_type = 'report_revision' and event_type = 'report.render.requested') outbox,
+          (select count(*)::int from outbox_events where aggregate_type = 'report_revision' and event_type = 'render_report') outbox,
           (select count(*)::int from outbox_events where payload::text ~* 'phone|email|transcript|observation|response') unsafe_payloads
       `);
       expect(result.rows[0]).toEqual({
@@ -251,6 +318,294 @@ describe.skipIf(databaseUrl === undefined)(
         sql`select count(*)::int count from reports where display_month = '2026-09'`,
       );
       expect(rollback.rows[0]?.count).toBe(0);
+    });
+
+    const managerA: TenantContext = {
+      ...contextA,
+      roles: ["research_manager"],
+    };
+    const repeatStudy = {
+      objective: "Understand the repeat trigger",
+      weeklyTarget: 5,
+      cohortExpression: {
+        predicate: "customer.order_sequence",
+        version: 1,
+        config: { operator: "equals", value: 2 },
+      },
+      publish: true,
+    } as const;
+
+    it("keeps an ordered field library with merchant defaults and versioned edits", async () => {
+      await expect(
+        service.saveResearchField(contextA, undefined, {
+          label: "Unauthorized",
+          prompt: "?",
+          valueType: "long_text",
+          options: [],
+        }),
+      ).rejects.toMatchObject({ code: "MOMENT_MANAGER_ROLE_REQUIRED" });
+
+      const { fieldId } = await service.saveResearchField(managerA, undefined, {
+        label: "Texture expectation",
+        prompt: "What texture did you expect?",
+        valueType: "single_select",
+        options: ["Light", "Rich", ""],
+      });
+      let library = await service.listResearchFields(managerA);
+      // Platform fields without saved defaults come first; new fields append.
+      expect(library.at(-1)).toMatchObject({
+        fieldId,
+        options: ["Light", "Rich"],
+        includedByDefault: true,
+        editable: true,
+      });
+      expect(library.filter((field) => field.editable)).toHaveLength(1);
+
+      const others = library.filter((field) => field.fieldId !== fieldId);
+      await service.saveFieldDefaults(managerA, [
+        { fieldId, includedByDefault: true, requiredByDefault: true },
+        ...others.map((field) => ({
+          fieldId: field.fieldId,
+          includedByDefault: field.fieldId !== ids.field,
+          requiredByDefault: false,
+        })),
+      ]);
+      library = await service.listResearchFields(managerA);
+      expect(library.map((field) => field.fieldId)).toEqual([
+        fieldId,
+        ...others.map((field) => field.fieldId),
+      ]);
+      expect(library[0]).toMatchObject({
+        required: true,
+        includedByDefault: true,
+      });
+      expect(
+        library.find((field) => field.fieldId === ids.field),
+      ).toMatchObject({ required: false, includedByDefault: false });
+      // Another merchant's defaults are untouched.
+      const other = await service.listResearchFields({
+        ...managerA,
+        merchantId: ids.merchantB,
+        merchantIds: [ids.merchantB],
+      });
+      expect(other.find((field) => field.fieldId === ids.field)).toMatchObject({
+        required: true,
+        includedByDefault: true,
+      });
+      // Defaults are per merchant; platform fields stay shared.
+      await expect(
+        service.saveResearchField(managerA, ids.field, {
+          label: "Renamed",
+          prompt: "?",
+          valueType: "long_text",
+          options: [],
+        }),
+      ).rejects.toMatchObject({ code: "PLATFORM_FIELD_LOCKED" });
+
+      const firstVersionId = library[0]!.id;
+      await service.saveResearchField(managerA, fieldId, {
+        label: "Texture expectation",
+        prompt: "How did the texture compare to what you expected?",
+        valueType: "single_select",
+        options: ["Rich", "Light", "Balanced"],
+      });
+      library = await service.listResearchFields(managerA);
+      expect(library[0]).toMatchObject({
+        fieldId,
+        version: 2,
+        prompt: "How did the texture compare to what you expected?",
+        required: true,
+      });
+      expect(library[0]!.id).not.toBe(firstVersionId);
+      const versions = await isolated.db.execute(sql`
+        select status, definition->'options' as options
+        from research_field_versions where research_field_id = ${fieldId}
+        order by version`);
+      expect(versions.rows.map((row) => row.status)).toEqual([
+        "superseded",
+        "published",
+      ]);
+      // Option keys survive reordering so answers stay comparable.
+      expect(versions.rows[1]?.options).toEqual([
+        { key: "rich", label: "Rich" },
+        { key: "light", label: "Light" },
+        { key: "balanced", label: "Balanced" },
+      ]);
+
+      await service.setResearchFieldArchived(managerA, fieldId, true);
+      expect(
+        (await service.listResearchFields(managerA)).map((f) => f.fieldId),
+      ).not.toContain(fieldId);
+      await service.setResearchFieldArchived(managerA, fieldId, false);
+    });
+
+    it("saves builder-created fields to the library and reuses them by label", async () => {
+      const first = await service.saveMoment(contextA, {
+        ...repeatStudy,
+        name: "Fields study one",
+        fields: [
+          {
+            kind: "library",
+            fieldVersionId: ids.fieldVersion,
+            required: false,
+          },
+          {
+            kind: "new",
+            label: "Reason for switching",
+            prompt: "Why did you switch?",
+            required: true,
+          },
+        ],
+      });
+      const created = (await service.listResearchFields(contextA)).find(
+        (field) => field.label === "Reason for switching",
+      );
+      expect(created).toMatchObject({
+        includedByDefault: false,
+        prompt: "Why did you switch?",
+      });
+      const second = await service.saveMoment(contextA, {
+        ...repeatStudy,
+        name: "Fields study two",
+        fields: [
+          {
+            kind: "new",
+            label: "reason for switching",
+            prompt: "",
+            required: false,
+          },
+        ],
+      });
+      const items = await isolated.db.execute(sql`
+        select m.research_moment_id as moment_id, i.field_version_id, i.required, i.source, i.display_order
+        from research_moment_versions m
+        join research_field_set_items i on i.field_set_version_id = m.research_field_set_version_id
+        where m.research_moment_id in (${first.id}, ${second.id})
+        order by m.research_moment_id = ${second.id}, i.display_order`);
+      expect(items.rows).toEqual([
+        {
+          moment_id: first.id,
+          field_version_id: ids.fieldVersion,
+          required: false,
+          source: "platform_default",
+          display_order: 0,
+        },
+        {
+          moment_id: first.id,
+          field_version_id: created!.id,
+          required: true,
+          source: "research_run",
+          display_order: 1,
+        },
+        {
+          moment_id: second.id,
+          field_version_id: created!.id,
+          required: false,
+          source: "research_run",
+          display_order: 0,
+        },
+      ]);
+    });
+
+    it("adapts scripts per research run without changing the library copy", async () => {
+      const [library] = await service.listScripts(managerA);
+      expect(library).toMatchObject({ id: ids.script, version: 1 });
+      const unchanged = await service.saveMoment(managerA, {
+        ...repeatStudy,
+        name: "Library script study",
+        fields: [
+          { kind: "library", fieldVersionId: ids.fieldVersion, required: true },
+        ],
+        script: {
+          baseScriptVersionId: library!.versionId,
+          prompts: library!.prompts,
+        },
+      });
+      expect(
+        await service.getMomentScript(managerA, unchanged.id),
+      ).toMatchObject({
+        runSpecific: false,
+        scriptName: "Synthetic interview",
+      });
+
+      const adapted = await service.saveMoment(managerA, {
+        ...repeatStudy,
+        name: "Adapted script study",
+        fields: [
+          { kind: "library", fieldVersionId: ids.fieldVersion, required: true },
+        ],
+        script: {
+          baseScriptVersionId: library!.versionId,
+          prompts: [
+            { id: "texture", title: "Texture", prompt: "Tell me about it." },
+            ...library!.prompts,
+          ],
+        },
+      });
+      expect(await service.getMomentScript(managerA, adapted.id)).toMatchObject(
+        {
+          runSpecific: true,
+          scriptVersion: 1,
+          prompts: [{ id: "texture" }, { id: "intro" }],
+        },
+      );
+
+      await expect(
+        service.updateMomentScript(contextA, adapted.id, library!.prompts),
+      ).rejects.toMatchObject({ code: "MOMENT_MANAGER_ROLE_REQUIRED" });
+      const updated = await service.updateMomentScript(managerA, adapted.id, [
+        { id: "intro", title: "Intro", prompt: "Open warmly." },
+      ]);
+      expect(updated).toMatchObject({ runSpecific: true, scriptVersion: 2 });
+      const versions = await isolated.db.execute(sql`
+        select m.version, m.published_at is not null as published, s.kind, sv.version as script_version,
+               sv.based_on_script_version_id
+        from research_moment_versions m
+        join script_versions sv on sv.id = m.script_version_id
+        join scripts s on s.id = sv.script_id
+        where m.research_moment_id = ${adapted.id}
+        order by m.version`);
+      expect(versions.rows).toEqual([
+        {
+          version: 1,
+          published: true,
+          kind: "research_run",
+          script_version: 1,
+          based_on_script_version_id: library!.versionId,
+        },
+        {
+          version: 2,
+          published: true,
+          kind: "research_run",
+          script_version: 2,
+          based_on_script_version_id: library!.versionId,
+        },
+      ]);
+      // Run scripts never appear in the library.
+      expect(
+        (await service.listScripts(managerA)).map((script) => script.id),
+      ).toEqual([ids.script]);
+
+      const saved = await service.saveScript(managerA, {
+        scriptId: ids.script,
+        name: "Synthetic interview",
+        prompts: [
+          ...library!.prompts,
+          { id: "close", title: "Close", prompt: "Thank them." },
+        ],
+      });
+      expect(saved.scriptId).toBe(ids.script);
+      expect(await service.listScripts(managerA)).toMatchObject([
+        {
+          id: ids.script,
+          version: 2,
+          prompts: [{ id: "intro" }, { id: "close" }],
+        },
+      ]);
+      // The seeded moment keeps the version it launched with.
+      expect(await service.getMomentScript(managerA, ids.moment)).toMatchObject(
+        { scriptVersion: 1 },
+      );
     });
   },
 );

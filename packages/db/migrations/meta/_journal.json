@@ -36,6 +36,20 @@
       "when": 1790264400000,
       "tag": "0004_security_privacy",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790695107515,
+      "tag": "0005_platform_default_research_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790699425237,
+      "tag": "0006_research_configurability",
+      "breakpoints": true
     }
   ]
 }

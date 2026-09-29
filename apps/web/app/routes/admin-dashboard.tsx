@@ -1,4 +1,4 @@
-import { Form, useLoaderData } from "react-router";
+import { Form, Link, useLoaderData } from "react-router";
 import { AppShell, PrototypeBanner } from "../components/app-shell";
 import { parseDashboardFilters } from "../lib/analytics";
 import {
@@ -18,7 +18,7 @@ export async function loader({ request }: { request: Request }) {
 }
 
 export function meta() {
-  return [{ title: "Commerce dashboard · Holler" }];
+  return [{ title: "Dashboard · Holler" }];
 }
 
 export default function AdminDashboardRoute() {
@@ -30,13 +30,34 @@ export default function AdminDashboardRoute() {
   return (
     <AppShell
       eyebrow="Admin only"
-      title="Commerce dashboard"
+      title="Dashboard"
       description="Tenant-scoped metrics and reusable, validated cohort controls."
     >
       <PrototypeBanner>
         Every filter maps to a fixed predicate; no arbitrary query text is
         accepted.
       </PrototypeBanner>
+      <section className="dashboard-columns" aria-label="Research setup">
+        <article className="panel dashboard-panel">
+          <h2>Research fields</h2>
+          <p className="helper-copy">
+            Edit reusable questions and choose which ones new research runs
+            include, require, and ask first.
+          </p>
+          <Link className="button button-small" to="/admin/research-fields">
+            Manage fields
+          </Link>
+        </article>
+        <article className="panel dashboard-panel">
+          <h2>Scripts</h2>
+          <p className="helper-copy">
+            Edit library interview scripts and the order of their steps.
+          </p>
+          <Link className="button button-small" to="/admin/scripts">
+            Manage scripts
+          </Link>
+        </article>
+      </section>
       <Form className="dashboard-filters panel" method="get">
         <label>
           <span>Start</span>

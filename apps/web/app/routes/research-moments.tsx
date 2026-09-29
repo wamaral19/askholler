@@ -2,58 +2,101 @@ import { Form, Link, useActionData, useLoaderData } from "react-router";
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
 import {
+  canManageMoments,
+  isMomentRunStatus,
+  momentStatusLabels,
+  momentTransitionLabel,
+  momentTransitionsFrom,
+} from "../lib/moment-status";
+import {
   executeOperationsRequest,
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
+import type { MomentStatus } from "../lib/prototype-data";
+
+const statusOrder: readonly MomentStatus[] = [
+  "live",
+  "paused",
+  "draft",
+  "completed",
+];
 
 export async function loader({ request }: { request: Request }) {
-  return executeOperationsRequest(async () => ({
-    moments: await getOperationsService().listMoments(
-      getTenantContext(request),
-    ),
-  }));
+  return executeOperationsRequest(async () => {
+    const context = getTenantContext(request);
+    const moments = await getOperationsService().listMoments(context);
+    return {
+      moments: [...moments].sort(
+        (a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
+      ),
+      canManage: canManageMoments(context.roles),
+    };
+  });
 }
 
 export async function action({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
     const form = await request.formData();
-    if (form.get("intent") !== "generate_report") {
+    const intent = form.get("intent");
+    if (intent === "set_status") {
+      const momentId = String(form.get("momentId") ?? "");
+      const status = form.get("status");
+      if (!momentId || !isMomentRunStatus(status))
+        throw new Response("Invalid moment status", { status: 400 });
+      const moment = await getOperationsService().setMomentStatus(
+        getTenantContext(request),
+        momentId,
+        status,
+      );
+      return { intent, momentId: moment.id, status: moment.status };
+    }
+    if (intent !== "generate_report") {
       throw new Response("Unsupported action", { status: 400 });
     }
     const period = String(form.get("period") ?? "");
     if (!/^\d{4}-\d{2}$/.test(period))
       throw new Response("Invalid report period", { status: 400 });
-    return getOperationsService().generateReport(
-      getTenantContext(request),
-      period,
-    );
+    return {
+      intent,
+      ...(await getOperationsService().generateReport(
+        getTenantContext(request),
+        period,
+      )),
+    };
   });
 }
 
 export function meta() {
-  return [{ title: "Research Moments · Holler" }];
+  return [{ title: "Moments · Holler" }];
 }
 
 export default function ResearchMomentsRoute() {
-  const { moments } = useLoaderData<typeof loader>();
-  const generatedReport = useActionData<typeof action>();
-  const activeCount = moments.filter(
-    (moment) => moment.status === "active",
-  ).length;
-  const qualified = moments.reduce(
-    (total, moment) => total + moment.qualifiedThisWeek,
+  const { moments, canManage } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
+  const generatedReport =
+    actionData && "reportId" in actionData ? actionData : undefined;
+  const liveCount = moments.filter((moment) => moment.status === "live").length;
+  const running = moments.filter(
+    (moment) => moment.status === "live" || moment.status === "paused",
+  );
+  const completedThisWeek = moments.reduce(
+    (total, moment) => total + moment.completedThisWeek,
+    0,
+  );
+  const weeklyTarget = running.reduce(
+    (total, moment) => total + moment.weeklyTarget,
     0,
   );
 
   return (
     <AppShell
-      eyebrow="Research design"
-      title="Research Moments"
-      description="Define who should enter research, what the team wants to learn, and which approved script applies."
+      eyebrow="Angle setup"
+      title="Moments"
+      description="Live moments send new orders to the queue for researchers to call. Pause or complete a moment to stop new orders; reopen it any time."
       actions={
         <Link className="button button-primary" to="/moments/new">
-          Create Research Moment
+          New moment
         </Link>
       }
     >
@@ -78,23 +121,21 @@ export default function ResearchMomentsRoute() {
         ) : null}
       </Form>
 
-      <section className="metric-grid" aria-label="Research Moment summary">
+      <section className="metric-grid" aria-label="Moment summary">
         <article className="metric-card">
-          <span>Active moments</span>
-          <strong>{activeCount}</strong>
+          <span>Live moments</span>
+          <strong>{liveCount}</strong>
           <small>of {moments.length} configured</small>
         </article>
         <article className="metric-card">
-          <span>Qualified this week</span>
-          <strong>{qualified}</strong>
-          <small>synthetic opportunities</small>
+          <span>Completed this week</span>
+          <strong>{completedThisWeek}</strong>
+          <small>interviews across all moments</small>
         </article>
         <article className="metric-card">
-          <span>Weekly interview target</span>
-          <strong>
-            {moments.reduce((total, moment) => total + moment.weeklyTarget, 0)}
-          </strong>
-          <small>across all moments</small>
+          <span>Weekly target</span>
+          <strong>{weeklyTarget}</strong>
+          <small>across live and paused moments</small>
         </article>
       </section>
 
@@ -113,40 +154,60 @@ export default function ResearchMomentsRoute() {
           {moments.map((moment) => (
             <article className="moment-card" key={moment.id}>
               <div className="moment-card-main">
-                <div className="card-title-row">
+                <div className="moment-card-title">
+                  <h3>{moment.name}</h3>
                   <span className={`status-pill status-${moment.status}`}>
-                    {moment.status}
+                    {momentStatusLabels[moment.status]}
                   </span>
-                  <span className="subtle">{moment.trigger}</span>
                 </div>
-                <h3>{moment.name}</h3>
                 <p>{moment.objective}</p>
-                <div className="cohort-summary">
-                  <span>Cohort</span>
-                  <strong>{moment.cohortSummary}</strong>
-                </div>
               </div>
-              <dl className="moment-meta">
-                <div>
-                  <dt>Target</dt>
-                  <dd>{moment.weeklyTarget}/week</dd>
-                </div>
-                <div>
-                  <dt>Research fields</dt>
-                  <dd>{moment.fieldCount}</dd>
-                </div>
-                <div>
-                  <dt>Script</dt>
-                  <dd>{moment.scriptVersion}</dd>
-                </div>
-                <div>
-                  <dt>Qualified</dt>
-                  <dd>{moment.qualifiedThisWeek}</dd>
-                </div>
-              </dl>
+              <MomentProgress
+                completed={moment.completedThisWeek}
+                target={moment.weeklyTarget}
+              />
+              <div className="cohort-summary">
+                <span>Cohort</span>
+                <p>{moment.cohortSummary}</p>
+              </div>
               <div className="moment-card-action">
-                <Link className="button button-quiet" to="/moments/new">
-                  View configuration
+                {canManage
+                  ? momentTransitionsFrom(moment.status).map((status) => (
+                      <Form method="post" key={status}>
+                        <input name="intent" type="hidden" value="set_status" />
+                        <input
+                          name="momentId"
+                          type="hidden"
+                          value={moment.id}
+                        />
+                        <button
+                          className={
+                            status === "live"
+                              ? "button button-primary button-small"
+                              : "button button-small"
+                          }
+                          name="status"
+                          type="submit"
+                          value={status}
+                        >
+                          {momentTransitionLabel(moment.status, status)}
+                        </button>
+                      </Form>
+                    ))
+                  : null}
+                <Link
+                  className="button button-quiet button-small"
+                  to={`/moments/${encodeURIComponent(moment.id)}/script`}
+                >
+                  {canManage ? "Edit script" : "View script"}
+                </Link>
+                <Link
+                  className="button button-quiet button-small"
+                  to="/moments/new"
+                >
+                  {moment.status === "draft"
+                    ? "Continue setup"
+                    : "View configuration"}
                 </Link>
               </div>
             </article>
@@ -154,5 +215,43 @@ export default function ResearchMomentsRoute() {
         </div>
       </section>
     </AppShell>
+  );
+}
+
+function MomentProgress({
+  completed,
+  target,
+}: {
+  readonly completed: number;
+  readonly target: number;
+}) {
+  const percent = target > 0 ? Math.min(100, (completed / target) * 100) : 0;
+  return (
+    <div className="moment-progress">
+      <dl className="moment-meta">
+        <div>
+          <dt>Target</dt>
+          <dd>{target} a week</dd>
+        </div>
+        <div>
+          <dt>Completed</dt>
+          <dd>{completed} this week</dd>
+        </div>
+      </dl>
+      <div
+        aria-label="Progress toward this week's target"
+        aria-valuemax={target}
+        aria-valuemin={0}
+        aria-valuenow={Math.min(completed, target)}
+        aria-valuetext={`${completed} of ${target} interviews`}
+        className="progress-track"
+        role="progressbar"
+      >
+        <span
+          className={completed >= target && target > 0 ? "is-met" : undefined}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
   );
 }
