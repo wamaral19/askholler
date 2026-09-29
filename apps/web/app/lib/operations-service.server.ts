@@ -20,18 +20,25 @@ import {
   dashboardFiltersToCohort,
 } from "./analytics";
 import { createDatabase } from "@holler/db";
+import { loadServerEnvironment } from "@holler/domain";
 import { redirect } from "react-router";
 import {
+  EnvelopePhoneDecryptor,
   OperationsError,
   PostgresOperationsApplicationService,
   PrefixedSyntheticPhoneDecryptor,
 } from "./postgres-operations-service.server";
+import { getCustomerPrivateCipher } from "./customer-private.server";
 import {
   SyntheticWorkforceContextResolver,
   WorkforceContextError,
   syntheticSessionsFromEnvironment,
   type WorkforceContextResolver,
 } from "./workforce-session.server";
+import {
+  DatabaseWorkforceContextResolver,
+  WorkforceDirectory,
+} from "./workforce-directory.server";
 
 export async function executeOperationsRequest<T>(
   operation: () => Promise<T>,
@@ -405,7 +412,11 @@ function createSyntheticService(): OperationsApplicationService {
         throw new Response("Interview is missing required responses", {
           status: 409,
         });
-      interviews.set(id, { ...current, status: outcome });
+      interviews.set(id, {
+        ...current,
+        // The in-memory prototype has no separate declined state.
+        status: outcome === "declined" ? "completed" : outcome,
+      });
       statuses.set(id, outcome === "completed" ? "reached" : "claimed");
     },
     async generateReport(_context, period) {
@@ -428,28 +439,42 @@ export function resetOperationsCompositionForTests(): void {
   configuredService = undefined;
   constructedService = undefined;
   configuredContextResolver = undefined;
+  constructedDirectory = undefined;
 }
 
 export function getOperationsService(): OperationsApplicationService {
   if (configuredService) return configuredService;
   if (constructedService) return constructedService;
   const mode = process.env.HOLLER_OPERATIONS_MODE;
+  const production = process.env.NODE_ENV === "production";
+  if (production && mode !== "postgres")
+    throw new Error("Production requires HOLLER_OPERATIONS_MODE=postgres");
+  // Fails closed on missing OIDC, KMS, Twilio, or R2 production settings.
+  if (production) loadServerEnvironment(process.env);
   if (mode === "synthetic-memory") {
     constructedService = createSyntheticService();
     return constructedService;
   }
-  if (mode !== "synthetic-postgres") {
+  if (mode !== "synthetic-postgres" && mode !== "postgres") {
     throw new Error(
-      "HOLLER_OPERATIONS_MODE must explicitly select synthetic-postgres or synthetic-memory",
+      "HOLLER_OPERATIONS_MODE must explicitly select postgres, synthetic-postgres, or synthetic-memory",
     );
   }
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl)
-    throw new Error("DATABASE_URL is required for synthetic-postgres mode");
+    throw new Error(`DATABASE_URL is required for ${mode} mode`);
   const { db } = createDatabase(databaseUrl);
+  // postgres reads only KMS envelopes; synthetic-postgres also accepts fixtures.
+  const cipher = getCustomerPrivateCipher();
+  if (mode === "postgres" && !cipher)
+    throw new Error("postgres mode requires PII_KMS_KEY_ID");
+  const synthetic =
+    mode === "synthetic-postgres"
+      ? new PrefixedSyntheticPhoneDecryptor()
+      : undefined;
   constructedService = new PostgresOperationsApplicationService(
     db,
-    new PrefixedSyntheticPhoneDecryptor(),
+    cipher ? new EnvelopePhoneDecryptor(cipher, synthetic) : synthetic!,
   );
   return constructedService;
 }
@@ -460,14 +485,37 @@ export function configureWorkforceContextResolver(
   configuredContextResolver = resolver;
 }
 
-export function getTenantContext(request: Request): TenantContext {
-  const resolver =
-    configuredContextResolver ??
-    new SyntheticWorkforceContextResolver(
-      syntheticSessionsFromEnvironment(process.env),
-    );
+/** Whether workforce identity comes from Google OIDC rather than dev tokens. */
+export function usesOidcWorkforceAuth(): boolean {
+  return process.env.WORKFORCE_AUTH_PROVIDER === "oidc";
+}
+
+let constructedDirectory: WorkforceDirectory | undefined;
+export function getWorkforceDirectory(): WorkforceDirectory {
+  if (constructedDirectory) return constructedDirectory;
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl)
+    throw new Error("DATABASE_URL is required for OIDC workforce sessions");
+  constructedDirectory = new WorkforceDirectory(createDatabase(databaseUrl).db);
+  return constructedDirectory;
+}
+
+function defaultContextResolver(): WorkforceContextResolver {
+  if (usesOidcWorkforceAuth())
+    return new DatabaseWorkforceContextResolver(getWorkforceDirectory());
+  if (process.env.NODE_ENV === "production")
+    throw new Error("Production requires WORKFORCE_AUTH_PROVIDER=oidc");
+  return new SyntheticWorkforceContextResolver(
+    syntheticSessionsFromEnvironment(process.env),
+  );
+}
+
+export async function getTenantContext(
+  request: Request,
+): Promise<TenantContext> {
   try {
-    return resolver.resolve(request);
+    const resolver = configuredContextResolver ?? defaultContextResolver();
+    return await resolver.resolve(request);
   } catch (error) {
     if (
       error instanceof WorkforceContextError &&

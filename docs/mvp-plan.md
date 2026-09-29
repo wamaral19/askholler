@@ -21,12 +21,31 @@ Working foundations include:
 The product is not pilot-ready. The next work is integration and production hardening rather than another architecture scaffold:
 
 1. finish the durable worker path and verify end-to-end PostgreSQL orchestration
-2. complete Shopify development-store install/webhook/history tests and protected-data approval
-3. implement production workforce auth/MFA, tenant roles, KMS-backed PII encryption, and retention/deletion operations
+2. complete Shopify development-store install/webhook/history tests and protected-data approval for a custom-distribution app
+3. implement Google-only workforce auth/MFA for the internal team, KMS-backed PII encryption, and retention/deletion operations
 4. add the internal metric/cohort dashboard and the question-coverage interview UX
-5. add weekly Earshot generation and rename the customer-facing monthly artifact to Disco
-6. integrate and validate a live dialer/transcription provider after legal/consent review
+5. produce the first Earshot and Disco manually from reviewed evidence; automated generation follows the pilot
+6. enable Twilio live calling with consent-controlled recording after legal/consent review; researchers capture answers as structured notes (no transcription provider)
 7. add alerting, reconciliation, failure replay, export auditing, and pilot runbooks
+
+## Pilot scope (2026-09-29)
+
+The product owner approved these reductions for the first merchant pilot. They
+remove work from the pilot path; they do not relax the privacy, consent,
+encryption, or deletion gates.
+
+| Area                 | Pilot scope                                                                                                                                                                                         | Deferred until after the pilot                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Transcription        | No transcription provider. Researchers record structured research-field responses and observations during and after the call. Recording, if consented, is stored in private R2 as the source audio. | Selecting and integrating a transcription vendor (Deepgram remains a candidate).     |
+| Shopify distribution | Custom app distribution, installed by link on the pilot merchant's store only. Protected customer data access is still requested and approved.                                                      | Public App Store listing and review.                                                 |
+| Workforce access     | Holler's internal team only, signed in with `withholler.com` Google Workspace accounts with 2-step verification. Memberships and roles are seeded by an operator.                                   | Invitation-only email-link sign-in, merchant user access, and a membership admin UI. |
+| Earshot and Disco    | An internal analyst assembles the weekly Earshot and monthly Disco by hand from reviewed evidence and delivers them privately.                                                                      | Scheduled Earshot jobs, automated Disco rendering, and signed-download delivery.     |
+
+Transcript evidence (resolved 2026-09-29): `angle_evidence.transcript_segment_id`
+is required, so a stored Angle cannot yet cite a notes-only interview. This
+does not block the pilot, whose Earshot and Disco are assembled manually and
+cite interview responses and observations directly. Before automating reports
+without transcription, add a response- or observation-backed evidence kind.
 
 ## Original repository assessment
 

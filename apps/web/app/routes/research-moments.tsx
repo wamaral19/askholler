@@ -24,7 +24,7 @@ const statusOrder: readonly MomentStatus[] = [
 
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const moments = await getOperationsService().listMoments(context);
     return {
       moments: [...moments].sort(
@@ -45,7 +45,7 @@ export async function action({ request }: { request: Request }) {
       if (!momentId || !isMomentRunStatus(status))
         throw new Response("Invalid moment status", { status: 400 });
       const moment = await getOperationsService().setMomentStatus(
-        getTenantContext(request),
+        await getTenantContext(request),
         momentId,
         status,
       );
@@ -60,7 +60,7 @@ export async function action({ request }: { request: Request }) {
     return {
       intent,
       ...(await getOperationsService().generateReport(
-        getTenantContext(request),
+        await getTenantContext(request),
         period,
       )),
     };

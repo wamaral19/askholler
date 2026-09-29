@@ -362,7 +362,7 @@ function RuleEditor({ node, root, onChange, onRemove }: RuleEditorProps) {
 
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const service = getOperationsService();
     const [fields, scripts] = await Promise.all([
       service.listResearchFields(context),
@@ -422,7 +422,7 @@ async function saveMomentAction(request: Request) {
       ? (jsonFormValue(form, "script") as Record<string, unknown> | null)
       : null;
     const result = await getOperationsService().saveMoment(
-      getTenantContext(request),
+      await getTenantContext(request),
       {
         name: String(form.get("name") ?? "").trim(),
         objective: String(form.get("objective") ?? "").trim(),

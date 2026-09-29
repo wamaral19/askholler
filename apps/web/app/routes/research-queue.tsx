@@ -17,7 +17,7 @@ import { momentStatusLabels } from "../lib/moment-status";
 
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const service = getOperationsService();
     const [assignments, moments] = await Promise.all([
       service.listQueue(context),
@@ -57,7 +57,7 @@ export async function action({ request }: { request: Request }) {
     if (!assignmentId)
       throw new Response("Assignment is required", { status: 400 });
     const service = getOperationsService();
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     if (intent === "claim")
       return {
         intent,

@@ -14,6 +14,8 @@ export default [
   route("auth/*", "routes/shopify-auth.tsx"),
   route("webhooks", "routes/shopify-webhooks.tsx"),
   route("login", "routes/workforce-login.tsx"),
+  route("login/google", "routes/login-google.ts"),
+  route("login/google/callback", "routes/login-google-callback.ts"),
   layout("routes/workforce-layout.tsx", [
     route("admin/dashboard", "routes/admin-dashboard.tsx"),
     route("admin/research-fields", "routes/admin-research-fields.tsx"),

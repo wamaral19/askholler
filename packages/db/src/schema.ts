@@ -87,6 +87,8 @@ export const customerPrivate = pgTable("customer_private", {
     .references(() => merchants.id),
   encryptedGivenName: text("encrypted_given_name"),
   encryptedPhoneE164: text("encrypted_phone_e164"),
+  /** Plaintext last four digits for masked display only (e.g. "••• 0142"). */
+  phoneLastFour: text("phone_last_four"),
   keyVersion: text("key_version").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -1077,8 +1079,11 @@ export const workforceUsers = pgTable(
   "workforce_users",
   {
     id: uuid("id").primaryKey(),
-    oidcIssuer: text("oidc_issuer").notNull(),
-    oidcSubject: text("oidc_subject").notNull(),
+    /** Null until the provisioned user's first sign-in binds the identity. */
+    oidcIssuer: text("oidc_issuer"),
+    oidcSubject: text("oidc_subject"),
+    /** Lowercased Workspace email an operator provisions before first sign-in. */
+    email: text("email"),
     status: text("status").notNull(),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     ...timestamps,
@@ -1088,6 +1093,31 @@ export const workforceUsers = pgTable(
       table.oidcIssuer,
       table.oidcSubject,
     ),
+    uniqueIndex("workforce_users_email_uidx").on(table.email),
+  ],
+);
+
+/** Server-side workforce sessions; the cookie carries only a random token whose hash is stored here. */
+export const workforceSessions = pgTable(
+  "workforce_sessions",
+  {
+    id: uuid("id").primaryKey(),
+    tokenHash: text("token_hash").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => workforceUsers.id),
+    authenticatedAt: timestamp("authenticated_at", {
+      withTimezone: true,
+    }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("workforce_sessions_token_hash_uidx").on(table.tokenHash),
+    index("workforce_sessions_user_idx").on(table.userId),
   ],
 );
 
@@ -1132,6 +1162,8 @@ export const deletionRequests = pgTable(
       .references(() => merchants.id),
     scope: text("scope").notNull(),
     subjectRefHash: text("subject_ref_hash").notNull(),
+    /** Holler customer UUID for customer scope; null for shop scope. */
+    subjectId: uuid("subject_id"),
     status: text("status").notNull(),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     legalHold: boolean("legal_hold").notNull().default(false),

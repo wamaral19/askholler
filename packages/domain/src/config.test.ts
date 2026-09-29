@@ -64,6 +64,65 @@ describe("environment configuration", () => {
     ).toThrow();
   });
 
+  it("loads a complete production configuration with Google sign-in", () => {
+    const production = {
+      NODE_ENV: "production",
+      DATABASE_URL: databaseUrl,
+      APP_BASE_URL: "https://app.withholler.com",
+      WORKFORCE_AUTH_PROVIDER: "oidc",
+      OIDC_ISSUER: "https://accounts.google.com",
+      OIDC_AUDIENCE: "1234.apps.googleusercontent.com",
+      GOOGLE_OAUTH_CLIENT_SECRET: "synthetic-client-secret",
+      WORKFORCE_ALLOWED_DOMAIN: "withholler.com",
+      PII_KMS_KEY_ID:
+        "projects/holler-production/locations/us/keyRings/pii/cryptoKeys/customer-data",
+      DIALER_PROVIDER: "twilio",
+      OBJECT_STORE_PROVIDER: "r2",
+      TWILIO_ACCOUNT_SID: `AC${"1".repeat(32)}`,
+      TWILIO_API_KEY_SID: `SK${"1".repeat(32)}`,
+      TWILIO_API_KEY_SECRET: "synthetic-api-key-secret",
+      TWILIO_AUTH_TOKEN: "synthetic-auth-token",
+      TWILIO_TWIML_APP_SID: `AP${"1".repeat(32)}`,
+      TWILIO_CALLER_ID: "+12025550100",
+      TWILIO_CALL_INTENT_SECRET: "x".repeat(32),
+      R2_ACCOUNT_ID: "account",
+      R2_ACCESS_KEY_ID: "access",
+      R2_SECRET_ACCESS_KEY: "secret",
+      R2_BUCKET: "holler-production-private",
+    };
+    expect(loadServerEnvironment(production)).toMatchObject({
+      WORKFORCE_ALLOWED_DOMAIN: "withholler.com",
+    });
+    for (const missing of [
+      "GOOGLE_OAUTH_CLIENT_SECRET",
+      "WORKFORCE_ALLOWED_DOMAIN",
+    ] as const) {
+      const { [missing]: _omitted, ...rest } = production;
+      expect(() => loadServerEnvironment(rest)).toThrow(missing);
+    }
+  });
+
+  it("requires recording-deletion credentials for the production worker", () => {
+    expect(() =>
+      loadWorkerEnvironment({
+        NODE_ENV: "production",
+        DATABASE_URL: databaseUrl,
+      }),
+    ).toThrow("R2_ACCOUNT_ID");
+    expect(
+      loadWorkerEnvironment({
+        NODE_ENV: "production",
+        DATABASE_URL: databaseUrl,
+        R2_ACCOUNT_ID: "account",
+        R2_ACCESS_KEY_ID: "access",
+        R2_SECRET_ACCESS_KEY: "secret",
+        R2_BUCKET: "bucket",
+        TWILIO_ACCOUNT_SID: `AC${"1".repeat(32)}`,
+        TWILIO_AUTH_TOKEN: "synthetic-auth-token",
+      }),
+    ).toMatchObject({ NODE_ENV: "production" });
+  });
+
   it("loads only worker-specific requirements and defaults", () => {
     expect(loadWorkerEnvironment({ DATABASE_URL: databaseUrl })).toEqual({
       NODE_ENV: "development",

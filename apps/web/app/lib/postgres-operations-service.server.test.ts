@@ -188,7 +188,7 @@ describe.skipIf(databaseUrl === undefined)(
     it("returns a masked queue DTO and permits only one concurrent claimant", async () => {
       const [queued] = await service.listQueue(contextA);
       expect(queued).toMatchObject({
-        maskedPhone: "+1 ••• ••• 0123",
+        maskedPhone: "••• ••• 0123",
         lockVersion: 0,
       });
       expect(JSON.stringify(queued)).not.toContain("+12025550123");

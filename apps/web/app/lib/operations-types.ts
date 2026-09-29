@@ -6,6 +6,9 @@ import type {
 import type { ScriptPrompt, WorkforceRole } from "@holler/domain";
 import type { DashboardFilters, DashboardSnapshot } from "./analytics";
 
+/** "declined": the customer asked not to be contacted again. */
+export type InterviewOutcome = "completed" | "no_answer" | "declined";
+
 export interface TenantContext {
   /** The merchant this request acts on (the workforce's current selection). */
   readonly merchantId: string;
@@ -241,7 +244,7 @@ export interface OperationsApplicationService {
   completeInterview(
     context: TenantContext,
     interviewId: string,
-    outcome: "completed" | "no_answer",
+    outcome: InterviewOutcome,
   ): Promise<void>;
   generateReport(
     context: TenantContext,

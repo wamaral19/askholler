@@ -9,3 +9,5 @@ export * from "./envelope-encryption";
 export * from "./deletion-service";
 export * from "./r2-private-object-store";
 export * from "./recording-transfer";
+export * from "./gcp-kms-data-key-provider";
+export * from "./customer-private-cipher";
