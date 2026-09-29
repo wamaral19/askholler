@@ -304,7 +304,8 @@ export interface TwilioServerDependencies {
   appBaseUrl: string;
   intentSecret: string;
   now(): number;
-  transferCompletedRecording?(recordingSid: string): Promise<void>;
+  transferCompletedRecording?:
+    ((recordingSid: string) => Promise<void>) | undefined;
 }
 
 let configured: TwilioServerDependencies | undefined;
@@ -334,12 +335,7 @@ export function getTwilioServerDependencies(): TwilioServerDependencies {
     callInstructionUrl: `${appBaseUrl}/api/twilio/voice`,
     callStatusCallbackUrl: `${appBaseUrl}/api/twilio/call-status`,
   });
-  const objectStore = new R2PrivateObjectStore({
-    accountId: required("R2_ACCOUNT_ID"),
-    accessKeyId: required("R2_ACCESS_KEY_ID"),
-    secretAccessKey: required("R2_SECRET_ACCESS_KEY"),
-    bucket: required("R2_BUCKET"),
-  });
+  const objectStore = optionalR2ObjectStore(process.env);
   return {
     store,
     dialer,
@@ -359,28 +355,55 @@ export function getTwilioServerDependencies(): TwilioServerDependencies {
     appBaseUrl,
     intentSecret: required("TWILIO_CALL_INTENT_SECRET"),
     now: () => Date.now(),
-    transferCompletedRecording: async (recordingSid) => {
-      const target = await store.getTransferTarget(recordingSid);
-      if (!target) throw new Error("TWILIO_RECORDING_NOT_FOUND");
-      if (target.status === "stored") return;
-      if (target.status === "stored_pending_source_delete") {
-        await dialer.deleteRecording(recordingSid);
-        await store.markRecordingStored(recordingSid);
-        return;
-      }
-      await transferRecording({
-        source: {
-          download: (reference) => dialer.downloadRecording(reference),
-          delete: (reference) => dialer.deleteRecording(reference),
-        },
-        destination: objectStore,
-        sourceReference: recordingSid,
-        destinationKey: target.objectKey,
-        afterStored: () => store.markRecordingPendingSourceDelete(recordingSid),
-      });
-      await store.markRecordingStored(recordingSid);
-    },
+    // Without R2, completed recordings stay with Twilio as ready_for_transfer.
+    transferCompletedRecording: objectStore
+      ? async (recordingSid) => {
+          const target = await store.getTransferTarget(recordingSid);
+          if (!target) throw new Error("TWILIO_RECORDING_NOT_FOUND");
+          if (target.status === "stored") return;
+          if (target.status === "stored_pending_source_delete") {
+            await dialer.deleteRecording(recordingSid);
+            await store.markRecordingStored(recordingSid);
+            return;
+          }
+          await transferRecording({
+            source: {
+              download: (reference) => dialer.downloadRecording(reference),
+              delete: (reference) => dialer.deleteRecording(reference),
+            },
+            destination: objectStore,
+            sourceReference: recordingSid,
+            destinationKey: target.objectKey,
+            afterStored: () =>
+              store.markRecordingPendingSourceDelete(recordingSid),
+          });
+          await store.markRecordingStored(recordingSid);
+        }
+      : undefined,
   };
+}
+
+const R2_ENVIRONMENT = [
+  "R2_ACCOUNT_ID",
+  "R2_ACCESS_KEY_ID",
+  "R2_SECRET_ACCESS_KEY",
+  "R2_BUCKET",
+] as const;
+
+/** R2 is all-or-nothing: absent disables transfer, partial config fails closed. */
+export function optionalR2ObjectStore(
+  environment: NodeJS.ProcessEnv,
+): R2PrivateObjectStore | undefined {
+  const present = R2_ENVIRONMENT.filter((name) => environment[name]);
+  if (present.length === 0) return undefined;
+  const missing = R2_ENVIRONMENT.find((name) => !environment[name]);
+  if (missing) throw new Error(`${missing} is required when R2 is configured`);
+  return new R2PrivateObjectStore({
+    accountId: environment.R2_ACCOUNT_ID!,
+    accessKeyId: environment.R2_ACCESS_KEY_ID!,
+    secretAccessKey: environment.R2_SECRET_ACCESS_KEY!,
+    bucket: environment.R2_BUCKET!,
+  });
 }
 
 export async function createCallIntent(

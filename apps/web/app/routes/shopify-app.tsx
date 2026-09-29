@@ -7,6 +7,7 @@ import {
   type HeadersFunction,
   type LoaderFunctionArgs,
 } from "react-router";
+import { shopifyMerchantId } from "../lib/shopify-ingestion.server";
 import { getShopifyApp } from "../shopify.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -15,11 +16,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return {
     apiKey: process.env.SHOPIFY_API_KEY!,
     shop: session.shop,
+    merchantId: shopifyMerchantId(session.shop),
   };
 }
 
 export default function ShopifyAppLayout() {
-  const { apiKey, shop } = useLoaderData<typeof loader>();
+  const { apiKey, shop, merchantId } = useLoaderData<typeof loader>();
 
   return (
     <AppProvider apiKey={apiKey}>
@@ -29,6 +31,9 @@ export default function ShopifyAppLayout() {
           <h1>Merchant connection</h1>
           <p>
             Authenticated as <strong>{shop}</strong>
+          </p>
+          <p>
+            Holler merchant ID <code>{merchantId}</code>
           </p>
         </header>
         <Outlet />

@@ -4,6 +4,7 @@ import {
   redirect,
   useActionData,
   useLoaderData,
+  useSubmit,
 } from "react-router";
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
@@ -12,13 +13,40 @@ import {
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
+import { momentStatusLabels } from "../lib/moment-status";
 
 export async function loader({ request }: { request: Request }) {
-  return executeOperationsRequest(async () => ({
-    assignments: await getOperationsService().listQueue(
-      getTenantContext(request),
-    ),
-  }));
+  return executeOperationsRequest(async () => {
+    const context = getTenantContext(request);
+    const service = getOperationsService();
+    const [assignments, moments] = await Promise.all([
+      service.listQueue(context),
+      service.listMoments(context),
+    ]);
+    // Only running or paused moments can have work waiting in the queue.
+    const momentOptions = moments
+      .filter(
+        (moment) => moment.status === "live" || moment.status === "paused",
+      )
+      .map(({ id, name, status }) => ({ id, name, status }));
+    const requested = new URL(request.url).searchParams.get("moment");
+    const selectedMomentId = momentOptions.some(
+      (moment) => moment.id === requested,
+    )
+      ? requested
+      : null;
+    return {
+      assignments: selectedMomentId
+        ? assignments.filter(
+            (assignment) => assignment.momentId === selectedMomentId,
+          )
+        : assignments,
+      momentOptions,
+      selectedMomentId,
+      liveCount: momentOptions.filter((moment) => moment.status === "live")
+        .length,
+    };
+  });
 }
 
 export async function action({ request }: { request: Request }) {
@@ -72,18 +100,20 @@ export async function action({ request }: { request: Request }) {
 }
 
 export function meta() {
-  return [{ title: "Research Queue · Holler" }];
+  return [{ title: "Order queue · Holler" }];
 }
 
 export default function ResearchQueueRoute() {
-  const { assignments } = useLoaderData<typeof loader>();
+  const { assignments, momentOptions, selectedMomentId, liveCount } =
+    useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const submit = useSubmit();
 
   return (
     <AppShell
       eyebrow="Research operations"
-      title="Live researcher queue"
-      description="Fresh qualified opportunities, ordered by priority and time since the commerce event."
+      title="Order queue"
+      description="Fresh orders from live moments, ordered by priority and time since the order. Paused and completed moments send nothing new."
       actions={
         <div className="queue-clock">
           <span className="status-dot" />
@@ -91,6 +121,46 @@ export default function ResearchQueueRoute() {
         </div>
       }
     >
+      {momentOptions.length > 1 ? (
+        <Form
+          aria-label="Filter by moment"
+          className="queue-moment-filter"
+          method="get"
+        >
+          <label>
+            <span>Moment</span>
+            <select
+              defaultValue={selectedMomentId ?? ""}
+              key={selectedMomentId ?? "all"}
+              name="moment"
+              onChange={(event) => submit(event.currentTarget.form)}
+            >
+              <option value="">All moments</option>
+              {momentOptions.map((moment) => (
+                <option key={moment.id} value={moment.id}>
+                  {moment.name}
+                  {moment.status === "paused"
+                    ? ` (${momentStatusLabels.paused.toLowerCase()})`
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <noscript>
+            <button className="button button-small" type="submit">
+              Apply
+            </button>
+          </noscript>
+        </Form>
+      ) : null}
+
+      {liveCount === 0 ? (
+        <p className="inline-notice" role="status">
+          No moments are live, so no new orders are coming in. Resume or launch
+          a moment in Angle setup to start calling again.
+        </p>
+      ) : null}
+
       <PrototypeBanner>
         Manual-dial workflow. Every claim, reveal, and explicit start goes
         through the application service.
@@ -108,11 +178,11 @@ export default function ResearchQueueRoute() {
             Follow-up
           </button>
         </div>
-        <label className="search-control">
-          <span className="sr-only">Filter assignments</span>
-          <input placeholder="Filter merchant or moment" type="search" />
-        </label>
       </section>
+
+      {assignments.length === 0 ? (
+        <p className="helper-copy">No orders are waiting right now.</p>
+      ) : null}
 
       <section className="queue-list" aria-label="Research assignments">
         {assignments.map((assignment) => {

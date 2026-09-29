@@ -22,6 +22,7 @@ export async function action({ request }: { request: Request }) {
   const phone = await getOperationsService().revealPhone(
     {
       merchantId: intent.merchantId,
+      merchantIds: [intent.merchantId],
       researcherId: intent.researcherId,
       roles: ["researcher"],
       correlationId: intent.nonce,

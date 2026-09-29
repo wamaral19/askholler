@@ -4,7 +4,8 @@ export default function ShopifyAppIndex() {
       <h2>Holler is connected</h2>
       <p>
         Shopify authentication is active and the installation session is stored
-        in PostgreSQL. Order ingestion is the next integration boundary.
+        in PostgreSQL. New orders are ingested from the orders/create webhook
+        and qualified against published research moments by the worker.
       </p>
     </section>
   );

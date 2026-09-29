@@ -390,6 +390,7 @@ function normalizeCanonicalSecondOrder(): NormalizedShopifyCommerceEvent {
       id: "gid://shopify/Customer/900000000101",
       phone: "+12025550142",
       firstName: "Casey Example",
+      createdAt: "2026-02-01T12:00:00.000Z",
     },
     observedAttribution: {
       source: "meta",

@@ -68,6 +68,7 @@ export function buildSyntheticShopifyOrderIngress(
               id: syntheticShopifyIds.customer,
               phone: "+12025550123",
               firstName: "Synthetic",
+              createdAt: "2026-01-05T12:00:00.000Z",
             }
           : overrides.customer,
       lineItems: [

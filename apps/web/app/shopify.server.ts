@@ -7,6 +7,11 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PostgreSQLSessionStorage } from "@shopify/shopify-app-session-storage-postgresql";
 
+import {
+  getShopifyIngestionDatabase,
+  recordShopifyInstall,
+} from "./lib/shopify-ingestion.server";
+
 type ShopifyApp = ReturnType<typeof createShopifyApp>;
 
 let cachedShopifyApp: ShopifyApp | undefined;
@@ -45,6 +50,11 @@ function createShopifyApp() {
     sessionStorage: new PostgreSQLSessionStorage(databaseUrl),
     future: {
       expiringOfflineAccessTokens: true,
+    },
+    hooks: {
+      afterAuth: async ({ session }) => {
+        await recordShopifyInstall(getShopifyIngestionDatabase(), session.shop);
+      },
     },
   });
 }

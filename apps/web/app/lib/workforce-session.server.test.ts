@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SyntheticWorkforceContextResolver,
+  WORKFORCE_MERCHANT_COOKIE,
   WorkforceContextError,
   syntheticSessionsFromEnvironment,
 } from "./workforce-session.server";
@@ -59,7 +60,56 @@ describe("synthetic workforce context", () => {
     expect(context).toMatchObject({ merchantId, researcherId });
   });
 
+  it("selects a merchant from the cookie only within the session allowlist", () => {
+    const otherMerchant = "00000000-0000-7000-8000-000000000103";
+    const unlisted = "00000000-0000-7000-8000-000000009999";
+    const multi = new SyntheticWorkforceContextResolver(
+      new Map([
+        [
+          "multi-session",
+          {
+            merchantId,
+            merchantIds: [otherMerchant],
+            researcherId,
+            enabled: true,
+            roles: ["researcher"],
+          },
+        ],
+      ]),
+    );
+    const resolve = (selected?: string) =>
+      multi.resolve(
+        new Request("https://holler.invalid/queue", {
+          headers: {
+            "x-holler-workforce-session": "multi-session",
+            ...(selected
+              ? { cookie: `${WORKFORCE_MERCHANT_COOKIE}=${selected}` }
+              : {}),
+          },
+        }),
+      );
+    expect(resolve()).toMatchObject({
+      merchantId,
+      merchantIds: [merchantId, otherMerchant],
+    });
+    expect(resolve(otherMerchant).merchantId).toBe(otherMerchant);
+    expect(resolve(unlisted).merchantId).toBe(merchantId);
+  });
+
   it("fails closed on malformed server configuration", () => {
+    expect(() =>
+      syntheticSessionsFromEnvironment({
+        HOLLER_SYNTHETIC_WORKFORCE_SESSIONS: JSON.stringify({
+          "enabled-session": {
+            merchantId,
+            merchantIds: ["not-a-uuid"],
+            researcherId,
+            enabled: true,
+            roles: ["researcher"],
+          },
+        }),
+      }),
+    ).toThrow("Invalid HOLLER_SYNTHETIC_WORKFORCE_SESSIONS configuration");
     expect(() =>
       syntheticSessionsFromEnvironment({
         HOLLER_SYNTHETIC_WORKFORCE_SESSIONS: JSON.stringify({

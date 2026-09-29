@@ -47,6 +47,7 @@ describe("normalizeShopifyOrderIngress", () => {
         id: "gid://shopify/Customer/900000000002",
         phone: null,
         firstName: "Synthetic",
+        createdAt: null,
       },
     });
 

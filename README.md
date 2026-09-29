@@ -14,7 +14,7 @@ Holler is an evidence-backed customer research operations platform for Shopify e
 - Validated evidence-backed Angles and deterministic monthly HTML Disco rendering (the code still uses the generic `Report` domain name).
 - React Router loaders/actions backed by a PostgreSQL operations service for Research Moments, queue claim/start/release, pinned interview definitions, protected phone reveal, interview capture, completion, and report generation.
 - A development-only synthetic workforce-session adapter and replaceable synthetic phone decryptor, with tenant-scoped, claim-gated and audited reveal.
-- Transactional `report.render.requested` application-outbox events for the worker integration branch.
+- Transactional `render_report` application-outbox events (`merchantId`, `reportRevisionId`) dispatched to Graphile Worker.
 - PostgreSQL/Drizzle schema and migrations for the initial domain.
 
 All fixtures and UI data are synthetic. Do not introduce production customer PII into development, logs, prompts, fixtures, screenshots, or source control.
@@ -86,7 +86,7 @@ For a real development-store check, use only synthetic customers and orders:
 
 The repository cannot prove protected-customer-data approval, delivery from Shopify's infrastructure, or historical API access without a Partner app and development store. Those remain external launch checks. The current webhook route authenticates and acknowledges Shopify callbacks, but durable `orders/create` persistence and bounded history reconciliation remain implementation work; do not treat a successful install as ingestion readiness.
 
-The UI fails closed unless `HOLLER_OPERATIONS_MODE` is explicitly selected. Use `synthetic-postgres` with `DATABASE_URL` for the durable path. `synthetic-memory` exists only for isolated development/tests and is never an implicit fallback. Supply an opaque `holler_workforce_session` cookie (or `x-holler-workforce-session` in tests) mapped by `HOLLER_SYNTHETIC_WORKFORCE_SESSIONS`; merchant, researcher, and role grants come only from that server-side map. The commerce dashboard at `/admin/dashboard` requires `merchant_admin` or `platform_admin`.
+The UI fails closed unless `HOLLER_OPERATIONS_MODE` is explicitly selected. Use `synthetic-postgres` with `DATABASE_URL` for the durable path. `synthetic-memory` exists only for isolated development/tests and is never an implicit fallback. Supply an opaque `holler_workforce_session` cookie (or `x-holler-workforce-session` in tests) mapped by `HOLLER_SYNTHETIC_WORKFORCE_SESSIONS`; merchant, researcher, and role grants come only from that server-side map. The commerce dashboard at `/admin/dashboard` requires `merchant_admin` or `platform_admin`. A session may list extra `merchantIds` to allow switching merchants from the sidebar; the `holler_workforce_merchant` cookie only selects among those. Pausing, completing, or reopening a moment requires `research_manager`, `merchant_admin`, or `platform_admin`. Only live moments (stored as `active`) qualify new orders into the queue.
 
 This session adapter is intentionally non-production and replaceable at the context boundary. Production OIDC/MFA, workforce membership/role storage and revocation, KMS-backed phone encryption, legal approval for outbound contact/recording, reveal rate limits/alerting, and live providers remain launch blockers. Synthetic mode is not completed production authentication or encryption.
 

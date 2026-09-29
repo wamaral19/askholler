@@ -1,4 +1,10 @@
-export type MomentStatus = "active" | "draft" | "paused";
+/**
+ * Live moments qualify new orders into the queue; paused and completed moments
+ * stop qualifying (completed can be reopened, so it behaves like paused).
+ * Persisted as research_moments.status "active" | "paused" | "completed" |
+ * "draft".
+ */
+export type MomentStatus = "live" | "draft" | "paused" | "completed";
 
 export interface ResearchMomentSummary {
   readonly id: string;
@@ -10,7 +16,8 @@ export interface ResearchMomentSummary {
   readonly weeklyTarget: number;
   readonly fieldCount: number;
   readonly scriptVersion: string;
-  readonly qualifiedThisWeek: number;
+  /** Interviews completed since the start of the merchant's week. */
+  readonly completedThisWeek: number;
 }
 
 export const researchMoments: readonly ResearchMomentSummary[] = [
@@ -18,38 +25,63 @@ export const researchMoments: readonly ResearchMomentSummary[] = [
     id: "moment-category-transition",
     name: "Second-order category transition",
     objective: "Learn why repeat customers move into a new product category.",
-    status: "active",
+    status: "live",
     trigger: "Order completed",
     cohortSummary:
-      "Order #2 · first order excluded Bottoms · current order contains Bottoms",
+      "The customer's second order, their first order had no Bottoms, and this order includes Bottoms.",
     weeklyTarget: 12,
     fieldCount: 7,
     scriptVersion: "Repeat purchase v3",
-    qualifiedThisWeek: 8,
+    completedThisWeek: 8,
   },
   {
     id: "moment-attribution-audit",
     name: "First-purchase attribution audit",
     objective: "Compare Shopify attribution with customer-reported discovery.",
-    status: "active",
+    status: "live",
     trigger: "Order completed",
-    cohortSummary: "Order #1 · observed source is paid social or paid search",
+    cohortSummary:
+      "The customer's first order, and they came from paid social or paid search.",
     weeklyTarget: 10,
     fieldCount: 6,
     scriptVersion: "Attribution core v2",
-    qualifiedThisWeek: 6,
+    completedThisWeek: 4,
   },
   {
     id: "moment-moisturizer-texture",
     name: "Moisturizer texture study",
     objective: "Understand texture expectations and application experience.",
-    status: "draft",
+    status: "paused",
     trigger: "Order completed",
-    cohortSummary: "Current order contains Moisturizer",
+    cohortSummary: "This order includes Moisturizer.",
     weeklyTarget: 8,
     fieldCount: 9,
     scriptVersion: "Product experience v1",
-    qualifiedThisWeek: 0,
+    completedThisWeek: 3,
+  },
+  {
+    id: "moment-outerwear-fit",
+    name: "Outerwear fit check",
+    objective: "Hear how first-time outerwear buyers chose their size.",
+    status: "draft",
+    trigger: "Order completed",
+    cohortSummary: "This order includes Outerwear.",
+    weeklyTarget: 6,
+    fieldCount: 5,
+    scriptVersion: "Product experience v1",
+    completedThisWeek: 0,
+  },
+  {
+    id: "moment-holiday-gifting",
+    name: "Holiday gifting",
+    objective: "Learn who holiday orders were bought for and why.",
+    status: "completed",
+    trigger: "Order completed",
+    cohortSummary: "Orders placed between Nov 15 and Dec 24.",
+    weeklyTarget: 15,
+    fieldCount: 6,
+    scriptVersion: "Attribution core v2",
+    completedThisWeek: 0,
   },
 ];
 
@@ -141,6 +173,7 @@ export interface QueueAssignment {
   readonly maskedPhone: string;
   readonly syntheticPhone: string;
   readonly merchant: string;
+  readonly momentId: string;
   readonly moment: string;
   readonly eventAgeMinutes: number;
   readonly orderSequence: number;
@@ -157,6 +190,7 @@ export const queueAssignments: readonly QueueAssignment[] = [
     maskedPhone: "+1 ••• ••• 0123",
     syntheticPhone: "+1 202 555 0123",
     merchant: "Northstar Outfitters — synthetic",
+    momentId: "moment-category-transition",
     moment: "Second-order category transition",
     eventAgeMinutes: 3,
     orderSequence: 2,
@@ -171,6 +205,7 @@ export const queueAssignments: readonly QueueAssignment[] = [
     maskedPhone: "+1 ••• ••• 0148",
     syntheticPhone: "+1 202 555 0148",
     merchant: "Northstar Outfitters — synthetic",
+    momentId: "moment-attribution-audit",
     moment: "First-purchase attribution audit",
     eventAgeMinutes: 11,
     orderSequence: 1,
@@ -185,6 +220,7 @@ export const queueAssignments: readonly QueueAssignment[] = [
     maskedPhone: "+1 ••• ••• 0162",
     syntheticPhone: "+1 202 555 0162",
     merchant: "Morrow Skin — synthetic",
+    momentId: "moment-moisturizer-texture",
     moment: "Moisturizer texture study",
     eventAgeMinutes: 24,
     orderSequence: 3,

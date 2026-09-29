@@ -22,6 +22,8 @@ const shopifyCustomerIngressSchema = z
     id: shopifyGidSchema,
     phone: nullableTrimmedString(32),
     firstName: nullableTrimmedString(120),
+    /** Shopify customer creation time; bounds how much history Holler has seen. */
+    createdAt: z.string().datetime().nullable(),
   })
   .strict();
 

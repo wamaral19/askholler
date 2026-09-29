@@ -76,7 +76,11 @@ For every HTTPS webhook:
 2. Verify the HMAC before trusting headers or payload.
 3. Resolve the merchant only after verification.
 4. insert an immutable `WebhookReceipt` using Shopify's delivery ID as a unique key.
-5. Return success quickly after the receipt and normalization job are durably committed.
+5. Return success quickly after the receipt and its downstream work are durably committed.
+
+`orders/create` normalizes inline, in the same transaction as the receipt (see the transaction model below): the handler maps the verified body into the allowlisted `ShopifyOrderIngressV1` envelope, so no raw or intermediate payload is ever stored for a later job to read. Normalization is a handful of indexed upserts, well inside Shopify's response window; any failure rolls back the receipt and returns 5xx so Shopify redelivers. `normalize_webhook` remains reserved for reconciliation replays.
+
+Installation (`afterAuth`) upserts the merchant with a deterministic ID derived from the shop domain and provisions a merchant-scoped default script. A customer's order history is `complete` only when Shopify created the customer after `installedAt`, because every one of their orders then arrived by webhook; older customers stay `partial` (sequence unknown, qualification fails closed) until historical import exists. Customer phone and name are not persisted until customer-private encryption is configured.
 
 Never log bodies, phone numbers, emails, names, addresses, tokens, or raw query parameters. Use app-configured subscriptions and implement required privacy topics (`customers/data_request`, `customers/redact`, and `shop/redact`) before production distribution. Shopify recommends delivery-ID deduplication, raw-body HMAC verification, and reconciliation because delivery is not guaranteed; those are launch requirements, not optional hardening.
 
@@ -206,7 +210,7 @@ The event-to-task contract is intentionally explicit:
 | `expire_assignments`      | `merchantId`, `assignmentId`     | `expire_assignments:<assignmentId>`         |                5 |
 | `render_report`           | `merchantId`, `reportRevisionId` | `render_report:<reportRevisionId>`          |                5 |
 
-Handlers validate strict UUID-only contracts and call injected, replay-safe service ports. Terminal validation failures are logged only as safe codes and complete without retry; operational failures throw a safe code for Graphile's bounded retry policy. The concrete normalization, qualification, expiry, and report-rendering service compositions remain an explicit later integration boundary and currently fail closed.
+Handlers validate strict UUID-only contracts and call injected, replay-safe service ports. Terminal validation failures are logged only as safe codes and complete without retry; operational failures throw a safe code for Graphile's bounded retry policy. `evaluate_commerce_event` is composed (`apps/worker/src/qualify-commerce-event.ts`): it evaluates the latest published version of each active moment, enforces `allocationPolicy.weeklyCap` under a per-version advisory lock, and writes the evaluation and any queued assignment in one transaction. `render_report` is composed; `normalize_webhook` and `expire_assignments` still fail closed.
 
 Operational replay clears `dispatched_at` only after the event has been inspected and any safe contract issue corrected. Republishing uses the same stable Graphile key, so replay replaces the existing logical job rather than duplicating it. Unsupported or sensitive payloads remain undispatched for investigation.
 
@@ -224,11 +228,8 @@ Initial job types are `normalize_webhook`, `evaluate_commerce_event`, `reconcile
 ## End-to-end transaction and failure model
 
 ```text
-Webhook transaction:
-  WebhookReceipt + normalize job
-
-Normalization transaction:
-  commerce upserts + CommerceEvent + qualification job
+Webhook transaction (orders/create):
+  WebhookReceipt + commerce upserts + CommerceEvent + qualification outbox job
 
 Qualification transaction:
   QualificationEvaluation + ResearchAssignment + audit transition

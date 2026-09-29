@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsc --noEmit -p tsconfig.json"
+    "build": "tsc --noEmit -p tsconfig.json",
+    "start": "tsx src/main.ts"
   },
   "dependencies": {
-    "@holler/domain": "*",
     "@holler/db": "*",
+    "@holler/domain": "*",
+    "@holler/reporting": "*",
+    "@holler/research": "*",
     "graphile-worker": "latest",
     "zod": "latest"
   },

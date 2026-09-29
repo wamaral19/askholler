@@ -1,12 +1,24 @@
+import { createDatabase } from "@holler/db";
 import { loadWorkerEnvironment } from "@holler/domain";
 import { pathToFileURL } from "node:url";
 import { unavailableWorkerServices } from "./jobs";
+import { renderReportRevision } from "./render-report";
+import { qualifyCommerceEvent } from "./qualify-commerce-event";
 import { startWorkerRuntime } from "./runtime";
 import { createTaskList } from "./tasks";
 
 export async function main(): Promise<void> {
   const environment = loadWorkerEnvironment(process.env);
-  const taskList = createTaskList(unavailableWorkerServices());
+  const { db, pool } = createDatabase(environment.DATABASE_URL);
+  const taskList = createTaskList({
+    ...unavailableWorkerServices(),
+    evaluateCommerceEvent: async (payload) => {
+      await qualifyCommerceEvent(db, payload);
+    },
+    renderReport: async (payload) => {
+      await renderReportRevision(db, payload);
+    },
+  });
   const runtime = await startWorkerRuntime(environment, taskList);
 
   console.info(
@@ -20,7 +32,11 @@ export async function main(): Promise<void> {
 
   for (const signal of ["SIGTERM", "SIGINT"] as const)
     process.once(signal, () => void runtime.stop(signal));
-  await runtime.done;
+  try {
+    await runtime.done;
+  } finally {
+    await pool.end();
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href)
