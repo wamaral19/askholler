@@ -1,7 +1,13 @@
 # Pilot legal review brief: outbound research calls and recording
 
-Prepared for outside counsel. Holler asks for advice on the questions in the
-last section before placing any call to a real customer.
+Status: optional reference, not a launch gate. On 2026-09-29 the product
+owner approved these call and recording practices based on prior counsel
+guidance (see "Outbound contact and recording approval" in
+`docs/mvp-security-privacy-signoff.md`). Live pilot calls do not wait on
+outside review.
+
+Prepared for outside counsel, for use if Holler seeks advice on the questions
+in the last section.
 
 ## What Holler does
 

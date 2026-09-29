@@ -7,6 +7,7 @@ import {
 
 export default [
   index("routes/home.tsx"),
+  route("privacy", "routes/privacy.tsx"),
   route("app", "routes/shopify-app.tsx", [
     index("routes/shopify-app-index.tsx"),
   ]),

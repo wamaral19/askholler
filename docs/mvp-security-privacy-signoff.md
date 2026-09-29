@@ -3,10 +3,10 @@
 Status: approved by product owner on 2026-09-24
 
 This record captures product decisions for the Holler MVP. Approval authorizes
-implementation and drafting; it does not assert that a control is deployed or
-that legal review has occurred. Production customer data and live calls remain
-blocked until the applicable implementation, testing, Shopify, and legal gates
-are complete.
+implementation and drafting; it does not assert that a control is deployed.
+Production customer data and live calls remain blocked until the applicable
+implementation, testing, and Shopify gates are complete. Outside legal review
+is not a gate (see "Outbound contact and recording approval").
 
 ## Approved decisions
 
@@ -119,14 +119,28 @@ The application must record the consent outcome and time. Silence, an ambiguous
 answer, or continuing the conversation is not consent. If consent is declined,
 the recording must remain off or stop immediately; the researcher may continue
 only if an approved unrecorded-call workflow is available. The call flow must
-also honor suppression, opt-out, calling-time, and jurisdictional rules approved
-by counsel. This product decision is not a legal opinion.
+also honor suppression, opt-out, calling-time, and jurisdictional rules set by
+the product owner. This product decision is not a legal opinion.
+
+## Outbound contact and recording approval
+
+Approved by product owner on 2026-09-29. The product owner has conducted
+recorded customer research calls before and has prior counsel guidance on how
+to run them, including calls to all-party-consent states. On that basis they
+accept the contact and recording practices above for the pilot, and outside
+counsel review is not required before live calls. The questions in
+`docs/pilot-legal-review-brief.md` stay available for any later review.
+
+The public privacy policy at `https://withholler.com/privacy`
+(`apps/web/app/routes/privacy.tsx`) is published by Tour Pro Shop LLC, doing
+business as Holler.
 
 ## Named approvals still required
 
 Before live production use, record the individuals or roles approving:
 
-- privacy/recording/outbound-contact legal review;
+- outbound contact and recording practices (approved by the product owner on
+  2026-09-29; outside counsel review not required);
 - legal-hold placement and release;
 - production access and membership changes;
 - incident command and breach notification;

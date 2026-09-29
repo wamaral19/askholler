@@ -22,6 +22,20 @@ describe("createHostRouting", () => {
     );
   });
 
+  it("serves public pages on the marketing host", () => {
+    for (const path of ["/privacy", "/privacy/"]) {
+      expect(resolve({ host: "withholler.com", path, method: "GET" })).toBe(
+        null,
+      );
+    }
+  });
+
+  it("sends public pages on the app host to the marketing host", () => {
+    expect(
+      resolve({ host: "app.withholler.com", path: "/privacy", method: "GET" }),
+    ).toEqual({ status: 308, location: "https://withholler.com/privacy" });
+  });
+
   it("sends every other marketing-host path to the app host, preserving method", () => {
     expect(
       resolve({

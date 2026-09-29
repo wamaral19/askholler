@@ -25,4 +25,4 @@ approved direction is implemented and verified.
 5. The hourly privacy sweep runs pending deletion requests (respecting legal hold) and applies retention: contact data 90 days after the latest order, recordings 30 days after creation. Failures and overdue requests are logged at error level. Remaining: name the legal-hold authority and attach a Render log alert to `privacy.sweep_completed` errors.
 6. Complete IdP/KMS audit-log ingestion, membership administration (operator-seeded for the pilot), session revocation tests, backup deletion/retention policy, and an independent security review.
 
-No production customer data or live outbound call is permitted until these blockers and the legal/Shopify gates in `docs/security-review.md` are closed.
+No production customer data or live outbound call is permitted until these blockers and the Shopify gates in `docs/security-review.md` are closed. Contact and recording practices were approved by the product owner on 2026-09-29; outside legal review is not a gate (see `docs/mvp-security-privacy-signoff.md`).

@@ -43,8 +43,8 @@ the dashboard yourself.
    `holler-worker`.
 4. Shopify production app: `docs/shopify-pilot-app-setup.md`.
 5. Provision the team with `npm run workforce` (below) and sign in.
-6. Before the first real call: complete the legal review
-   (`docs/pilot-legal-review-brief.md`).
+6. Before the first real call: brief researchers on the recording-consent
+   prompt and call rules in `docs/mvp-security-privacy-signoff.md`.
 
 ## Customer-data encryption (Cloud KMS)
 

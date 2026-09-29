@@ -267,7 +267,10 @@ export default function Home() {
 
       <footer className="simple-footer">
         <span>© {new Date().getFullYear()} Holler</span>
-        <a href="#top">Back to top ↑</a>
+        <span className="simple-footer-links">
+          <a href="/privacy">Privacy</a>
+          <a href="#top">Back to top ↑</a>
+        </span>
       </footer>
     </main>
   );

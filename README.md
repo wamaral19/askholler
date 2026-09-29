@@ -88,7 +88,7 @@ The repository cannot prove protected-customer-data approval, delivery from Shop
 
 The UI fails closed unless `HOLLER_OPERATIONS_MODE` is explicitly selected. Use `synthetic-postgres` with `DATABASE_URL` for the durable path. `synthetic-memory` exists only for isolated development/tests and is never an implicit fallback. Supply an opaque `holler_workforce_session` cookie (or `x-holler-workforce-session` in tests) mapped by `HOLLER_SYNTHETIC_WORKFORCE_SESSIONS`; merchant, researcher, and role grants come only from that server-side map. The commerce dashboard at `/admin/dashboard` requires `merchant_admin` or `platform_admin`. A session may list extra `merchantIds` to allow switching merchants from the sidebar; the `holler_workforce_merchant` cookie only selects among those. Pausing, completing, or reopening a moment requires `research_manager`, `merchant_admin`, or `platform_admin`. Only live moments (stored as `active`) qualify new orders into the queue.
 
-This session adapter is intentionally non-production and replaceable at the context boundary. Production OIDC/MFA, workforce membership/role storage and revocation, KMS-backed phone encryption, legal approval for outbound contact/recording, reveal rate limits/alerting, and live providers remain launch blockers. Synthetic mode is not completed production authentication or encryption.
+This session adapter is intentionally non-production and replaceable at the context boundary. Production OIDC/MFA, workforce membership/role storage and revocation, KMS-backed phone encryption, reveal rate limits/alerting, and live providers remain launch blockers. Synthetic mode is not completed production authentication or encryption.
 
 ## Deployment
 
@@ -142,4 +142,4 @@ docs              Architecture, data model, plan, security review, and demo cont
 
 ## Next implementation boundary
 
-Finish durable worker orchestration and development-store verification. Before a live pilot, replace synthetic workforce/PII adapters with Google sign-in for the internal team and KMS encryption, complete protected-data approval for a custom-distribution Shopify app and legal review, and enable Twilio live calling. The pilot has no transcription provider, and Earshot and Disco are assembled manually; automating them follows the pilot. The pilot scope and detailed ordered backlog are in `docs/mvp-plan.md`.
+Finish durable worker orchestration and development-store verification. Before a live pilot, replace synthetic workforce/PII adapters with Google sign-in for the internal team and KMS encryption, complete protected-data approval for a custom-distribution Shopify app, and enable Twilio live calling. The pilot has no transcription provider, and Earshot and Disco are assembled manually; automating them follows the pilot. The pilot scope and detailed ordered backlog are in `docs/mvp-plan.md`.
