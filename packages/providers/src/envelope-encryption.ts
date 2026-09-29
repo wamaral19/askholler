@@ -1,9 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 export interface DataKeyProvider {
-  generateDataKey(
-    keyId: string,
-  ): Promise<{
+  generateDataKey(keyId: string): Promise<{
     plaintextKey: Uint8Array;
     encryptedKey: string;
     keyVersion: string;
