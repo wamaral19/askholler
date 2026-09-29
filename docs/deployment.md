@@ -36,9 +36,9 @@ Deliberately **not** enabled:
 
 ### 1. Render
 
-1. Push this branch (or merge to `main`) so Render can read `render.yaml`.
+1. Merge to `main` so Render can read `render.yaml`.
 2. In Render: **New → Blueprint**, connect the GitHub repository, select the
-   branch, and apply.
+   `main` branch, and apply.
 3. When prompted, enter `SHOPIFY_API_SECRET` (Shopify Partner dashboard → app
    → Client credentials). Leaving it blank only disables the Shopify surface.
 4. Wait for the first deploy. Open the service's `*.onrender.com` URL and
@@ -106,7 +106,8 @@ separate production app) so dev and production never share URLs.
 
 ## Operating
 
-- Deploys happen automatically on push to the connected branch.
+- `holler-web` deploys from `main` only, and only after GitHub CI passes for
+  the commit (`autoDeployTrigger: checksPass`). Ship by merging a PR to `main`.
 - Build: `npm ci --include=dev && npm run build --workspace=@holler/web`
   (dev dependencies are needed for the build and for `tsx` in migrations).
 - Roll back from the service's **Events** page.

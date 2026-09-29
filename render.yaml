@@ -19,6 +19,9 @@ services:
     runtime: node
     plan: starter
     region: virginia
+    # Deploy only from main, and only after GitHub CI passes for the commit.
+    branch: main
+    autoDeployTrigger: checksPass
     buildCommand: npm ci --include=dev && npm run build --workspace=@holler/web
     preDeployCommand: npm run db:migrate
     startCommand: npm run start --workspace=@holler/web
