@@ -52,8 +52,8 @@ pilot scope table in `docs/mvp-plan.md`.
   Researchers capture responses and observations directly.
 - **Shopify:** custom app distribution to the pilot merchant only.
 - **Reports:** Earshot and Disco are assembled manually from reviewed evidence
-  and delivered privately. Every manual export follows the PII-bearing export
-  retention rule below.
+  and delivered privately. A manual export that contains direct identifiers
+  follows the PII-bearing export retention rule below.
 
 Key management, envelope encryption, deletion, retention, and call/recording
 consent requirements are unchanged.
@@ -98,6 +98,12 @@ signoff until the applicable provider or workflow is approved.
 | Shopify and provider credentials          | Until uninstall, revocation, or loss of purpose; then delete promptly |
 | Non-PII security and access audit records |                                                             12 months |
 | Encrypted backups                         |                                 35 days, followed by automatic expiry |
+
+For export classification, the merchant's own Shopify order number and
+numeric Shopify customer ID are reference identifiers, not PII. An export that
+carries only those references (no name, phone, email, address, recording, or
+raw transcript) is retained as a report without direct identifiers, not as a
+PII-bearing export.
 
 An authenticated privacy request, Shopify redaction webhook, shop uninstall, or
 contractual requirement can require earlier deletion. A documented legal hold
