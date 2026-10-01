@@ -206,6 +206,7 @@ export async function ingestShopifyOrder(
         merchantId,
         customerId: customer?.id ?? null,
         shopifyOrderId: order.id,
+        sourceOrderNumber: order.name,
         orderedAt,
         sourceUpdatedAt: new Date(order.updatedAt),
         totalMinor: moneyToMinor(order.total.amount, order.total.currency),

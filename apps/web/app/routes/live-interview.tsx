@@ -3,6 +3,7 @@ import { Form, Link, useActionData, useLoaderData } from "react-router";
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
 import { TwilioCallPanel } from "../components/twilio-call-panel";
+import { ordinal } from "../lib/cohort-description";
 import {
   executeOperationsRequest,
   getOperationsService,
@@ -188,8 +189,16 @@ export default function LiveInterviewRoute() {
               <div>
                 <dt>Order</dt>
                 <dd>
-                  #{assignment.orderSequence} · {assignment.orderTotal}
+                  {assignment.orderNumber ?? "Not captured"} ·{" "}
+                  {assignment.orderTotal}
+                  {assignment.orderSequence > 0
+                    ? ` · ${ordinal(assignment.orderSequence)} order`
+                    : ""}
                 </dd>
+              </div>
+              <div>
+                <dt>Shopify customer ID</dt>
+                <dd>{assignment.shopifyCustomerId ?? "Guest checkout"}</dd>
               </div>
               <div>
                 <dt>Products</dt>

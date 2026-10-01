@@ -13,6 +13,7 @@ import {
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
+import { ordinal } from "../lib/cohort-description";
 import { momentStatusLabels } from "../lib/moment-status";
 
 export async function loader({ request }: { request: Request }) {
@@ -215,7 +216,11 @@ export default function ResearchQueueRoute() {
                   <div>
                     <dt>Order</dt>
                     <dd>
-                      #{assignment.orderSequence} · {assignment.orderTotal}
+                      {assignment.orderNumber ?? "Not captured"} ·{" "}
+                      {assignment.orderTotal}
+                      {assignment.orderSequence > 0
+                        ? ` · ${ordinal(assignment.orderSequence)} order`
+                        : ""}
                     </dd>
                   </div>
                   <div>

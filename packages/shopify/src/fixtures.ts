@@ -55,6 +55,7 @@ export function buildSyntheticShopifyOrderIngress(
     triggeredAt: DEFAULT_OCCURRED_AT,
     order: {
       id: syntheticShopifyIds.order,
+      name: "#1001",
       createdAt: DEFAULT_OCCURRED_AT,
       updatedAt: DEFAULT_OCCURRED_AT,
       cancelledAt: null,

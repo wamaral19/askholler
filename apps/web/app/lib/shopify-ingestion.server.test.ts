@@ -89,6 +89,7 @@ function orderWebhook(input: {
     triggeredAt: input.createdAt,
     payload: {
       admin_graphql_api_id: `gid://shopify/Order/${input.order}`,
+      name: `#${input.order}`,
       created_at: input.createdAt,
       updated_at: input.createdAt,
       currency: "USD",
@@ -316,6 +317,8 @@ describe.skipIf(databaseUrl === undefined)(
       expect(queued).toMatchObject({
         customerName: "Customer",
         maskedPhone: "••• ••• 0142",
+        orderNumber: "#1001",
+        shopifyCustomerId: "2001",
       });
       await service.claimAssignment(context, queued!.id, queued!.lockVersion);
       await expect(service.revealPhone(context, queued!.id)).resolves.toEqual({

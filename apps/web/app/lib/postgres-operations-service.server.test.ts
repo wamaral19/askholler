@@ -64,12 +64,12 @@ describe.skipIf(databaseUrl === undefined)(
         insert into merchants (id, name, timezone, status)
         values (${ids.merchantA}, 'Synthetic Merchant A', 'UTC', 'active'),
                (${ids.merchantB}, 'Synthetic Merchant B', 'UTC', 'active')`,
-        sql`insert into customers (id, merchant_id, order_count, history_completeness, contactability_status)
-        values (${ids.customer}, ${ids.merchantA}, 1, '{}'::jsonb, 'eligible')`,
+        sql`insert into customers (id, merchant_id, shopify_customer_id, order_count, history_completeness, contactability_status)
+        values (${ids.customer}, ${ids.merchantA}, 'gid://shopify/Customer/12345', 1, '{}'::jsonb, 'eligible')`,
         sql`insert into customer_private (customer_id, merchant_id, encrypted_given_name, encrypted_phone_e164, key_version)
         values (${ids.customer}, ${ids.merchantA}, 'synthetic:plain:Avery', 'synthetic:v1:+12025550123', 'synthetic-v1')`,
-        sql`insert into orders (id, merchant_id, customer_id, shopify_order_id, ordered_at, source_updated_at, total_minor, currency, customer_order_sequence, observed_attribution)
-        values (${ids.order}, ${ids.merchantA}, ${ids.customer}, 'synthetic-order-1', ${now}, ${now}, 12800, 'USD', 1, '{"source":"meta","channel":"paid_social"}'::jsonb)`,
+        sql`insert into orders (id, merchant_id, customer_id, shopify_order_id, source_order_number, ordered_at, source_updated_at, total_minor, currency, customer_order_sequence, observed_attribution)
+        values (${ids.order}, ${ids.merchantA}, ${ids.customer}, 'synthetic-order-1', '#1042', ${now}, ${now}, 12800, 'USD', 1, '{"source":"meta","channel":"paid_social"}'::jsonb)`,
         sql`insert into order_line_items (id, merchant_id, order_id, shopify_line_item_id, sku, title, quantity, unit_price_minor, currency)
         values (${ids.line}, ${ids.merchantA}, ${ids.order}, 'synthetic-line-1', 'SYN-1', 'Synthetic trouser', 1, 12800, 'USD')`,
         sql`insert into commerce_events (id, merchant_id, customer_id, order_id, event_type, source, source_event_id, occurred_at, ingested_at, schema_version, attributes, observed_attribution, correlation_id)
@@ -189,6 +189,8 @@ describe.skipIf(databaseUrl === undefined)(
       const [queued] = await service.listQueue(contextA);
       expect(queued).toMatchObject({
         maskedPhone: "••• ••• 0123",
+        orderNumber: "#1042",
+        shopifyCustomerId: "12345",
         lockVersion: 0,
       });
       expect(JSON.stringify(queued)).not.toContain("+12025550123");
@@ -243,6 +245,10 @@ describe.skipIf(databaseUrl === undefined)(
       expect(
         await service.startInterview(contextA, ids.assignment, 999),
       ).toEqual(interview);
+      expect(interview.assignment).toMatchObject({
+        orderNumber: "#1042",
+        shopifyCustomerId: "12345",
+      });
       expect(interview.fields.map((field) => field.id)).toEqual([
         ids.fieldVersion,
       ]);

@@ -12,6 +12,7 @@ import {
  */
 const webhookOrderSchema = z.object({
   admin_graphql_api_id: z.string(),
+  name: z.string(),
   created_at: z.string(),
   updated_at: z.string(),
   cancelled_at: z.string().nullable().optional(),
@@ -124,6 +125,7 @@ export function mapShopifyOrderWebhook(
     triggeredAt: iso(input.triggeredAt),
     order: {
       id: order.admin_graphql_api_id,
+      name: order.name.trim().slice(0, 64),
       createdAt: iso(order.created_at),
       updatedAt: iso(order.updated_at),
       cancelledAt: order.cancelled_at ? iso(order.cancelled_at) : null,
@@ -167,4 +169,14 @@ export function moneyToMinor(amount: string, currency: string): number {
   if (padded.slice(digits).replace(/0/g, ""))
     throw new Error("Money amount exceeds currency precision");
   return Number(whole) * 10 ** digits + Number(padded.slice(0, digits) || 0);
+}
+
+/**
+ * The numeric ID merchants see in Shopify admin URLs and exports
+ * (`gid://shopify/Customer/12345` -> `12345`).
+ */
+export function shopifyLegacyId(gid: string): string {
+  const match = /^gid:\/\/shopify\/[A-Za-z]+\/([1-9][0-9]*)$/.exec(gid);
+  if (!match) throw new Error("Expected a Shopify GID");
+  return match[1]!;
 }

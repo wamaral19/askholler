@@ -28,6 +28,10 @@ export interface QueueItem {
   readonly moment: string;
   readonly eventAgeMinutes: number;
   readonly orderSequence: number;
+  /** Shopify order name (e.g. "#1042"); null for orders ingested before capture. */
+  readonly orderNumber: string | null;
+  /** Numeric Shopify customer ID as shown in admin; null for guest checkouts. */
+  readonly shopifyCustomerId: string | null;
   readonly orderTotal: string;
   readonly products: readonly string[];
   readonly observedAttribution: string;

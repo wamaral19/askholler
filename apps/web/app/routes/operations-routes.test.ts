@@ -25,6 +25,8 @@ const assignment: QueueItem = {
   moment: "Synthetic moment",
   eventAgeMinutes: 1,
   orderSequence: 1,
+  orderNumber: "#1001",
+  shopifyCustomerId: "900000000101",
   orderTotal: "$10.00",
   products: ["Synthetic product"],
   observedAttribution: "direct",

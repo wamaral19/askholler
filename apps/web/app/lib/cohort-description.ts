@@ -16,7 +16,7 @@ const ordinals = [
   "tenth",
 ];
 
-function ordinal(value: number): string {
+export function ordinal(value: number): string {
   if (ordinals[value - 1]) return ordinals[value - 1]!;
   const tens = value % 100;
   const suffix =

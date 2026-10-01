@@ -441,7 +441,7 @@ Unique `(merchant_id, period_start, period_end)`.
 
 ### EarshotExport
 
-`EarshotExport(id, merchant_id, period_start, period_end, field_set_schema_version, status, object_key, checksum, byte_size, generated_by, generated_at, expires_at, deleted_at)` records a private weekly export artifact. Its rows are generated from tenant-scoped interviews, assignments, qualification snapshots, reviewed responses/tags, and authorized evidence references; the export does not become a second source of truth. `EarshotExportColumn(export_id, field_definition_version_id nullable, key, label, value_type, display_order)` freezes column meaning for reproducibility. Export creation/download is authorized and audited.
+`EarshotExport(id, merchant_id, period_start, period_end, field_set_schema_version, status, object_key, checksum, byte_size, generated_by, generated_at, expires_at, deleted_at)` records a private weekly export artifact. Its rows are generated from tenant-scoped interviews, assignments, qualification snapshots, reviewed responses/tags, and authorized evidence references; the export does not become a second source of truth. `EarshotExportColumn(export_id, field_definition_version_id nullable, key, label, value_type, display_order)` freezes column meaning for reproducibility. Every row carries fixed reference columns, the Shopify order name (`orders.source_order_number`) and the numeric Shopify customer ID (null for guest checkouts), so the merchant can tie an interview back to its own order history; direct identifiers (name, phone, email) are never exported. Export creation/download is authorized and audited.
 
 ## Jobs, audit, retention, and deletion
 

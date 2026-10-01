@@ -172,6 +172,8 @@ export const orders = pgTable(
       .references(() => merchants.id),
     customerId: uuid("customer_id").references(() => customers.id),
     shopifyOrderId: text("shopify_order_id").notNull(),
+    /** Shopify's order `name` (e.g. "#1042"); null for orders ingested before it was captured. */
+    sourceOrderNumber: text("source_order_number"),
     orderedAt: timestamp("ordered_at", { withTimezone: true }).notNull(),
     sourceUpdatedAt: timestamp("source_updated_at", {
       withTimezone: true,

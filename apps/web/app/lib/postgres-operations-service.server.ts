@@ -42,6 +42,7 @@ import {
   isEnvelopeCiphertext,
   type CustomerPrivateCipher,
 } from "@holler/providers";
+import { shopifyLegacyId } from "@holler/shopify";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type {
@@ -1450,6 +1451,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         totalMinor: orders.totalMinor,
         currency: orders.currency,
         orderSequence: orders.customerOrderSequence,
+        orderNumber: orders.sourceOrderNumber,
+        shopifyCustomerId: customers.shopifyCustomerId,
         observed: orders.observedAttribution,
       })
       .from(researchAssignments)
@@ -1470,6 +1473,13 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         and(
           eq(orders.id, researchAssignments.orderId),
           eq(orders.merchantId, context.merchantId),
+        ),
+      )
+      .leftJoin(
+        customers,
+        and(
+          eq(customers.id, researchAssignments.customerId),
+          eq(customers.merchantId, context.merchantId),
         ),
       )
       .leftJoin(
@@ -2195,6 +2205,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         totalMinor: orders.totalMinor,
         currency: orders.currency,
         orderSequence: orders.customerOrderSequence,
+        orderNumber: orders.sourceOrderNumber,
+        shopifyCustomerId: customers.shopifyCustomerId,
         observed: orders.observedAttribution,
       })
       .from(researchAssignments)
@@ -2215,6 +2227,13 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         and(
           eq(orders.id, researchAssignments.orderId),
           eq(orders.merchantId, context.merchantId),
+        ),
+      )
+      .leftJoin(
+        customers,
+        and(
+          eq(customers.id, researchAssignments.customerId),
+          eq(customers.merchantId, context.merchantId),
         ),
       )
       .leftJoin(
@@ -2269,6 +2288,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       totalMinor: number;
       currency: string;
       orderSequence: number | null;
+      orderNumber: string | null;
+      shopifyCustomerId: string | null;
       observed: unknown;
     },
     products: string[],
@@ -2289,6 +2310,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         Math.floor((now.getTime() - row.createdAt.getTime()) / 60_000),
       ),
       orderSequence: row.orderSequence ?? 0,
+      orderNumber: row.orderNumber,
+      shopifyCustomerId: row.shopifyCustomerId
+        ? shopifyLegacyId(row.shopifyCustomerId)
+        : null,
       orderTotal: formatMoney(row.totalMinor, row.currency),
       products,
       observedAttribution:
