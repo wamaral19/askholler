@@ -88,7 +88,7 @@ The repository cannot prove protected-customer-data approval, delivery from Shop
 
 The UI fails closed unless `HOLLER_OPERATIONS_MODE` is explicitly selected. Use `synthetic-postgres` with `DATABASE_URL` for the durable path. `synthetic-memory` exists only for isolated development/tests and is never an implicit fallback. Supply an opaque `holler_workforce_session` cookie (or `x-holler-workforce-session` in tests) mapped by `HOLLER_SYNTHETIC_WORKFORCE_SESSIONS`; merchant, researcher, and role grants come only from that server-side map. The commerce dashboard at `/admin/dashboard` requires `merchant_admin` or `platform_admin`. A session may list extra `merchantIds` to allow switching merchants from the sidebar; the `holler_workforce_merchant` cookie only selects among those. Pausing, completing, or reopening a moment requires `research_manager`, `merchant_admin`, or `platform_admin`. Only live moments (stored as `active`) qualify new orders into the queue.
 
-This session adapter is intentionally non-production and replaceable at the context boundary. Production OIDC/MFA, workforce membership/role storage and revocation, KMS-backed phone encryption, legal approval for outbound contact/recording, reveal rate limits/alerting, and live providers remain launch blockers. Synthetic mode is not completed production authentication or encryption.
+This session adapter is intentionally non-production and replaceable at the context boundary. Production OIDC/MFA, workforce membership/role storage and revocation, KMS-backed phone encryption, reveal rate limits/alerting, and live providers remain launch blockers. Synthetic mode is not completed production authentication or encryption.
 
 ## Deployment
 
@@ -136,10 +136,10 @@ docs              Architecture, data model, plan, security review, and demo cont
 
 ## Product deliverables
 
-- **Earshot:** the reporting package now validates and renders deterministic weekly CSVs from pinned columns and reviewed rows, neutralizes spreadsheet formulas, and exposes same-tenant admin/private-store/audit contracts. Database assembly, scheduling, and signed-download delivery remain to be wired.
+- **Earshot:** the reporting package now validates and renders deterministic weekly CSVs from pinned columns and reviewed rows, neutralizes spreadsheet formulas, and exposes same-tenant admin/private-store/audit contracts. Database assembly, scheduling, and signed-download delivery remain to be wired and are deferred until after the pilot, which uses manually assembled Earshots.
 - **Disco:** monthly evidence-backed synthesis of what changed, why, supporting customer conversations, and recommended actions. The current generic report renderer is its technical foundation.
 - **Angles:** individual evidence-backed findings assembled inside a Disco, not a separate customer deliverable.
 
 ## Next implementation boundary
 
-Finish durable worker orchestration and development-store verification, then wire the Earshot generator to reviewed PostgreSQL evidence, a weekly job, and private signed-download delivery. Before a live pilot, replace synthetic workforce/PII adapters, complete protected-data approval and legal review, and integrate production dialer/transcription providers. The detailed ordered backlog is in `docs/mvp-plan.md`.
+Finish durable worker orchestration and development-store verification. Before a live pilot, replace synthetic workforce/PII adapters with Google sign-in for the internal team and KMS encryption, complete protected-data approval for a custom-distribution Shopify app, and enable Twilio live calling. The pilot has no transcription provider, and Earshot and Disco are assembled manually; automating them follows the pilot. The pilot scope and detailed ordered backlog are in `docs/mvp-plan.md`.

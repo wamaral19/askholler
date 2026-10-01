@@ -42,6 +42,8 @@ const shopifyLineItemIngressSchema = z
 const shopifyOrderIngressPayloadSchema = z
   .object({
     id: shopifyGidSchema,
+    /** Shopify's order `name` (e.g. "#1042"): the reference merchants search in admin. */
+    name: z.string().trim().min(1).max(64),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
     cancelledAt: z.string().datetime().nullable(),

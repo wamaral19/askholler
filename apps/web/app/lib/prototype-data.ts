@@ -177,6 +177,8 @@ export interface QueueAssignment {
   readonly moment: string;
   readonly eventAgeMinutes: number;
   readonly orderSequence: number;
+  readonly orderNumber: string | null;
+  readonly shopifyCustomerId: string | null;
   readonly orderTotal: string;
   readonly products: readonly string[];
   readonly observedAttribution: string;
@@ -194,6 +196,8 @@ export const queueAssignments: readonly QueueAssignment[] = [
     moment: "Second-order category transition",
     eventAgeMinutes: 3,
     orderSequence: 2,
+    orderNumber: "#1042",
+    shopifyCustomerId: "900000000101",
     orderTotal: "$128.00",
     products: ["Everyday Trouser", "Ribbed Sock"],
     observedAttribution: "Meta / paid social",
@@ -209,6 +213,8 @@ export const queueAssignments: readonly QueueAssignment[] = [
     moment: "First-purchase attribution audit",
     eventAgeMinutes: 11,
     orderSequence: 1,
+    orderNumber: "#1043",
+    shopifyCustomerId: "900000000102",
     orderTotal: "$84.00",
     products: ["Transit Overshirt"],
     observedAttribution: "Google / brand search",
@@ -224,6 +230,8 @@ export const queueAssignments: readonly QueueAssignment[] = [
     moment: "Moisturizer texture study",
     eventAgeMinutes: 24,
     orderSequence: 3,
+    orderNumber: "#2187",
+    shopifyCustomerId: "900000000103",
     orderTotal: "$62.00",
     products: ["Barrier Moisturizer"],
     observedAttribution: "Direct / unknown",

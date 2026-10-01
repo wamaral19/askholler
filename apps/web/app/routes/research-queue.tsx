@@ -13,11 +13,12 @@ import {
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
+import { ordinal } from "../lib/cohort-description";
 import { momentStatusLabels } from "../lib/moment-status";
 
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const service = getOperationsService();
     const [assignments, moments] = await Promise.all([
       service.listQueue(context),
@@ -57,7 +58,7 @@ export async function action({ request }: { request: Request }) {
     if (!assignmentId)
       throw new Response("Assignment is required", { status: 400 });
     const service = getOperationsService();
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     if (intent === "claim")
       return {
         intent,
@@ -215,7 +216,11 @@ export default function ResearchQueueRoute() {
                   <div>
                     <dt>Order</dt>
                     <dd>
-                      #{assignment.orderSequence} · {assignment.orderTotal}
+                      {assignment.orderNumber ?? "Not captured"} ·{" "}
+                      {assignment.orderTotal}
+                      {assignment.orderSequence > 0
+                        ? ` · ${ordinal(assignment.orderSequence)} order`
+                        : ""}
                     </dd>
                   </div>
                   <div>

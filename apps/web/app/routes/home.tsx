@@ -24,16 +24,16 @@ const contactHref = "mailto:wyatt@withholler.com?subject=Holler%20inquiry";
 
 // Illustrative only; all names and quotes are synthetic.
 const moment = [
-  { time: "12:04:08", label: "Order placed", detail: "First order · $86" },
+  { time: "12:04:48", label: "Order placed", detail: "First order · $86" },
   {
-    time: "12:06:31",
+    time: "12:05:31",
     label: "Holler researcher calls",
     detail: "On behalf of your brand",
   },
   {
     time: "12:09:52",
-    label: "“A friend kept posting about it.”",
-    detail: "Discovery: word of mouth · Shopify: Meta",
+    label: "“I talked with a friend then searched Google.”",
+    detail: "Discovery: word of mouth · Shopify: Google Ads",
   },
 ];
 
@@ -267,7 +267,10 @@ export default function Home() {
 
       <footer className="simple-footer">
         <span>© {new Date().getFullYear()} Holler</span>
-        <a href="#top">Back to top ↑</a>
+        <span className="simple-footer-links">
+          <a href="/privacy">Privacy</a>
+          <a href="#top">Back to top ↑</a>
+        </span>
       </footer>
     </main>
   );

@@ -12,7 +12,7 @@ import {
 /** Switches the merchant the workforce is acting on, within its allowlist. */
 export async function action({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const form = await request.formData();
     const merchantId = String(form.get("merchantId") ?? "");
     if (!context.merchantIds.includes(merchantId))

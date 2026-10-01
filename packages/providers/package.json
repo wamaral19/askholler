@@ -5,6 +5,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
-    "@holler/domain": "*"
+    "@holler/domain": "*",
+    "google-auth-library": "^10.9.1"
   }
 }

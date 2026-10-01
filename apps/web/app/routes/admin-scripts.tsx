@@ -26,7 +26,7 @@ import {
 
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const scripts = await getOperationsService().listScripts(context);
     const requested = new URL(request.url).searchParams.get("script");
     const selected =
@@ -49,7 +49,7 @@ export async function action({ request }: { request: Request }) {
       const form = await request.formData();
       const scriptId = String(form.get("scriptId") ?? "");
       const result = await getOperationsService().saveScript(
-        getTenantContext(request),
+        await getTenantContext(request),
         {
           ...(scriptId ? { scriptId } : {}),
           name: String(form.get("name") ?? ""),

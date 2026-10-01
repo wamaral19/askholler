@@ -3,6 +3,7 @@ import { Form, Link, useActionData, useLoaderData } from "react-router";
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
 import { TwilioCallPanel } from "../components/twilio-call-panel";
+import { ordinal } from "../lib/cohort-description";
 import {
   executeOperationsRequest,
   getOperationsService,
@@ -29,7 +30,7 @@ export async function loader({
     if (!params.interviewId)
       throw new Response("Interview is required", { status: 400 });
     const workspace = await getOperationsService().getInterview(
-      getTenantContext(request),
+      await getTenantContext(request),
       params.interviewId,
     );
     return {
@@ -52,7 +53,7 @@ export async function action({
     const form = await request.formData();
     const intent = String(form.get("intent") ?? "");
     const service = getOperationsService();
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     if (intent === "reveal") {
       const result = await service.revealPhone(context, params.interviewId);
       return Response.json(
@@ -80,11 +81,15 @@ export async function action({
       );
       return { intent, saved: true };
     }
-    if (intent === "complete" || intent === "no_answer") {
+    if (
+      intent === "complete" ||
+      intent === "no_answer" ||
+      intent === "declined"
+    ) {
       await service.completeInterview(
         context,
         params.interviewId,
-        intent === "complete" ? "completed" : "no_answer",
+        intent === "complete" ? "completed" : intent,
       );
       return { intent, saved: true };
     }
@@ -184,8 +189,16 @@ export default function LiveInterviewRoute() {
               <div>
                 <dt>Order</dt>
                 <dd>
-                  #{assignment.orderSequence} · {assignment.orderTotal}
+                  {assignment.orderNumber ?? "Not captured"} ·{" "}
+                  {assignment.orderTotal}
+                  {assignment.orderSequence > 0
+                    ? ` · ${ordinal(assignment.orderSequence)} order`
+                    : ""}
                 </dd>
+              </div>
+              <div>
+                <dt>Shopify customer ID</dt>
+                <dd>{assignment.shopifyCustomerId ?? "Guest checkout"}</dd>
               </div>
               <div>
                 <dt>Products</dt>
@@ -408,6 +421,26 @@ export default function LiveInterviewRoute() {
                 value="no_answer"
               >
                 Mark no answer
+              </button>
+            </Form>
+            <Form
+              method="post"
+              onSubmit={(event) => {
+                if (
+                  !window.confirm(
+                    "Record that this customer asked not to be contacted? They will never be called again.",
+                  )
+                )
+                  event.preventDefault();
+              }}
+            >
+              <button
+                className="button button-quiet button-full"
+                name="intent"
+                type="submit"
+                value="declined"
+              >
+                Do not contact
               </button>
             </Form>
           </aside>

@@ -38,11 +38,17 @@ import {
   type ResearchFieldDefinitionV1,
   type ScriptPrompt,
 } from "@holler/domain";
+import {
+  isEnvelopeCiphertext,
+  type CustomerPrivateCipher,
+} from "@holler/providers";
+import { shopifyLegacyId } from "@holler/shopify";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type {
   EditableFieldValueType,
   FieldDefaultInput,
+  InterviewOutcome,
   InterviewWorkspace,
   LibraryResearchField,
   LibraryScript,
@@ -83,18 +89,52 @@ export class OperationsError extends Error {
   }
 }
 
-export interface SyntheticPhoneDecryptor {
-  decrypt(ciphertext: string, keyVersion: string): string | undefined;
+export interface PhoneDecryptInput {
+  readonly merchantId: string;
+  readonly customerId: string;
+  readonly ciphertext: string;
+  readonly keyVersion: string;
 }
 
-/** Development/test only. Production must supply a KMS-backed implementation. */
-export class PrefixedSyntheticPhoneDecryptor implements SyntheticPhoneDecryptor {
-  decrypt(ciphertext: string, keyVersion: string): string | undefined {
+/** Returns the E.164 phone, or undefined when the value cannot be trusted. */
+export interface PhoneDecryptor {
+  decrypt(input: PhoneDecryptInput): Promise<string | undefined>;
+}
+
+/** Development/test only. Production uses {@link EnvelopePhoneDecryptor}. */
+export class PrefixedSyntheticPhoneDecryptor implements PhoneDecryptor {
+  async decrypt({
+    ciphertext,
+    keyVersion,
+  }: PhoneDecryptInput): Promise<string | undefined> {
     if (keyVersion !== "synthetic-v1") return undefined;
     const prefix = "synthetic:v1:";
     if (!ciphertext.startsWith(prefix)) return undefined;
     const phone = ciphertext.slice(prefix.length);
     return /^\+120255501\d{2}$/.test(phone) ? phone : undefined;
+  }
+}
+
+/** KMS envelope decryption; refuses synthetic fixture values. */
+export class EnvelopePhoneDecryptor implements PhoneDecryptor {
+  constructor(
+    private readonly cipher: CustomerPrivateCipher,
+    /** Development only: also accept synthetic fixtures. */
+    private readonly synthetic?: PrefixedSyntheticPhoneDecryptor,
+  ) {}
+
+  async decrypt(input: PhoneDecryptInput): Promise<string | undefined> {
+    if (!isEnvelopeCiphertext(input.ciphertext))
+      return this.synthetic?.decrypt(input);
+    try {
+      return await this.cipher.decrypt(
+        { merchantId: input.merchantId, customerId: input.customerId },
+        "phone_e164",
+        input.ciphertext,
+      );
+    } catch {
+      return undefined;
+    }
   }
 }
 
@@ -117,9 +157,17 @@ const formatMoney = (minor: number, currency: string): string =>
     currency,
   }).format(minor / 100);
 
-const maskPhone = (ciphertext: string | null): string => {
-  const match = ciphertext?.match(/(\d{4})$/);
-  return match ? `+1 ••• ••• ${match[1]}` : "Unavailable";
+const maskPhone = (
+  lastFour: string | null,
+  ciphertext: string | null,
+): string => {
+  // Synthetic fixtures carry their digits in the value itself.
+  const digits =
+    lastFour ??
+    (ciphertext?.startsWith("synthetic:")
+      ? ciphertext.match(/(\d{4})$/)?.[1]
+      : undefined);
+  return digits ? `••• ••• ${digits}` : "Unavailable";
 };
 
 type DbTransaction = Parameters<
@@ -229,7 +277,7 @@ function samePrompts(
 export class PostgresOperationsApplicationService implements OperationsApplicationService {
   constructor(
     private readonly db: HollerDatabase,
-    private readonly phoneDecryptor: SyntheticPhoneDecryptor,
+    private readonly phoneDecryptor: PhoneDecryptor,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -1395,6 +1443,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         customerId: researchAssignments.customerId,
         encryptedGivenName: customerPrivate.encryptedGivenName,
         encryptedPhone: customerPrivate.encryptedPhoneE164,
+        phoneLastFour: customerPrivate.phoneLastFour,
         merchantName: merchants.name,
         momentId: researchMoments.id,
         momentName: researchMoments.name,
@@ -1402,6 +1451,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         totalMinor: orders.totalMinor,
         currency: orders.currency,
         orderSequence: orders.customerOrderSequence,
+        orderNumber: orders.sourceOrderNumber,
+        shopifyCustomerId: customers.shopifyCustomerId,
         observed: orders.observedAttribution,
       })
       .from(researchAssignments)
@@ -1422,6 +1473,13 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         and(
           eq(orders.id, researchAssignments.orderId),
           eq(orders.merchantId, context.merchantId),
+        ),
+      )
+      .leftJoin(
+        customers,
+        and(
+          eq(customers.id, researchAssignments.customerId),
+          eq(customers.merchantId, context.merchantId),
         ),
       )
       .leftJoin(
@@ -1703,7 +1761,12 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       row.customerId &&
       row.ciphertext;
     const phone = allowed
-      ? this.phoneDecryptor.decrypt(row.ciphertext!, row.keyVersion!)
+      ? await this.phoneDecryptor.decrypt({
+          merchantId: context.merchantId,
+          customerId: row.customerId!,
+          ciphertext: row.ciphertext!,
+          keyVersion: row.keyVersion!,
+        })
       : undefined;
     await this.db.insert(auditEvents).values({
       id: randomUUID(),
@@ -1827,7 +1890,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   async completeInterview(
     context: TenantContext,
     interviewId: string,
-    outcome: "completed" | "no_answer",
+    outcome: InterviewOutcome,
   ) {
     const current = await this.requireOwnedInterview(context, interviewId);
     if (current.status === "completed" || current.status === "aborted") return;
@@ -1895,7 +1958,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       await tx
         .update(calls)
         .set({
-          status: outcome === "completed" ? "completed" : "no_answer",
+          status: outcome === "no_answer" ? "no_answer" : "completed",
           endedAt: now,
           updatedAt: now,
         })
@@ -1914,6 +1977,83 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         assignment.lockVersion,
         now,
       );
+      if (outcome === "declined" && assignment.customerId)
+        await this.suppressCustomer(tx, context, assignment.customerId, now);
+    });
+  }
+
+  /**
+   * The customer asked not to be contacted: never queue them again, and
+   * cancel any other open work for them. Permanent unless an operator
+   * reverses it in the database.
+   */
+  private async suppressCustomer(
+    tx: DbTransaction,
+    context: TenantContext,
+    customerId: string,
+    now: Date,
+  ) {
+    await tx
+      .update(customers)
+      .set({ contactabilityStatus: "suppressed", updatedAt: now })
+      .where(
+        and(
+          eq(customers.id, customerId),
+          eq(customers.merchantId, context.merchantId),
+        ),
+      );
+    const open = await tx
+      .select({
+        id: researchAssignments.id,
+        status: researchAssignments.status,
+      })
+      .from(researchAssignments)
+      .where(
+        and(
+          eq(researchAssignments.merchantId, context.merchantId),
+          eq(researchAssignments.customerId, customerId),
+          inArray(researchAssignments.status, ["queued", "no_answer"]),
+        ),
+      )
+      .for("update");
+    for (const { id, status } of open) {
+      const [cancelled] = await tx
+        .update(researchAssignments)
+        .set({
+          status: "cancelled",
+          lockVersion: sql`${researchAssignments.lockVersion} + 1`,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(researchAssignments.id, id),
+            eq(researchAssignments.merchantId, context.merchantId),
+          ),
+        )
+        .returning({ lockVersion: researchAssignments.lockVersion });
+      await this.transition(
+        tx,
+        context,
+        id,
+        status,
+        "cancelled",
+        cancelled!.lockVersion,
+        now,
+        { reason: "customer_suppressed" },
+      );
+    }
+    await tx.insert(auditEvents).values({
+      id: randomUUID(),
+      merchantId: context.merchantId,
+      actorId: context.researcherId,
+      action: "customer.contact_suppressed",
+      subjectType: "customer",
+      subjectId: customerId,
+      metadata: {
+        reason: "customer_request",
+        correlationId: context.correlationId,
+      },
+      occurredAt: now,
     });
   }
 
@@ -2057,6 +2197,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         createdAt: researchAssignments.createdAt,
         encryptedGivenName: customerPrivate.encryptedGivenName,
         encryptedPhone: customerPrivate.encryptedPhoneE164,
+        phoneLastFour: customerPrivate.phoneLastFour,
         merchantName: merchants.name,
         momentId: researchMoments.id,
         momentName: researchMoments.name,
@@ -2064,6 +2205,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         totalMinor: orders.totalMinor,
         currency: orders.currency,
         orderSequence: orders.customerOrderSequence,
+        orderNumber: orders.sourceOrderNumber,
+        shopifyCustomerId: customers.shopifyCustomerId,
         observed: orders.observedAttribution,
       })
       .from(researchAssignments)
@@ -2084,6 +2227,13 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         and(
           eq(orders.id, researchAssignments.orderId),
           eq(orders.merchantId, context.merchantId),
+        ),
+      )
+      .leftJoin(
+        customers,
+        and(
+          eq(customers.id, researchAssignments.customerId),
+          eq(customers.merchantId, context.merchantId),
         ),
       )
       .leftJoin(
@@ -2131,12 +2281,15 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       createdAt: Date;
       encryptedGivenName: string | null;
       encryptedPhone: string | null;
+      phoneLastFour: string | null;
       merchantName: string;
       momentId: string;
       momentName: string;
       totalMinor: number;
       currency: string;
       orderSequence: number | null;
+      orderNumber: string | null;
+      shopifyCustomerId: string | null;
       observed: unknown;
     },
     products: string[],
@@ -2147,8 +2300,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       id: row.id,
       customerName: row.encryptedGivenName?.startsWith("synthetic:plain:")
         ? row.encryptedGivenName.slice(16)
-        : "Synthetic customer",
-      maskedPhone: maskPhone(row.encryptedPhone),
+        : "Customer",
+      maskedPhone: maskPhone(row.phoneLastFour, row.encryptedPhone),
       merchant: row.merchantName,
       momentId: row.momentId,
       moment: row.momentName,
@@ -2157,6 +2310,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         Math.floor((now.getTime() - row.createdAt.getTime()) / 60_000),
       ),
       orderSequence: row.orderSequence ?? 0,
+      orderNumber: row.orderNumber,
+      shopifyCustomerId: row.shopifyCustomerId
+        ? shopifyLegacyId(row.shopifyCustomerId)
+        : null,
       orderTotal: formatMoney(row.totalMinor, row.currency),
       products,
       observedAttribution:

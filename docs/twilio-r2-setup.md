@@ -97,5 +97,5 @@ or password generator. It is independent of all Twilio credentials.
 - Confirm no phone number, token, recording URL, or transcript appears in logs.
 
 Live calls remain blocked until production Firebase/Workspace authentication,
-KMS-backed phone decryption, Cloudflare deployment/database connectivity, and
-the approved calling/recording legal review are complete.
+KMS-backed phone decryption, and Cloudflare deployment/database connectivity
+are complete.

@@ -34,6 +34,8 @@ const model = {
     {
       interviewId: "interview-opaque-1",
       researchRunId: "run-opaque-1",
+      orderNumber: "#1042",
+      shopifyCustomerId: "900000000101",
       reviewed: true as const,
       values: {
         discovery_source: "Creator, video",
@@ -50,6 +52,57 @@ describe("Earshot exports", () => {
     expect(csv).toContain('"Creator, video"');
     expect(csv).toContain("'=HYPERLINK");
     expect(csv).not.toContain("customer_name");
+  });
+
+  it("leads every row with the merchant's order and customer references", () => {
+    const [header, row] = renderEarshotCsv(model).split("\r\n");
+    expect(header).toBe(
+      '"Interview ID","Research run ID","Order number","Shopify customer ID","Discovery source","Transcript reference"',
+    );
+    expect(row).toMatch(
+      /^"interview-opaque-1","run-opaque-1","#1042","900000000101",/,
+    );
+
+    const guest = renderEarshotCsv({
+      ...model,
+      rows: [{ ...model.rows[0], shopifyCustomerId: null }],
+    }).split("\r\n")[1];
+    expect(guest).toMatch(/^"interview-opaque-1","run-opaque-1","#1042","",/);
+  });
+
+  it("requires reference fields and keeps them out of free-form values", () => {
+    const { orderNumber: _omit, ...withoutOrder } = model.rows[0]!;
+    expect(
+      earshotExportSchema.safeParse({ ...model, rows: [withoutOrder] }).success,
+    ).toBe(false);
+    expect(
+      earshotExportSchema.safeParse({
+        ...model,
+        rows: [
+          { ...model.rows[0], shopifyCustomerId: "gid://shopify/Customer/1" },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      earshotExportSchema.safeParse({
+        ...model,
+        rows: [
+          {
+            ...model.rows[0],
+            values: { ...model.rows[0]!.values, order_number: "#9999" },
+          },
+        ],
+      }).success,
+    ).toBe(false);
+    expect(
+      earshotExportSchema.safeParse({
+        ...model,
+        columns: [
+          ...model.columns,
+          { key: "order_number", label: "Order", valueType: "text" },
+        ],
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects unpinned fields and unreviewed rows", () => {

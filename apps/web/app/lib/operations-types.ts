@@ -6,6 +6,9 @@ import type {
 import type { ScriptPrompt, WorkforceRole } from "@holler/domain";
 import type { DashboardFilters, DashboardSnapshot } from "./analytics";
 
+/** "declined": the customer asked not to be contacted again. */
+export type InterviewOutcome = "completed" | "no_answer" | "declined";
+
 export interface TenantContext {
   /** The merchant this request acts on (the workforce's current selection). */
   readonly merchantId: string;
@@ -25,6 +28,10 @@ export interface QueueItem {
   readonly moment: string;
   readonly eventAgeMinutes: number;
   readonly orderSequence: number;
+  /** Shopify order name (e.g. "#1042"); null for orders ingested before capture. */
+  readonly orderNumber: string | null;
+  /** Numeric Shopify customer ID as shown in admin; null for guest checkouts. */
+  readonly shopifyCustomerId: string | null;
   readonly orderTotal: string;
   readonly products: readonly string[];
   readonly observedAttribution: string;
@@ -241,7 +248,7 @@ export interface OperationsApplicationService {
   completeInterview(
     context: TenantContext,
     interviewId: string,
-    outcome: "completed" | "no_answer",
+    outcome: InterviewOutcome,
   ): Promise<void>;
   generateReport(
     context: TenantContext,

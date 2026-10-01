@@ -23,7 +23,8 @@
     "demo:synthetic:persisted": "vitest run packages/testkit/src/persisted-canonical-flow.test.ts --reporter=verbose",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx packages/db/src/migrate.ts",
-    "shopify:fake-orders": "tsx scripts/fake-shopify-orders.ts"
+    "shopify:fake-orders": "tsx scripts/fake-shopify-orders.ts",
+    "workforce": "tsx scripts/workforce.ts"
   },
   "devDependencies": {
     "@shopify/cli": "^4.8.0",

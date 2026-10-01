@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   commerceEvents,
+  customers,
   qualificationEvaluations,
   researchAssignments,
   researchMomentVersions,
@@ -13,7 +14,16 @@ import {
   createInitialCohortPredicateRegistry,
   type CohortEvaluationResult,
 } from "@holler/research";
-import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  sql,
+} from "drizzle-orm";
 
 import { PostgresCohortQueryRepository } from "./cohort-query-repository";
 import { SafeJobError, type EvaluateCommerceEventPayload } from "./jobs";
@@ -65,6 +75,22 @@ export async function qualifyCommerceEvent(
       desc(researchMomentVersions.version),
     );
 
+  // Only customers with a stored, encrypted phone who have not opted out can
+  // be called; everyone else is evaluated and audited but never queued.
+  const [contact] = event.customerId
+    ? await db
+        .select({ status: customers.contactabilityStatus })
+        .from(customers)
+        .where(
+          and(
+            eq(customers.merchantId, event.merchantId),
+            eq(customers.id, event.customerId),
+            isNull(customers.deletedAt),
+          ),
+        )
+    : [];
+  const contactable = contact?.status === "eligible";
+
   const evaluator = new CohortExpressionEvaluator(
     createInitialCohortPredicateRegistry(new PostgresCohortQueryRepository(db)),
   );
@@ -108,6 +134,10 @@ export async function qualifyCommerceEvent(
       );
       const weeklyCap = weeklyCapOf(moment.allocationPolicy);
       let allocated = result.eligible;
+      if (allocated && !contactable) {
+        allocated = false;
+        reasonCodes = [...reasonCodes, "contact.not_contactable"];
+      }
       if (allocated && weeklyCap !== null) {
         const [row] = await tx
           .select({ count: sql<number>`count(*)::int` })

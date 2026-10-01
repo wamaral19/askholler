@@ -2,8 +2,11 @@ import { createHash, randomUUID } from "node:crypto";
 
 import {
   assertOperationalJobPayload,
+  auditEvents,
+  requestDeletion,
   commerceEvents,
   createDatabase,
+  customerPrivate,
   customers,
   merchants,
   orderLineItems,
@@ -16,6 +19,7 @@ import {
   type HollerDatabase,
 } from "@holler/db";
 import type { ObservedAttributionV1 } from "@holler/domain";
+import type { CustomerPrivateCipher } from "@holler/providers";
 import {
   moneyToMinor,
   normalizeShopifyOrderIngress,
@@ -128,16 +132,28 @@ export async function recordShopifyUninstall(
  * Persists a verified `orders/create` delivery in one transaction: receipt
  * (deduplicated by delivery ID), commerce projections, the normalized
  * CommerceEvent, and the qualification outbox job. Nothing from the payload
- * outside the allowlisted envelope is stored, and phone/name are not
- * persisted until customer-private encryption is configured.
+ * outside the allowlisted envelope is stored. Phone and first name are
+ * persisted only KMS-encrypted, so without a cipher they are dropped.
  */
 export async function ingestShopifyOrder(
   db: HollerDatabase,
   ingress: ShopifyOrderIngressV1,
   bodySha256: string,
   now = new Date(),
+  cipher?: CustomerPrivateCipher,
 ): Promise<ShopifyOrderIngestionResult> {
   const merchantId = shopifyMerchantId(ingress.shopDomain);
+  // KMS calls happen before the transaction so it never waits on the network.
+  const contact =
+    cipher && ingress.order.customer
+      ? await encryptContact(
+          cipher,
+          merchantId,
+          customerIdFor(merchantId, ingress.order.customer.id),
+          ingress.order.customer,
+          now,
+        )
+      : undefined;
   return db.transaction(async (tx) => {
     const merchant = await ensureMerchant(tx, merchantId, ingress.shopDomain);
     const [receipt] = await tx
@@ -190,6 +206,7 @@ export async function ingestShopifyOrder(
         merchantId,
         customerId: customer?.id ?? null,
         shopifyOrderId: order.id,
+        sourceOrderNumber: order.name,
         orderedAt,
         sourceUpdatedAt: new Date(order.updatedAt),
         totalMinor: moneyToMinor(order.total.amount, order.total.currency),
@@ -228,6 +245,8 @@ export async function ingestShopifyOrder(
         .onConflictDoNothing();
     }
     if (customer) await refreshCustomerTotals(tx, merchantId, customer.id, now);
+    if (customer && contact)
+      await storeContact(tx, merchantId, customer.id, contact, now);
 
     const catalogEnrichment = { state: "pending" as const, refreshedAt: null };
     const { event, identity } = normalizeShopifyOrderIngress(ingress, {
@@ -322,6 +341,166 @@ async function ensureMerchant(
  * complete it stays complete; older customers remain partial until a
  * historical import exists.
  */
+function customerIdFor(merchantId: string, shopifyCustomerId: string): string {
+  return stableUuid(`shopify-customer:${merchantId}:${shopifyCustomerId}`);
+}
+
+/**
+ * Records a verified Shopify privacy webhook. Redactions become deletion
+ * requests for the worker's sweep; a data request becomes an audit event for
+ * an operator to answer. Unknown shops and customers have nothing stored.
+ */
+export async function recordShopifyPrivacyRequest(
+  db: HollerDatabase,
+  shopDomain: string,
+  topic: "CUSTOMERS_REDACT" | "SHOP_REDACT" | "CUSTOMERS_DATA_REQUEST",
+  payload: unknown,
+  now = new Date(),
+): Promise<"recorded" | "nothing_stored" | "invalid_payload"> {
+  const merchantId = shopifyMerchantId(shopDomain);
+  const [merchant] = await db
+    .select({ id: merchants.id })
+    .from(merchants)
+    .where(eq(merchants.id, merchantId));
+  if (!merchant) return "nothing_stored";
+  if (topic === "SHOP_REDACT") {
+    await requestDeletion(db, merchantId, { scope: "shop" }, now);
+    return "recorded";
+  }
+  const shopifyCustomerId = (payload as { customer?: { id?: unknown } })
+    ?.customer?.id;
+  if (
+    typeof shopifyCustomerId !== "number" &&
+    typeof shopifyCustomerId !== "string"
+  )
+    return "invalid_payload";
+  const customerId = customerIdFor(
+    merchantId,
+    `gid://shopify/Customer/${shopifyCustomerId}`,
+  );
+  const [customer] = await db
+    .select({ id: customers.id })
+    .from(customers)
+    .where(
+      and(eq(customers.merchantId, merchantId), eq(customers.id, customerId)),
+    );
+  if (!customer) return "nothing_stored";
+  if (topic === "CUSTOMERS_REDACT") {
+    await requestDeletion(
+      db,
+      merchantId,
+      { scope: "customer", customerId },
+      now,
+    );
+    return "recorded";
+  }
+  await db.insert(auditEvents).values({
+    id: randomUUID(),
+    merchantId,
+    actorId: null,
+    action: "privacy.data_request_received",
+    subjectType: "customer",
+    subjectId: customerId,
+    metadata: { source: "shopify" },
+    occurredAt: now,
+  });
+  return "recorded";
+}
+
+/** Recruitment PII is kept for 90 days after the latest order (signoff schedule). */
+export const CUSTOMER_PII_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
+
+interface EncryptedContact {
+  readonly phone: { ciphertext: string; lastFour: string } | null;
+  readonly givenName: string | null;
+  readonly keyVersion: string;
+  readonly expiresAt: Date;
+}
+
+/**
+ * Normalizes a Shopify phone to E.164. Numbers without a country code are
+ * treated as North American; anything else ambiguous is dropped, which makes
+ * the customer ineligible for calls rather than risking a wrong number.
+ */
+export function normalizePhoneE164(raw: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  const candidate = trimmed.startsWith("+")
+    ? `+${digits}`
+    : digits.length === 10
+      ? `+1${digits}`
+      : digits.length === 11 && digits.startsWith("1")
+        ? `+${digits}`
+        : null;
+  return candidate && /^\+[1-9]\d{7,14}$/.test(candidate) ? candidate : null;
+}
+
+async function encryptContact(
+  cipher: CustomerPrivateCipher,
+  merchantId: string,
+  customerId: string,
+  source: { phone: string | null; firstName: string | null },
+  now: Date,
+): Promise<EncryptedContact | undefined> {
+  const phone = normalizePhoneE164(source.phone);
+  if (!phone && !source.firstName) return undefined;
+  const subject = { merchantId, customerId };
+  const [encryptedPhone, encryptedName] = await Promise.all([
+    phone ? cipher.encrypt(subject, "phone_e164", phone) : undefined,
+    source.firstName
+      ? cipher.encrypt(subject, "given_name", source.firstName)
+      : undefined,
+  ]);
+  return {
+    phone: encryptedPhone
+      ? { ciphertext: encryptedPhone.ciphertext, lastFour: phone!.slice(-4) }
+      : null,
+    givenName: encryptedName?.ciphertext ?? null,
+    keyVersion: (encryptedPhone ?? encryptedName)!.keyVersion,
+    expiresAt: new Date(now.getTime() + CUSTOMER_PII_RETENTION_MS),
+  };
+}
+
+async function storeContact(
+  tx: Transaction,
+  merchantId: string,
+  customerId: string,
+  contact: EncryptedContact,
+  now: Date,
+): Promise<void> {
+  const values = {
+    encryptedPhoneE164: contact.phone?.ciphertext ?? null,
+    phoneLastFour: contact.phone?.lastFour ?? null,
+    encryptedGivenName: contact.givenName,
+    keyVersion: contact.keyVersion,
+    expiresAt: contact.expiresAt,
+    deletedAt: null,
+  };
+  await tx
+    .insert(customerPrivate)
+    .values({ customerId, merchantId, ...values })
+    .onConflictDoUpdate({
+      target: customerPrivate.customerId,
+      set: { ...values, updatedAt: now },
+      where: eq(customerPrivate.merchantId, merchantId),
+    });
+  // A suppressed (opted-out) customer stays suppressed whatever they order.
+  await tx
+    .update(customers)
+    .set({
+      contactabilityStatus: contact.phone ? "eligible" : "no_phone",
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(customers.merchantId, merchantId),
+        eq(customers.id, customerId),
+        ne(customers.contactabilityStatus, "suppressed"),
+      ),
+    );
+}
+
 async function upsertCustomer(
   tx: Transaction,
   merchantId: string,
@@ -346,9 +525,7 @@ async function upsertCustomer(
   await tx
     .insert(customers)
     .values({
-      id: stableUuid(
-        `shopify-customer:${merchantId}:${input.shopifyCustomerId}`,
-      ),
+      id: customerIdFor(merchantId, input.shopifyCustomerId),
       merchantId,
       shopifyCustomerId: input.shopifyCustomerId,
       historyCompleteness: candidate,

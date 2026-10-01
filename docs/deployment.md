@@ -15,22 +15,91 @@ enforces the split: any non-landing path on the marketing host is redirected
 root goes to the marketing site. Stable backend URLs never depend on the
 marketing site.
 
-## What is deployed now
+## Services
 
 - `holler-web`: Express + React Router production server (`npm run start
---workspace=@holler/web`), Starter plan.
+--workspace=@holler/web`), Starter plan. Serves the landing page, Shopify,
+  Twilio callbacks, and the workforce pages (`HOLLER_OPERATIONS_MODE=postgres`).
+- `holler-worker`: Graphile Worker (`npm run start --workspace=@holler/worker`),
+  Starter plan. Runs qualification, report rendering, and the hourly privacy
+  sweep (deletion requests and retention).
 - `holler-db`: PostgreSQL 17, Basic 256 MB, private network only.
-- Migrations run on every deploy via `preDeployCommand` before traffic shifts.
+- Migrations run on every `holler-web` deploy via `preDeployCommand` before
+  traffic shifts.
 
-Deliberately **not** enabled:
+Everything that touches customer data fails closed until its secrets exist:
+the workforce pages return errors (the landing page and Shopify webhooks keep
+working), and the worker refuses to start without its R2 and Twilio
+credentials. Render prompts for `sync: false` secrets only when a service is
+first created, so after pulling a Blueprint change that adds one, enter it in
+the dashboard yourself.
 
-- **Worker.** In production it refuses to start until OIDC workforce auth, KMS
-  phone encryption, and live Twilio/R2 configuration exist. Add it to
-  `render.yaml` when those launch blockers are resolved.
-- **Operations UI.** `HOLLER_OPERATIONS_MODE` is unset, so `/queue`, `/moments`,
-  `/admin/dashboard`, and `/interviews/*` fail closed. Do not set a synthetic
-  mode on the public deployment.
-- **Live calls.** Twilio variables are unset, so `/api/twilio/*` fail closed.
+## Go-live checklist
+
+1. Google sign-in (next section).
+2. Customer-data encryption with Cloud KMS (below).
+3. Twilio and R2: `docs/twilio-r2-setup.md`. The same `TWILIO_ACCOUNT_SID`,
+   `TWILIO_AUTH_TOKEN`, and `R2_*` values go on both `holler-web` and
+   `holler-worker`.
+4. Shopify production app: `docs/shopify-pilot-app-setup.md`.
+5. Provision the team with `npm run workforce` (below) and sign in.
+6. Before the first real call: brief researchers on the recording-consent
+   prompt and call rules in `docs/mvp-security-privacy-signoff.md`.
+
+## Customer-data encryption (Cloud KMS)
+
+Customer phone numbers and first names are encrypted with a Google Cloud KMS
+key before they are stored. Without it, production refuses to serve workforce
+pages, and development drops contact details at ingestion.
+
+1. In the production Google Cloud project, enable the **Cloud Key Management
+   Service API**.
+2. Create a key ring `pii` (location `us`) and a **symmetric
+   encrypt/decrypt** key `customer-data`, with automatic rotation (for
+   example every 365 days). Old key versions stay enabled for decryption.
+3. Create a service account `holler-pii` and grant it only **Cloud KMS
+   CryptoKey Encrypter/Decrypter** on that key (not the project).
+4. Create a JSON key for the service account. In Render → `holler-web` →
+   **Environment → Secret Files**, add it as `gcp-kms.json`
+   (`GOOGLE_APPLICATION_CREDENTIALS` already points to
+   `/etc/secrets/gcp-kms.json`). Delete the downloaded copy.
+5. Set `PII_KMS_KEY_ID` on `holler-web` to
+   `projects/<project-id>/locations/us/keyRings/pii/cryptoKeys/customer-data`.
+
+Only `holler-web` needs the key; the worker never decrypts customer data.
+
+## Workforce sign-in (Google)
+
+Workforce pages use Google sign-in when `WORKFORCE_AUTH_PROVIDER=oidc`.
+
+1. In Google Admin (`admin.google.com`) → **Security → 2-Step Verification**,
+   require 2-Step Verification for everyone in `withholler.com`.
+2. In Google Cloud Console → **APIs & Services → OAuth consent screen**, choose
+   **Internal** so only `withholler.com` accounts can use the app.
+3. **Credentials → Create credentials → OAuth client ID → Web application**,
+   with authorized redirect URI
+   `https://app.withholler.com/login/google/callback` (add
+   `http://localhost:5173/login/google/callback` on a separate development
+   client).
+4. Set in Render:
+
+   | Key                          | Value                            |
+   | ---------------------------- | -------------------------------- |
+   | `WORKFORCE_AUTH_PROVIDER`    | `oidc`                           |
+   | `OIDC_ISSUER`                | `https://accounts.google.com`    |
+   | `OIDC_AUDIENCE`              | the OAuth client ID              |
+   | `GOOGLE_OAUTH_CLIENT_SECRET` | the OAuth client secret (secret) |
+   | `WORKFORCE_ALLOWED_DOMAIN`   | `withholler.com`                 |
+
+5. Provision people before they sign in (there is no self sign-up):
+
+   ```bash
+   npm run workforce -- add person@withholler.com
+   npm run workforce -- grant person@withholler.com <merchantId> research_manager
+   npm run workforce -- disable person@withholler.com   # ends all sessions
+   ```
+
+   Against production, run these from a Render shell on `holler-web`.
 
 ## First-time setup
 

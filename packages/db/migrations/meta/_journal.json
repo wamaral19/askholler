@@ -50,6 +50,34 @@
       "when": 1790699425237,
       "tag": "0006_research_configurability",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790707788009,
+      "tag": "0007_workforce_oidc_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790708227521,
+      "tag": "0008_customer_private_phone_last_four",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790708478820,
+      "tag": "0009_deletion_request_subject",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790708538820,
+      "tag": "0010_order_source_number",
+      "breakpoints": true
     }
   ]
 }

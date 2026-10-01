@@ -23,7 +23,7 @@ import { formErrorFrom, jsonFormValue } from "../lib/route-forms";
 
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const fields = await getOperationsService().listResearchFields(context, {
       includeArchived: true,
     });
@@ -46,7 +46,7 @@ const errorMessages: Record<string, string> = {
 export async function action({ request }: { request: Request }) {
   try {
     return await executeOperationsRequest(async () => {
-      const context = getTenantContext(request);
+      const context = await getTenantContext(request);
       const service = getOperationsService();
       const form = await request.formData();
       const intent = form.get("intent");

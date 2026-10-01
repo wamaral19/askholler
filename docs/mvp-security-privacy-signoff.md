@@ -3,10 +3,10 @@
 Status: approved by product owner on 2026-09-24
 
 This record captures product decisions for the Holler MVP. Approval authorizes
-implementation and drafting; it does not assert that a control is deployed or
-that legal review has occurred. Production customer data and live calls remain
-blocked until the applicable implementation, testing, Shopify, and legal gates
-are complete.
+implementation and drafting; it does not assert that a control is deployed.
+Production customer data and live calls remain blocked until the applicable
+implementation, testing, and Shopify gates are complete. Outside legal review
+is not a gate (see "Outbound contact and recording approval").
 
 ## Approved decisions
 
@@ -33,6 +33,31 @@ are complete.
    revocation testing, audit-log ingestion, backup handling, incident response,
    key rotation, legal hold, and independent security-review procedures.
 
+## Pilot scope reductions
+
+Approved by product owner on 2026-09-29 for the first merchant pilot. See the
+pilot scope table in `docs/mvp-plan.md`.
+
+- **Workforce authentication:** only Holler's internal team has access, using
+  Google sign-in with Workspace 2-step verification. Email-link sign-in is not
+  built for the pilot. An operator seeds memberships and roles, so there is no
+  membership admin UI yet. Revocation must still work and be tested.
+  Implementation uses Google OpenID Connect directly rather than Firebase
+  Authentication, which is no longer needed without email links. Google ID
+  tokens do not report whether a given sign-in used 2-step verification, so
+  MFA is enforced by the Workspace policy requiring 2-step verification for
+  every `withholler.com` account, and sessions last at most 12 hours. A
+  separate recent-MFA step-up for phone reveal is not built for the pilot.
+- **Transcription:** none. No transcription provider receives call audio.
+  Researchers capture responses and observations directly.
+- **Shopify:** custom app distribution to the pilot merchant only.
+- **Reports:** Earshot and Disco are assembled manually from reviewed evidence
+  and delivered privately. A manual export that contains direct identifiers
+  follows the PII-bearing export retention rule below.
+
+Key management, envelope encryption, deletion, retention, and call/recording
+consent requirements are unchanged.
+
 ## Approved platform inputs
 
 - Google Workspace domain: `withholler.com`
@@ -52,7 +77,8 @@ The Google Cloud project IDs have not yet been created or recorded.
 - SMS: deferred. The Twilio number should be selected with both Voice and SMS
   capability, but production messaging remains disabled until its workflow and
   A2P registration are separately approved.
-- Transcription provider: not yet approved. Deepgram remains a candidate only.
+- Transcription provider: deferred until after the pilot (2026-09-29). Deepgram
+  remains a candidate only.
 
 No transcription adapter or production SMS workflow is authorized by this
 signoff until the applicable provider or workflow is approved.
@@ -72,6 +98,12 @@ signoff until the applicable provider or workflow is approved.
 | Shopify and provider credentials          | Until uninstall, revocation, or loss of purpose; then delete promptly |
 | Non-PII security and access audit records |                                                             12 months |
 | Encrypted backups                         |                                 35 days, followed by automatic expiry |
+
+For export classification, the merchant's own Shopify order number and
+numeric Shopify customer ID are reference identifiers, not PII. An export that
+carries only those references (no name, phone, email, address, recording, or
+raw transcript) is retained as a report without direct identifiers, not as a
+PII-bearing export.
 
 An authenticated privacy request, Shopify redaction webhook, shop uninstall, or
 contractual requirement can require earlier deletion. A documented legal hold
@@ -93,14 +125,28 @@ The application must record the consent outcome and time. Silence, an ambiguous
 answer, or continuing the conversation is not consent. If consent is declined,
 the recording must remain off or stop immediately; the researcher may continue
 only if an approved unrecorded-call workflow is available. The call flow must
-also honor suppression, opt-out, calling-time, and jurisdictional rules approved
-by counsel. This product decision is not a legal opinion.
+also honor suppression, opt-out, calling-time, and jurisdictional rules set by
+the product owner. This product decision is not a legal opinion.
+
+## Outbound contact and recording approval
+
+Approved by product owner on 2026-09-29. The product owner has conducted
+recorded customer research calls before and has prior counsel guidance on how
+to run them, including calls to all-party-consent states. On that basis they
+accept the contact and recording practices above for the pilot, and outside
+counsel review is not required before live calls. The questions in
+`docs/pilot-legal-review-brief.md` stay available for any later review.
+
+The public privacy policy at `https://withholler.com/privacy`
+(`apps/web/app/routes/privacy.tsx`) is published by Tour Pro Shop LLC, doing
+business as Holler.
 
 ## Named approvals still required
 
 Before live production use, record the individuals or roles approving:
 
-- privacy/recording/outbound-contact legal review;
+- outbound contact and recording practices (approved by the product owner on
+  2026-09-29; outside counsel review not required);
 - legal-hold placement and release;
 - production access and membership changes;
 - incident command and breach notification;

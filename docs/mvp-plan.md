@@ -21,12 +21,31 @@ Working foundations include:
 The product is not pilot-ready. The next work is integration and production hardening rather than another architecture scaffold:
 
 1. finish the durable worker path and verify end-to-end PostgreSQL orchestration
-2. complete Shopify development-store install/webhook/history tests and protected-data approval
-3. implement production workforce auth/MFA, tenant roles, KMS-backed PII encryption, and retention/deletion operations
+2. complete Shopify development-store install/webhook/history tests and protected-data approval for a custom-distribution app
+3. implement Google-only workforce auth/MFA for the internal team, KMS-backed PII encryption, and retention/deletion operations
 4. add the internal metric/cohort dashboard and the question-coverage interview UX
-5. add weekly Earshot generation and rename the customer-facing monthly artifact to Disco
-6. integrate and validate a live dialer/transcription provider after legal/consent review
+5. produce the first Earshot and Disco manually from reviewed evidence; automated generation follows the pilot
+6. enable Twilio live calling with consent-controlled recording (contact and recording practices approved by the product owner on 2026-09-29); researchers capture answers as structured notes (no transcription provider)
 7. add alerting, reconciliation, failure replay, export auditing, and pilot runbooks
+
+## Pilot scope (2026-09-29)
+
+The product owner approved these reductions for the first merchant pilot. They
+remove work from the pilot path; they do not relax the privacy, consent,
+encryption, or deletion gates.
+
+| Area                 | Pilot scope                                                                                                                                                                                         | Deferred until after the pilot                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Transcription        | No transcription provider. Researchers record structured research-field responses and observations during and after the call. Recording, if consented, is stored in private R2 as the source audio. | Selecting and integrating a transcription vendor (Deepgram remains a candidate).     |
+| Shopify distribution | Custom app distribution, installed by link on the pilot merchant's store only. Protected customer data access is still requested and approved.                                                      | Public App Store listing and review.                                                 |
+| Workforce access     | Holler's internal team only, signed in with `withholler.com` Google Workspace accounts with 2-step verification. Memberships and roles are seeded by an operator.                                   | Invitation-only email-link sign-in, merchant user access, and a membership admin UI. |
+| Earshot and Disco    | An internal analyst assembles the weekly Earshot and monthly Disco by hand from reviewed evidence and delivers them privately.                                                                      | Scheduled Earshot jobs, automated Disco rendering, and signed-download delivery.     |
+
+Transcript evidence (resolved 2026-09-29): `angle_evidence.transcript_segment_id`
+is required, so a stored Angle cannot yet cite a notes-only interview. This
+does not block the pilot, whose Earshot and Disco are assembled manually and
+cite interview responses and observations directly. Before automating reports
+without transcription, add a response- or observation-backed evidence kind.
 
 ## Original repository assessment
 
@@ -155,7 +174,7 @@ Assignment transitions, auth roles, PII service boundary, and provider interface
 - Production-quality live queue filters/order/age indicators and assignment detail.
 - Claim/release/retry/expire flows with transition audit and stale-claim recovery.
 - Read-only script runner, target tags/questions, notes, outcomes, and script feedback.
-- Fake provider lifecycle finalized; selected real telephony adapter added only after legal/product approval.
+- Fake provider lifecycle finalized; selected real telephony adapter added only after product approval.
 - Verified provider callbacks, normalized calls, optional consent-gated recording, object storage, transcription adapter, and manual fallback.
 
 ### Acceptance criteria
@@ -218,7 +237,7 @@ Evidence integrity and attribution comparison are complete.
 
 ### Dependencies
 
-All production flows exist in staging. Legal/product decisions for contact and recording are documented.
+All production flows exist in staging. Product decisions for contact and recording are documented.
 
 ### Scope
 
@@ -319,7 +338,7 @@ These are the compatibility boundary. UI view models may be module-specific; raw
 
 ## Five highest technical risks / unresolved decisions
 
-1. **Outbound contact, consent, and recording legality.** Jurisdiction, merchant relationship, TCPA/state rules, caller identity, and consent requirements may materially change contactability and recording flows. Legal/product decisions are mandatory before live calls.
+1. **Outbound contact, consent, and recording legality.** Jurisdiction, merchant relationship, TCPA/state rules, caller identity, and consent requirements may materially change contactability and recording flows. Product-owner decisions are mandatory before live calls; they were recorded on 2026-09-29 in `docs/mvp-security-privacy-signoff.md`, and outside counsel review is not required for the pilot.
 2. **Protected customer data and tenant isolation.** Phone access is essential but high impact. Shopify approval, data minimization, encryption/key operations, researcher masking, export controls, deletion, and cross-tenant tests are launch-critical.
 3. **Attribution semantics and Shopify data quality.** Shopify-observed attribution may be missing, inconsistent, or demand-capture-biased. A versioned normalization taxonomy and honest unknowns are needed; comparisons must never imply causal truth.
 4. **At-least-once workflow correctness.** Duplicate/out-of-order webhooks, job retries, concurrent claims, callback replays, and partial provider failures can create duplicate assignments or contradictory state without strong constraints and replay tests.

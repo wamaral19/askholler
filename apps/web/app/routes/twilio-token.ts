@@ -8,7 +8,7 @@ import {
 } from "../lib/twilio-server.server";
 
 export async function loader({ request }: { request: Request }) {
-  const context = getTenantContext(request);
+  const context = await getTenantContext(request);
   const interviewId = new URL(request.url).searchParams.get("interviewId");
   if (!interviewId)
     return Response.json(

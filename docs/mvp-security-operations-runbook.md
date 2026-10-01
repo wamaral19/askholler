@@ -158,5 +158,5 @@ Keep links or identifiers for, at minimum:
 - deletion and retention sweep test results;
 - Shopify privacy webhook delivery tests;
 - backup restoration and deletion-replay test;
-- counsel approval of contact/recording practices;
+- product-owner approval of contact/recording practices (2026-09-29, in the signoff);
 - independent assessment report and remediation record.

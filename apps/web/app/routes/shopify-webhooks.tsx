@@ -7,8 +7,10 @@ import { ZodError } from "zod";
 import {
   getShopifyIngestionDatabase as getDatabase,
   ingestShopifyOrder,
+  recordShopifyPrivacyRequest,
   recordShopifyUninstall,
 } from "../lib/shopify-ingestion.server";
+import { getCustomerPrivateCipher } from "../lib/customer-private.server";
 import { getShopifyApp } from "../shopify.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -28,6 +30,33 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
     await recordShopifyUninstall(getDatabase(), shop);
+  }
+
+  if (
+    topic === "CUSTOMERS_REDACT" ||
+    topic === "SHOP_REDACT" ||
+    topic === "CUSTOMERS_DATA_REQUEST"
+  ) {
+    // Recorded here, executed by the worker's hourly privacy sweep.
+    const outcome = await recordShopifyPrivacyRequest(
+      getDatabase(),
+      shop,
+      topic,
+      context.payload,
+    );
+    // Data requests are answered by an operator (see the security runbook).
+    const log =
+      topic === "CUSTOMERS_DATA_REQUEST" && outcome === "recorded"
+        ? console.error
+        : console.info;
+    log(
+      JSON.stringify({
+        event: "shopify.privacy_webhook",
+        topic,
+        webhookId: context.webhookId,
+        outcome,
+      }),
+    );
   }
 
   if (topic === "ORDERS_CREATE") {
@@ -54,7 +83,13 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     // Failures propagate as 500 so Shopify redelivers; the delivery ID dedupe
     // and stable identities make the retry safe.
-    const result = await ingestShopifyOrder(getDatabase(), ingress, bodySha256);
+    const result = await ingestShopifyOrder(
+      getDatabase(),
+      ingress,
+      bodySha256,
+      new Date(),
+      getCustomerPrivateCipher(),
+    );
     console.info(
       JSON.stringify({
         event: "shopify.order_webhook_ingested",

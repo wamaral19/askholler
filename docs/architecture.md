@@ -155,7 +155,7 @@ The live interview surface renders the pinned field set as a top-to-bottom or le
 
 Core research code depends on a `TelephonyProvider` port with operations such as `startCall`, `endCall`, and `getCall`, plus verified callback translation. Provider adapters own vendor IDs and payloads. A `Call` record preserves normalized state, provider reference, consent/recording flags, timestamps, error codes, and callback event deduplication.
 
-The first implementation is a deterministic fake adapter. A real provider is added only after legal/consent and vendor decisions. Callbacks are signature verified and idempotent; provider-specific states map to normalized lifecycle events without leaking into `Interview` or `ResearchAssignment`.
+The first implementation is a deterministic fake adapter. A real provider is added only after consent and vendor decisions. Callbacks are signature verified and idempotent; provider-specific states map to normalized lifecycle events without leaking into `Interview` or `ResearchAssignment`.
 
 ### 11. Recording/transcription
 
@@ -195,7 +195,7 @@ The weekly `EarshotExport` is a private, auditable, spreadsheet-friendly snapsho
 - Shopify uninstall revokes use of tokens immediately and schedules merchant data handling according to contract and compliance requirements.
 - Audit sensitive reads, role changes, exports, publishes, decrypts, and deletion actions without recording sensitive values.
 
-Legal review of outbound contact, consent, recording, retention, and merchant/customer notices is a production launch gate, not an engineering inference.
+Outbound contact, consent, recording, retention, and merchant/customer notices are product-owner decisions recorded in `docs/mvp-security-privacy-signoff.md`, not engineering inferences.
 
 ### 16. Background jobs, retries, and failure recovery
 

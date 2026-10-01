@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { ZodError } from "zod";
 
-import { mapShopifyOrderWebhook, moneyToMinor } from "./webhook-order";
+import {
+  mapShopifyOrderWebhook,
+  moneyToMinor,
+  shopifyLegacyId,
+} from "./webhook-order";
 
 /** Fictional REST-shaped payload including fields Holler must drop. */
 function restPayload(overrides: Record<string, unknown> = {}) {
   return {
     id: 900000000701,
     admin_graphql_api_id: "gid://shopify/Order/900000000701",
+    name: "#1042",
     created_at: "2026-09-28T10:00:00-04:00",
     updated_at: "2026-09-28T10:00:01-04:00",
     cancelled_at: null,
@@ -64,6 +69,7 @@ describe("mapShopifyOrderWebhook", () => {
 
     expect(ingress.order).toMatchObject({
       id: "gid://shopify/Order/900000000701",
+      name: "#1042",
       createdAt: "2026-09-28T14:00:00.000Z",
       test: true,
       total: { amount: "42.50", currency: "USD" },
@@ -125,5 +131,12 @@ describe("moneyToMinor", () => {
     expect(moneyToMinor("7", "USD")).toBe(700);
     expect(moneyToMinor("1200", "JPY")).toBe(1200);
     expect(() => moneyToMinor("1.005", "USD")).toThrow();
+  });
+});
+
+describe("shopifyLegacyId", () => {
+  it("returns the numeric ID merchants see in Shopify admin", () => {
+    expect(shopifyLegacyId("gid://shopify/Customer/12345")).toBe("12345");
+    expect(() => shopifyLegacyId("12345")).toThrow();
   });
 });
