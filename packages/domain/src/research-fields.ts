@@ -45,8 +45,7 @@ export function fieldScope(definition: {
   attributionSemantic: string | null;
 }): PromptScope {
   return (
-    definition.scope ??
-    (definition.attributionSemantic ? "marketing" : "order")
+    definition.scope ?? (definition.attributionSemantic ? "marketing" : "order")
   );
 }
 

@@ -39,7 +39,7 @@ encryption, or deletion gates.
 | Transcription        | No transcription provider. Researchers record structured research-field responses and observations during and after the call. Recording, if consented, is stored in private R2 as the source audio. | Selecting and integrating a transcription vendor (Deepgram remains a candidate).     |
 | Shopify distribution | Custom app distribution, installed by link on the pilot merchant's store only. Protected customer data access is still requested and approved.                                                      | Public App Store listing and review.                                                 |
 | Workforce access     | Holler's internal team only, signed in with `withholler.com` Google Workspace accounts with 2-step verification. Memberships and roles are seeded by an operator.                                   | Invitation-only email-link sign-in, merchant user access, and a membership admin UI. |
-| Reports              | An internal analyst assembles the pilot Research Angle report by hand from reviewed evidence and delivers it privately.                                                                              | Automated monthly/quarterly and standalone reports and signed-download delivery.     |
+| Reports              | An internal analyst assembles the pilot Research Angle report by hand from reviewed evidence and delivers it privately.                                                                             | Automated monthly/quarterly and standalone reports and signed-download delivery.     |
 
 Transcript evidence (resolved 2026-09-29): `angle_evidence.transcript_segment_id`
 is required, so a stored Angle cannot yet cite a notes-only interview. This

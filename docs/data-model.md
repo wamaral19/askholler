@@ -437,7 +437,7 @@ read during migration, but **Disco** is not current customer-facing terminology.
 | `display_month`               | date             | First local day of month                                  |
 | `status`                      | text             | `draft`, `rendering`, `published`, `failed`, `superseded` |
 | `current_revision_id`         | uuid nullable FK | Published/current revision                                |
-| `report_type`                 | text             | `monthly`, `quarterly`, or `standalone`; legacy `disco`  |
+| `report_type`                 | text             | `monthly`, `quarterly`, or `standalone`; legacy `disco`   |
 
 Unique `(merchant_id, period_start, period_end)`.
 

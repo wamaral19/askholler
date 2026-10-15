@@ -86,7 +86,7 @@ not WBD terms and are retired from the product specification.
 
 Customers receive transcripts and transcript links as supporting evidence. The
 WBD statement that Holler "doesn't provide transcripts" means Holler does not
-sell transcript dumps *instead of insights*. Access remains private and subject
+sell transcript dumps _instead of insights_. Access remains private and subject
 to consent, authorization, retention, and deletion policy.
 
 ## Sales and onboarding
