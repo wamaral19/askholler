@@ -1,8 +1,9 @@
 # Twilio Voice and Cloudflare R2 setup
 
 The Holler MVP uses Twilio for browser calling and consent-controlled recording,
-then copies completed recordings into a private Cloudflare R2 bucket. SMS is not
-enabled by this setup.
+then copies completed recordings into a private Cloudflare R2 bucket. SMS is
+not part of the currently approved pilot. A text invitation is the confirmed
+post-pilot target and needs a separately approved workflow before enablement.
 
 ## 1. Twilio account and number
 

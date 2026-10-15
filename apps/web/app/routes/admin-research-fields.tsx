@@ -18,6 +18,11 @@ import {
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
+import {
+  isPromptScope,
+  promptScopeHelp,
+  promptScopeOptions,
+} from "../lib/prompt-scope";
 import { moveItem } from "../lib/reorder";
 import { formErrorFrom, jsonFormValue } from "../lib/route-forms";
 
@@ -92,6 +97,7 @@ export async function action({ request }: { request: Request }) {
 
 function fieldInput(form: FormData): ResearchFieldInput {
   const valueType = String(form.get("valueType"));
+  const scope = form.get("scope");
   return {
     label: String(form.get("label") ?? ""),
     prompt: String(form.get("prompt") ?? ""),
@@ -99,6 +105,7 @@ function fieldInput(form: FormData): ResearchFieldInput {
       ? valueType
       : "long_text") as EditableFieldValueType,
     options: String(form.get("options") ?? "").split("\n"),
+    scope: isPromptScope(scope) ? scope : "order",
   };
 }
 
@@ -372,6 +379,10 @@ function FieldSummary({ field }: { readonly field: LibraryResearchField }) {
       <span className="field-summary__meta">
         <span className="field-source">{sourceLabels[field.source]}</span>
         <span className="field-source">{valueTypeLabels[field.valueType]}</span>
+        <span className="field-source">
+          {promptScopeOptions.find(([value]) => value === field.scope)?.[1]}{" "}
+          question
+        </span>
         {field.options?.length ? (
           <small>{field.options.join(" · ")}</small>
         ) : null}
@@ -421,6 +432,16 @@ function FieldEditor({
           {Object.entries(valueTypeLabels).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Asked about</span>
+        <select defaultValue={field?.scope ?? "order"} name="scope">
+          {promptScopeOptions.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label} — {promptScopeHelp[value].toLowerCase()}
             </option>
           ))}
         </select>

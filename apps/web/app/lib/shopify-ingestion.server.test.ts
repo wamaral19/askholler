@@ -315,11 +315,18 @@ describe.skipIf(databaseUrl === undefined)(
       );
       const [queued] = await service.listQueue(context);
       expect(queued).toMatchObject({
-        customerName: "Customer",
+        customerName: "Avery",
+        itemCount: 2,
         maskedPhone: "••• ••• 0142",
         orderNumber: "#1001",
         shopifyCustomerId: "2001",
       });
+      // Queue names are audited per load, without the names themselves.
+      const nameAudits = await isolated.db.execute(
+        sql`select metadata from audit_events where action = 'customer_private.queue_names_viewed'`,
+      );
+      expect(nameAudits.rows.length).toBeGreaterThan(0);
+      expect(JSON.stringify(nameAudits.rows)).not.toContain("Avery");
       await service.claimAssignment(context, queued!.id, queued!.lockVersion);
       await expect(service.revealPhone(context, queued!.id)).resolves.toEqual({
         phone: "+12025550142",
@@ -414,7 +421,8 @@ describe.skipIf(databaseUrl === undefined)(
     });
 
     it("keeps a customer suppressed after they ask not to be contacted", async () => {
-      const now = new Date("2026-09-28T14:30:00.000Z");
+      // Within the five-minute queue window of the 14:00 order.
+      const now = new Date("2026-09-28T14:04:00.000Z");
       const service = new PostgresOperationsApplicationService(
         isolated.db,
         new EnvelopePhoneDecryptor(cipher),

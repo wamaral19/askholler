@@ -29,5 +29,12 @@ export const responseProvenanceSchema = z.enum([
   "imported",
 ]);
 
+/**
+ * An unclaimed order stays in the research queue this long after it was
+ * placed; after that the moment has passed and it drops out. Claimed work is
+ * not affected.
+ */
+export const QUEUE_WINDOW_MS = 5 * 60 * 1000;
+
 export type AssignmentStatus = z.infer<typeof assignmentStatusSchema>;
 export type CallStatus = z.infer<typeof callStatusSchema>;

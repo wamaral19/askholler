@@ -5,6 +5,7 @@ import type { ActionFunctionArgs } from "react-router";
 import { ZodError } from "zod";
 
 import {
+  applyShopifyOrderUpdate,
   getShopifyIngestionDatabase as getDatabase,
   ingestShopifyOrder,
   recordShopifyPrivacyRequest,
@@ -59,7 +60,7 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
-  if (topic === "ORDERS_CREATE") {
+  if (topic === "ORDERS_CREATE" || topic === "ORDERS_UPDATED") {
     let ingress;
     try {
       ingress = mapShopifyOrderWebhook({
@@ -82,14 +83,18 @@ export async function action({ request }: ActionFunctionArgs) {
       return new Response(null, { status: 200 });
     }
     // Failures propagate as 500 so Shopify redelivers; the delivery ID dedupe
-    // and stable identities make the retry safe.
-    const result = await ingestShopifyOrder(
-      getDatabase(),
-      ingress,
-      bodySha256,
-      new Date(),
-      getCustomerPrivateCipher(),
-    );
+    // and stable identities make the retry safe. Updates refresh refunds and
+    // status only; they never queue an order.
+    const result =
+      topic === "ORDERS_CREATE"
+        ? await ingestShopifyOrder(
+            getDatabase(),
+            ingress,
+            bodySha256,
+            new Date(),
+            getCustomerPrivateCipher(),
+          )
+        : await applyShopifyOrderUpdate(getDatabase(), ingress, bodySha256);
     console.info(
       JSON.stringify({
         event: "shopify.order_webhook_ingested",

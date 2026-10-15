@@ -249,6 +249,18 @@ describe.skipIf(databaseUrl === undefined)(
         orderNumber: "#1042",
         shopifyCustomerId: "12345",
       });
+      // The queue links back to the interview, and only for its researcher.
+      const reopened = (await service.listQueue(contextA)).find(
+        (item) => item.id === ids.assignment,
+      );
+      expect(reopened?.interviewId).toBe(interview.id);
+      await expect(
+        service.getInterview(contextA, reopened!.interviewId!),
+      ).resolves.toMatchObject({ id: interview.id });
+      const other = (
+        await service.listQueue({ ...contextA, researcherId: ids.researcherB })
+      ).find((item) => item.id === ids.assignment);
+      expect(other?.interviewId).toBeUndefined();
       expect(interview.fields.map((field) => field.id)).toEqual([
         ids.fieldVersion,
       ]);
@@ -295,6 +307,97 @@ describe.skipIf(databaseUrl === undefined)(
         safe_reveal_audits: 1,
         assignment_status: "completed",
       });
+    });
+
+    it("closes an unanswered call and records why the phone was revealed", async () => {
+      const unanswered = {
+        order: "00000000-0000-7000-8000-000000001101",
+        event: "00000000-0000-7000-8000-000000001102",
+        evaluation: "00000000-0000-7000-8000-000000001103",
+        assignment: "00000000-0000-7000-8000-000000001104",
+      };
+      for (const statement of [
+        sql`insert into orders (id, merchant_id, customer_id, shopify_order_id, source_order_number, ordered_at, source_updated_at, total_minor, currency, customer_order_sequence, observed_attribution)
+        values (${unanswered.order}, ${ids.merchantA}, ${ids.customer}, 'synthetic-order-2', '#1043', ${now}, ${now}, 4200, 'USD', 2, '{}'::jsonb)`,
+        sql`insert into commerce_events (id, merchant_id, customer_id, order_id, event_type, source, source_event_id, occurred_at, ingested_at, schema_version, attributes, observed_attribution, correlation_id)
+        values (${unanswered.event}, ${ids.merchantA}, ${ids.customer}, ${unanswered.order}, 'order_completed', 'synthetic', 'synthetic-event-2', ${now}, ${now}, 1, '{}'::jsonb, '{}'::jsonb, ${ids.correlation})`,
+        sql`insert into qualification_evaluations (id, merchant_id, commerce_event_id, research_moment_version_id, engine_version, outcome, reason_codes, input_snapshot, evaluated_at)
+        values (${unanswered.evaluation}, ${ids.merchantA}, ${unanswered.event}, ${ids.momentVersion}, 'test-v1', 'qualified', array['QUALIFIED'], '{}'::jsonb, ${now})`,
+        sql`insert into research_assignments (id, merchant_id, research_moment_version_id, qualification_evaluation_id, commerce_event_id, customer_id, order_id, script_version_id, research_field_set_version_id, priority, status, expires_at)
+        values (${unanswered.assignment}, ${ids.merchantA}, ${ids.momentVersion}, ${unanswered.evaluation}, ${unanswered.event}, ${ids.customer}, ${unanswered.order}, ${ids.scriptVersion}, ${ids.setVersion}, 80, 'queued', ${new Date(now.getTime() + 3_600_000)})`,
+      ])
+        await isolated.db.execute(statement);
+
+      await service.claimAssignment(contextA, unanswered.assignment, 0);
+      const interview = await service.startInterview(
+        contextA,
+        unanswered.assignment,
+        1,
+      );
+      await expect(
+        service.revealPhone(contextA, unanswered.assignment, "zapier_dial"),
+      ).resolves.toEqual({ phone: "+12025550123" });
+      await service.completeInterview(contextA, interview.id, "no_answer");
+
+      await expect(
+        service.getInterview(contextA, interview.id),
+      ).resolves.toMatchObject({ status: "no_answer" });
+      const queue = await service.listQueue(contextA);
+      expect(queue.map((item) => item.id)).not.toContain(unanswered.assignment);
+      const result = await isolated.db.execute(sql`
+        select
+          (select status from research_assignments where id = ${unanswered.assignment}) assignment_status,
+          (select status from calls where interview_id = ${interview.id}) call_status,
+          (select metadata->>'purpose' from audit_events where subject_id = ${unanswered.assignment} and action = 'customer_private.phone_revealed') reveal_purpose
+      `);
+      expect(result.rows[0]).toEqual({
+        assignment_status: "no_answer",
+        call_status: "no_answer",
+        reveal_purpose: "zapier_dial",
+      });
+    });
+
+    it("drops unclaimed orders after five minutes but keeps claimed work", async () => {
+      const stale = new Date(now.getTime() - 6 * 60_000);
+      const make = (n: number) => ({
+        order: `00000000-0000-7000-8000-00000000120${n}`,
+        event: `00000000-0000-7000-8000-00000000121${n}`,
+        evaluation: `00000000-0000-7000-8000-00000000122${n}`,
+        assignment: `00000000-0000-7000-8000-00000000123${n}`,
+      });
+      const unclaimed = make(1);
+      const claimed = make(2);
+      for (const [row, status] of [
+        [unclaimed, "queued"],
+        [claimed, "claimed"],
+      ] as const) {
+        for (const statement of [
+          sql`insert into orders (id, merchant_id, customer_id, shopify_order_id, source_order_number, ordered_at, source_updated_at, total_minor, currency, customer_order_sequence, observed_attribution)
+          values (${row.order}, ${ids.merchantA}, ${ids.customer}, ${`stale-${row.order}`}, '#2001', ${stale}, ${stale}, 1000, 'USD', 3, '{}'::jsonb)`,
+          sql`insert into commerce_events (id, merchant_id, customer_id, order_id, event_type, source, source_event_id, occurred_at, ingested_at, schema_version, attributes, observed_attribution, correlation_id)
+          values (${row.event}, ${ids.merchantA}, ${ids.customer}, ${row.order}, 'order_completed', 'synthetic', ${`stale-${row.event}`}, ${stale}, ${stale}, 1, '{}'::jsonb, '{}'::jsonb, ${ids.correlation})`,
+          sql`insert into qualification_evaluations (id, merchant_id, commerce_event_id, research_moment_version_id, engine_version, outcome, reason_codes, input_snapshot, evaluated_at)
+          values (${row.evaluation}, ${ids.merchantA}, ${row.event}, ${ids.momentVersion}, 'test-v1', 'qualified', array['QUALIFIED'], '{}'::jsonb, ${stale})`,
+          sql`insert into research_assignments (id, merchant_id, research_moment_version_id, qualification_evaluation_id, commerce_event_id, customer_id, order_id, script_version_id, research_field_set_version_id, priority, status, assigned_researcher_id, expires_at)
+          values (${row.assignment}, ${ids.merchantA}, ${ids.momentVersion}, ${row.evaluation}, ${row.event}, ${ids.customer}, ${row.order}, ${ids.scriptVersion}, ${ids.setVersion}, 80, ${status}, ${status === "claimed" ? ids.researcherA : null}, ${new Date(now.getTime() + 3_600_000)})`,
+        ])
+          await isolated.db.execute(statement);
+      }
+
+      const queue = (await service.listQueue(contextA)).map((item) => item.id);
+      expect(queue).not.toContain(unclaimed.assignment);
+      expect(queue).toContain(claimed.assignment);
+      const result = await isolated.db.execute(sql`
+        select a.status, t.metadata->>'reason' reason
+        from research_assignments a
+        join assignment_transitions t on t.assignment_id = a.id
+        where a.id = ${unclaimed.assignment}`);
+      expect(result.rows).toEqual([
+        { status: "expired", reason: "queue_window_passed" },
+      ]);
+      await expect(
+        service.claimAssignment(contextA, unclaimed.assignment, 1),
+      ).rejects.toMatchObject({ code: "ASSIGNMENT_CONFLICT" });
     });
 
     it("creates one report/revision and one safe outbox event atomically", async () => {
@@ -348,6 +451,7 @@ describe.skipIf(databaseUrl === undefined)(
           prompt: "?",
           valueType: "long_text",
           options: [],
+          scope: "order",
         }),
       ).rejects.toMatchObject({ code: "MOMENT_MANAGER_ROLE_REQUIRED" });
 
@@ -356,6 +460,7 @@ describe.skipIf(databaseUrl === undefined)(
         prompt: "What texture did you expect?",
         valueType: "single_select",
         options: ["Light", "Rich", ""],
+        scope: "order",
       });
       let library = await service.listResearchFields(managerA);
       // Platform fields without saved defaults come first; new fields append.
@@ -405,6 +510,7 @@ describe.skipIf(databaseUrl === undefined)(
           prompt: "?",
           valueType: "long_text",
           options: [],
+          scope: "order",
         }),
       ).rejects.toMatchObject({ code: "PLATFORM_FIELD_LOCKED" });
 
@@ -414,6 +520,7 @@ describe.skipIf(databaseUrl === undefined)(
         prompt: "How did the texture compare to what you expected?",
         valueType: "single_select",
         options: ["Rich", "Light", "Balanced"],
+        scope: "order",
       });
       library = await service.listResearchFields(managerA);
       expect(library[0]).toMatchObject({

@@ -61,6 +61,43 @@ const delivery = {
 };
 
 describe("mapShopifyOrderWebhook", () => {
+  it("keeps only city and state, line discounts, variants, and refunds", () => {
+    const base = restPayload();
+    const line = base.line_items[0]!;
+    const ingress = mapShopifyOrderWebhook({
+      ...delivery,
+      payload: {
+        ...base,
+        shipping_address: null,
+        billing_address: {
+          address1: "1 Example St",
+          zip: "97201",
+          city: " Portland ",
+          province_code: "OR",
+        },
+        line_items: [
+          {
+            ...line,
+            quantity: 3,
+            variant_title: "M / Navy",
+            discount_allocations: [{ amount: "2.10" }, { amount: "0.20" }],
+          },
+        ],
+        refunds: [
+          { refund_line_items: [{ line_item_id: 900000000703, quantity: 1 }] },
+          { refund_line_items: [{ line_item_id: 900000000703, quantity: 1 }] },
+        ],
+      },
+    });
+    expect(ingress.order.customer?.locality).toBe("Portland, OR");
+    expect(ingress.order.lineItems[0]).toMatchObject({
+      variantTitle: "M / Navy",
+      discount: { amount: "2.3", currency: "USD" },
+      refundedQuantity: 2,
+    });
+    expect(JSON.stringify(ingress)).not.toMatch(/Example St|97201/);
+  });
+
   it("maps a REST order into the allowlisted envelope", () => {
     const ingress = mapShopifyOrderWebhook({
       ...delivery,

@@ -22,6 +22,8 @@ const shopifyCustomerIngressSchema = z
     id: shopifyGidSchema,
     phone: nullableTrimmedString(32),
     firstName: nullableTrimmedString(120),
+    /** "City, ST" from the order's shipping (or billing/default) address. */
+    locality: nullableTrimmedString(100).default(null),
     /** Shopify customer creation time; bounds how much history Holler has seen. */
     createdAt: z.string().datetime().nullable(),
   })
@@ -34,8 +36,12 @@ const shopifyLineItemIngressSchema = z
     variantId: shopifyGidSchema.nullable(),
     sku: nullableTrimmedString(255),
     title: z.string().trim().min(1).max(500),
+    variantTitle: nullableTrimmedString(255).default(null),
     quantity: z.number().int().positive(),
     unitPrice: shopifyMoneySchema,
+    /** Total discount on the line across all units. */
+    discount: shopifyMoneySchema.nullable().default(null),
+    refundedQuantity: z.number().int().nonnegative().default(0),
   })
   .strict();
 
@@ -60,7 +66,7 @@ const shopifyOrderIngressPayloadSchema = z
 /**
  * The allowlisted, post-HMAC ingress envelope. It is intentionally not the raw
  * Shopify webhook payload and rejects common unnecessary PII fields such as
- * email, addresses, and order notes.
+ * email, street addresses, and order notes; only city and state are kept.
  */
 export const shopifyOrderIngressV1Schema = z
   .object({

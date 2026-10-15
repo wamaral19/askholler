@@ -57,7 +57,7 @@ export default function Privacy() {
             <li>
               <strong>Where we got your details.</strong> The brand shared
               information from your order, such as your first name, phone
-              number, and what you bought.
+              number, city and state, and what you bought.
             </li>
             <li>
               <strong>Recording.</strong> We ask for your permission before
@@ -80,10 +80,12 @@ export default function Privacy() {
             including:
           </p>
           <ul>
-            <li>contact details, such as name and phone number;</li>
             <li>
-              order and purchase history, such as products, quantities, prices,
-              order dates, and order status;
+              contact details, such as name, phone number, and city and state;
+            </li>
+            <li>
+              order and purchase history, such as products, sizes, quantities,
+              prices, discounts, order dates, order status, and returns;
             </li>
             <li>
               marketing and referral information, such as the ad, campaign, or

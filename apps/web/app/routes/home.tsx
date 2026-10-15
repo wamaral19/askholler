@@ -24,9 +24,9 @@ const contactHref = "mailto:wyatt@withholler.com?subject=Holler%20inquiry";
 
 // Illustrative only; all names and quotes are synthetic.
 const moment = [
-  { time: "12:04:48", label: "Order placed", detail: "First order · $86" },
+  { time: "12:04:14", label: "Order placed", detail: "First order · $86" },
   {
-    time: "12:05:31",
+    time: "12:04:32",
     label: "Holler researcher calls",
     detail: "On behalf of your brand",
   },

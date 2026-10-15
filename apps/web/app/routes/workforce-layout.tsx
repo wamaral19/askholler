@@ -13,6 +13,11 @@ export async function loader({ request }: { request: Request }) {
     return {
       merchantId: context.merchantId,
       merchants: await getOperationsService().listMerchants(context),
+      // Set by the sidebar toggle in the browser; read here so a collapsed
+      // sidebar renders collapsed without a flash.
+      sidebarCollapsed: /(?:^|;\s*)holler_sidebar=collapsed(?:;|$)/.test(
+        request.headers.get("cookie") ?? "",
+      ),
     };
   });
 }

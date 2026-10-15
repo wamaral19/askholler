@@ -19,8 +19,9 @@ to a tunnel. Keep production separate:
    - `automatically_update_urls_on_dev = false`
    - the same `[access_scopes]` and `[webhooks]` sections as
      `shopify.app.toml` (scopes `read_orders,read_products,read_customers`;
-     `orders/create`, `app/uninstalled`, and the three compliance topics, all
-     to `/webhooks`).
+     `orders/create`, `orders/updated`, `app/uninstalled`, and the three
+     compliance topics, all to `/webhooks`). `orders/updated` keeps refunds and
+     payment status current on the call sheet; it never queues an order.
 4. `npx shopify app deploy --config production` to publish the configuration.
 5. In Render, set `SHOPIFY_API_KEY` (render.yaml) to the new client ID and
    `SHOPIFY_API_SECRET` to its secret.

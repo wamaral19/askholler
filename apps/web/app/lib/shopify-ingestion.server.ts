@@ -38,6 +38,11 @@ export type ShopifyOrderIngestionResult =
   | { outcome: "ingested"; merchantId: string; commerceEventId: string }
   | { outcome: "duplicate_delivery"; merchantId: string };
 
+export type ShopifyOrderUpdateResult = {
+  outcome: "updated" | "duplicate_delivery" | "unknown_order" | "stale";
+  merchantId: string;
+};
+
 let database: HollerDatabase | undefined;
 export function getShopifyIngestionDatabase(): HollerDatabase {
   const url = process.env.DATABASE_URL;
@@ -132,8 +137,8 @@ export async function recordShopifyUninstall(
  * Persists a verified `orders/create` delivery in one transaction: receipt
  * (deduplicated by delivery ID), commerce projections, the normalized
  * CommerceEvent, and the qualification outbox job. Nothing from the payload
- * outside the allowlisted envelope is stored. Phone and first name are
- * persisted only KMS-encrypted, so without a cipher they are dropped.
+ * outside the allowlisted envelope is stored. Phone, first name, and city/state
+ * are persisted only KMS-encrypted, so without a cipher they are dropped.
  */
 export async function ingestShopifyOrder(
   db: HollerDatabase,
@@ -220,30 +225,8 @@ export async function ingestShopifyOrder(
         target: [orders.merchantId, orders.shopifyOrderId],
       });
 
-    for (const line of order.lineItems) {
-      const productId = line.productId
-        ? await upsertProduct(tx, merchantId, line.productId, line.title, now)
-        : null;
-      await tx
-        .insert(orderLineItems)
-        .values({
-          id: stableUuid(`shopify-line:${merchantId}:${line.id}`),
-          merchantId,
-          orderId,
-          shopifyLineItemId: line.id,
-          productId,
-          shopifyVariantId: line.variantId,
-          sku: line.sku,
-          title: line.title,
-          quantity: line.quantity,
-          unitPriceMinor: moneyToMinor(
-            line.unitPrice.amount,
-            line.unitPrice.currency,
-          ),
-          currency: line.unitPrice.currency,
-        })
-        .onConflictDoNothing();
-    }
+    for (const line of order.lineItems)
+      await upsertLineItem(tx, merchantId, orderId, line, now, false);
     if (customer) await refreshCustomerTotals(tx, merchantId, customer.id, now);
     if (customer && contact)
       await storeContact(tx, merchantId, customer.id, contact, now);
@@ -308,6 +291,124 @@ export async function ingestShopifyOrder(
 
     return { outcome: "ingested", merchantId, commerceEventId };
   });
+}
+
+/**
+ * Applies a verified `orders/updated` delivery to an order Holler already
+ * holds: payment and fulfillment status, refunds, discounts, and added lines.
+ * It never creates orders or commerce events, so an update cannot put an
+ * order into the research queue. Older deliveries than the stored order are
+ * ignored.
+ */
+export async function applyShopifyOrderUpdate(
+  db: HollerDatabase,
+  ingress: ShopifyOrderIngressV1,
+  bodySha256: string,
+  now = new Date(),
+): Promise<ShopifyOrderUpdateResult> {
+  const merchantId = shopifyMerchantId(ingress.shopDomain);
+  return db.transaction(async (tx) => {
+    const [merchant] = await tx
+      .select({ id: merchants.id })
+      .from(merchants)
+      .where(eq(merchants.id, merchantId));
+    if (!merchant) return { outcome: "unknown_order", merchantId };
+    const [receipt] = await tx
+      .insert(webhookReceipts)
+      .values({
+        id: randomUUID(),
+        merchantId,
+        provider: "shopify",
+        deliveryId: ingress.webhookId,
+        topic: "orders/updated",
+        bodySha256,
+        receivedAt: now,
+        processingStatus: "processed",
+      })
+      .onConflictDoNothing({
+        target: [webhookReceipts.provider, webhookReceipts.deliveryId],
+      })
+      .returning({ id: webhookReceipts.id });
+    if (!receipt) return { outcome: "duplicate_delivery", merchantId };
+
+    const order = ingress.order;
+    const updatedAt = new Date(order.updatedAt);
+    const [existing] = await tx
+      .select({ id: orders.id, sourceUpdatedAt: orders.sourceUpdatedAt })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.merchantId, merchantId),
+          eq(orders.shopifyOrderId, order.id),
+        ),
+      )
+      .for("update");
+    if (!existing) return { outcome: "unknown_order", merchantId };
+    if (updatedAt < existing.sourceUpdatedAt)
+      return { outcome: "stale", merchantId };
+
+    await tx
+      .update(orders)
+      .set({
+        sourceUpdatedAt: updatedAt,
+        financialStatus: order.financialStatus,
+        fulfillmentStatus: order.fulfillmentStatus,
+        updatedAt: now,
+      })
+      .where(
+        and(eq(orders.merchantId, merchantId), eq(orders.id, existing.id)),
+      );
+    for (const line of order.lineItems)
+      await upsertLineItem(tx, merchantId, existing.id, line, now, true);
+    return { outcome: "updated", merchantId };
+  });
+}
+
+async function upsertLineItem(
+  tx: Transaction,
+  merchantId: string,
+  orderId: string,
+  line: ShopifyOrderIngressV1["order"]["lineItems"][number],
+  now: Date,
+  refresh: boolean,
+): Promise<void> {
+  const productId = line.productId
+    ? await upsertProduct(tx, merchantId, line.productId, line.title, now)
+    : null;
+  const mutable = {
+    variantTitle: line.variantTitle,
+    discountMinor: line.discount
+      ? moneyToMinor(line.discount.amount, line.discount.currency)
+      : 0,
+    refundedQuantity: line.refundedQuantity,
+  };
+  const insert = tx.insert(orderLineItems).values({
+    id: stableUuid(`shopify-line:${merchantId}:${line.id}`),
+    merchantId,
+    orderId,
+    shopifyLineItemId: line.id,
+    productId,
+    shopifyVariantId: line.variantId,
+    sku: line.sku,
+    title: line.title,
+    quantity: line.quantity,
+    unitPriceMinor: moneyToMinor(
+      line.unitPrice.amount,
+      line.unitPrice.currency,
+    ),
+    currency: line.unitPrice.currency,
+    ...mutable,
+  });
+  await (refresh
+    ? insert.onConflictDoUpdate({
+        target: [
+          orderLineItems.merchantId,
+          orderLineItems.orderId,
+          orderLineItems.shopifyLineItemId,
+        ],
+        set: { ...mutable, updatedAt: now },
+      })
+    : insert.onConflictDoNothing());
 }
 
 async function ensureMerchant(
@@ -413,6 +514,7 @@ export const CUSTOMER_PII_RETENTION_MS = 90 * 24 * 60 * 60 * 1000;
 interface EncryptedContact {
   readonly phone: { ciphertext: string; lastFour: string } | null;
   readonly givenName: string | null;
+  readonly locality: string | null;
   readonly keyVersion: string;
   readonly expiresAt: Date;
 }
@@ -440,16 +542,23 @@ async function encryptContact(
   cipher: CustomerPrivateCipher,
   merchantId: string,
   customerId: string,
-  source: { phone: string | null; firstName: string | null },
+  source: {
+    phone: string | null;
+    firstName: string | null;
+    locality: string | null;
+  },
   now: Date,
 ): Promise<EncryptedContact | undefined> {
   const phone = normalizePhoneE164(source.phone);
   if (!phone && !source.firstName) return undefined;
   const subject = { merchantId, customerId };
-  const [encryptedPhone, encryptedName] = await Promise.all([
+  const [encryptedPhone, encryptedName, encryptedLocality] = await Promise.all([
     phone ? cipher.encrypt(subject, "phone_e164", phone) : undefined,
     source.firstName
       ? cipher.encrypt(subject, "given_name", source.firstName)
+      : undefined,
+    source.locality
+      ? cipher.encrypt(subject, "locality", source.locality)
       : undefined,
   ]);
   return {
@@ -457,6 +566,7 @@ async function encryptContact(
       ? { ciphertext: encryptedPhone.ciphertext, lastFour: phone!.slice(-4) }
       : null,
     givenName: encryptedName?.ciphertext ?? null,
+    locality: encryptedLocality?.ciphertext ?? null,
     keyVersion: (encryptedPhone ?? encryptedName)!.keyVersion,
     expiresAt: new Date(now.getTime() + CUSTOMER_PII_RETENTION_MS),
   };
@@ -473,6 +583,7 @@ async function storeContact(
     encryptedPhoneE164: contact.phone?.ciphertext ?? null,
     phoneLastFour: contact.phone?.lastFour ?? null,
     encryptedGivenName: contact.givenName,
+    encryptedLocality: contact.locality,
     keyVersion: contact.keyVersion,
     expiresAt: contact.expiresAt,
     deletedAt: null,

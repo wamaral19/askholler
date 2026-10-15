@@ -25,6 +25,8 @@ import {
   sql,
 } from "drizzle-orm";
 
+import { QUEUE_WINDOW_MS } from "@holler/domain";
+
 import { PostgresCohortQueryRepository } from "./cohort-query-repository";
 import { SafeJobError, type EvaluateCommerceEventPayload } from "./jobs";
 
@@ -214,7 +216,12 @@ export async function qualifyCommerceEvent(
           scriptVersionId: moment.scriptVersionId,
           researchFieldSetVersionId: moment.researchFieldSetVersionId,
           priority: moment.priority,
-          status: expiresAt <= now ? "expired" : "queued",
+          // Past the queue window the moment has passed; record, don't queue.
+          status:
+            expiresAt <= now ||
+            event.occurredAt.getTime() + QUEUE_WINDOW_MS <= now.getTime()
+              ? "expired"
+              : "queued",
           expiresAt,
         })
         .onConflictDoNothing({

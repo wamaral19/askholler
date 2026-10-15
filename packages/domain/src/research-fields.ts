@@ -11,6 +11,13 @@ export const researchFieldValueTypeSchema = z.enum([
   "rating_scale",
 ]);
 
+/**
+ * What a prompt asks about: the order as a whole, each item in it, or how the
+ * customer found and chose the brand (marketing).
+ */
+export const promptScopeSchema = z.enum(["order", "item", "marketing"]);
+export type PromptScope = z.infer<typeof promptScopeSchema>;
+
 export const researchFieldDefinitionV1Schema = z.object({
   schemaVersion: z.literal(1),
   key: z.string().regex(/^[a-z][a-z0-9_]*$/),
@@ -28,7 +35,20 @@ export const researchFieldDefinitionV1Schema = z.object({
     ])
     .nullable(),
   completionMode: z.enum(["live", "post_call", "ai_suggested", "any"]),
+  /** Absent on fields saved before categories; see {@link fieldScope}. */
+  scope: promptScopeSchema.optional(),
 });
+
+/** Attribution fields default to marketing, everything else to order. */
+export function fieldScope(definition: {
+  scope?: PromptScope | undefined;
+  attributionSemantic: string | null;
+}): PromptScope {
+  return (
+    definition.scope ??
+    (definition.attributionSemantic ? "marketing" : "order")
+  );
+}
 
 export const researchFieldSetItemSchema = z.object({
   researchFieldVersionId: z.string().uuid(),

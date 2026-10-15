@@ -12,7 +12,9 @@ const serverEnvironmentSchema = z
     DATABASE_URL: z.string().url().startsWith("postgresql://"),
     APP_BASE_URL: z.string().url(),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-    DIALER_PROVIDER: z.enum(["fake", "twilio"]).default("fake"),
+    DIALER_PROVIDER: z.enum(["fake", "twilio", "zapier"]).default("fake"),
+    /** Zapier "Catch Hook" URL; receives the number to dial. */
+    ZAPIER_DIAL_WEBHOOK_URL: z.string().url().optional(),
     TRANSCRIPTION_PROVIDER: z.enum(["fake"]).default("fake"),
     OBJECT_STORE_PROVIDER: z.enum(["fake", "r2"]).default("fake"),
     WORKFORCE_AUTH_PROVIDER: z.enum(["synthetic", "oidc"]).default("synthetic"),
@@ -114,6 +116,15 @@ const serverEnvironmentSchema = z
             message: `Production Twilio configuration requires ${key}`,
           });
     }
+    if (
+      value.DIALER_PROVIDER === "zapier" &&
+      !value.ZAPIER_DIAL_WEBHOOK_URL?.startsWith("https://")
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["ZAPIER_DIAL_WEBHOOK_URL"],
+        message: "Production Zapier dialing requires an https webhook URL",
+      });
     if (value.OBJECT_STORE_PROVIDER === "r2") {
       for (const key of [
         "R2_ACCOUNT_ID",

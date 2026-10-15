@@ -89,6 +89,8 @@ export const customerPrivate = pgTable("customer_private", {
   encryptedPhoneE164: text("encrypted_phone_e164"),
   /** Plaintext last four digits for masked display only (e.g. "••• 0142"). */
   phoneLastFour: text("phone_last_four"),
+  /** Shipping city and state/province as "City, ST". */
+  encryptedLocality: text("encrypted_locality"),
   keyVersion: text("key_version").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -214,8 +216,16 @@ export const orderLineItems = pgTable(
     shopifyVariantId: text("shopify_variant_id"),
     sku: text("sku"),
     title: text("title"),
+    /** Shopify variant title, e.g. "M / Navy"; null for single-variant products. */
+    variantTitle: text("variant_title"),
     quantity: integer("quantity").notNull(),
     unitPriceMinor: bigint("unit_price_minor", { mode: "number" }).notNull(),
+    /** Total discount applied to the line (all units). */
+    discountMinor: bigint("discount_minor", { mode: "number" })
+      .notNull()
+      .default(0),
+    /** Units refunded so far; kept current by orders/updated. */
+    refundedQuantity: integer("refunded_quantity").notNull().default(0),
     currency: text("currency").notNull(),
     ...timestamps,
   },
@@ -756,6 +766,39 @@ export const interviewResponses = pgTable(
       table.merchantId,
       table.interviewId,
       table.researchFieldVersionId,
+    ),
+  ],
+);
+
+/**
+ * The call sheet's working state for one script prompt (`script:<id>`) or
+ * research field (`field:<fieldVersionId>`) on an interview.
+ */
+export const interviewPromptProgress = pgTable(
+  "interview_prompt_progress",
+  {
+    interviewId: uuid("interview_id")
+      .notNull()
+      .references(() => interviews.id),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    promptKey: text("prompt_key").notNull(),
+    coveredAt: timestamp("covered_at", { withTimezone: true }),
+    /** Option labels the researcher tagged. */
+    selected: jsonb("selected").notNull().default([]),
+    note: text("note"),
+    updatedBy: uuid("updated_by"),
+    ...timestamps,
+  },
+  (table) => [
+    primaryKey({
+      name: "interview_prompt_progress_pk",
+      columns: [table.interviewId, table.promptKey],
+    }),
+    index("interview_prompt_progress_merchant_idx").on(
+      table.merchantId,
+      table.interviewId,
     ),
   ],
 );

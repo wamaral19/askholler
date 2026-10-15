@@ -1,6 +1,8 @@
 # Holler
 
-Holler is an evidence-backed customer research operations platform for Shopify ecommerce merchants. The current repository contains the technical foundation and a deterministic synthetic MVP slice.
+Holler provides point-in-time, human customer research for DTC ecommerce brands. Shopify events qualify customers into targeted Research Angles so Holler can learn why they bought while the context is fresh, then turn the conversations into evidence-backed reports. The repository contains the technical foundation and a deterministic synthetic MVP slice.
+
+Product intent is governed by the verbatim [`docs/working-backwards-document.md`](docs/working-backwards-document.md), with [`docs/working-backwards-source-of-truth.md`](docs/working-backwards-source-of-truth.md) recording its implementation interpretation and product-owner resolutions. `HOLLER_DEV_BRIEF.md` and the remaining documents supply implementation, security, and operating detail only where they do not conflict with the WBD and those resolutions.
 
 ## What works now
 
@@ -11,7 +13,7 @@ Holler is an evidence-backed customer research operations platform for Shopify e
 - Atomic, optimistic assignment claim/start transitions with append-only transition records; qualification never starts an interview or call.
 - Fake dialer and transcription providers.
 - Versioned research fields, transcript evidence, researcher observations, and AI/human provenance rules.
-- Validated evidence-backed Angles and deterministic monthly HTML Disco rendering (the code still uses the generic `Report` domain name).
+- Validated evidence-backed findings and deterministic monthly HTML report rendering.
 - React Router loaders/actions backed by a PostgreSQL operations service for Research Moments, queue claim/start/release, pinned interview definitions, protected phone reveal, interview capture, completion, and report generation.
 - A development-only synthetic workforce-session adapter and replaceable synthetic phone decryptor, with tenant-scoped, claim-gated and audited reveal.
 - Transactional `render_report` application-outbox events (`merchantId`, `reportRevisionId`) dispatched to Graphile Worker.
@@ -134,12 +136,15 @@ packages/testkit  Canonical synthetic end-to-end flow
 docs              Architecture, data model, plan, security review, and demo contract
 ```
 
-## Product deliverables
+## Product vocabulary and deliverables
 
-- **Earshot:** the reporting package now validates and renders deterministic weekly CSVs from pinned columns and reviewed rows, neutralizes spreadsheet formulas, and exposes same-tenant admin/private-store/audit contracts. Database assembly, scheduling, and signed-download delivery remain to be wired and are deferred until after the pilot, which uses manually assembled Earshots.
-- **Disco:** monthly evidence-backed synthesis of what changed, why, supporting customer conversations, and recommended actions. The current generic report renderer is its technical foundation.
-- **Angles:** individual evidence-backed findings assembled inside a Disco, not a separate customer deliverable.
+- **Research Angle:** a customer segment plus a question or hypothesis and its prioritized interview questions. The current implementation calls its executable configuration a `ResearchMoment`.
+- **Monthly report:** the starting $1,000 subscription includes 25 completed interviews, two hours of consented audio recordings, an executive summary, tagged-conversation visualizations, learnings and anecdotes, recommended actions/experiments, and transcripts plus authorized links.
+- **Quarterly report:** a longer synthesis included with the monthly subscription; there is no separate quarterly subscription.
+- **Standalone Research Run report:** the output of a one-time, Angle-led engagement.
+
+The existing generic `Report` and evidence models are the technical foundation. Earlier repository terms **Earshot** and **Disco** are retired product names, though some code and historical docs may still carry them during migration.
 
 ## Next implementation boundary
 
-Finish durable worker orchestration and development-store verification. Before a live pilot, replace synthetic workforce/PII adapters with Google sign-in for the internal team and KMS encryption, complete protected-data approval for a custom-distribution Shopify app, and enable Twilio live calling. The pilot has no transcription provider, and Earshot and Disco are assembled manually; automating them follows the pilot. The pilot scope and detailed ordered backlog are in `docs/mvp-plan.md`.
+Finish durable worker orchestration and development-store verification. Before a live pilot, replace synthetic workforce/PII adapters with Google sign-in for the internal team and KMS encryption, complete protected-data approval for a custom-distribution Shopify app, and enable compliant human outreach/calling. The first reports may be assembled manually. The pilot uses direct calls without SMS; text invitations remain a post-pilot target. The ordered backlog is in `docs/mvp-plan.md`.

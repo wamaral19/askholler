@@ -43,6 +43,11 @@ offer, discount, or product pitch is made on the call.
    sale of or sharing of phone numbers beyond Holler and its processors
    (Twilio, Cloudflare, Google Cloud, Render).
 
+This direct-call restriction is an approved pilot constraint, not the long-term
+product definition. A text invitation within roughly 60 seconds of checkout
+followed by a human call is the confirmed post-pilot target. That flow requires
+a new legal and operational review before it replaces this pilot plan.
+
 ## Pilot scale
 
 One brand, US customers only, roughly 10–50 calls per week, over about 8–12

@@ -112,6 +112,10 @@ export function erasureSteps(
             and r.value <> '{"redacted":true}'::jsonb
             and r.interview_id in (${interviewIds})`);
         await db.execute(sql`
+          update interview_prompt_progress set note = '[redacted]', updated_at = ${dependencies.now()}
+          where merchant_id = ${merchantId} and note is not null and note <> '[redacted]'
+            and interview_id in (${interviewIds})`);
+        await db.execute(sql`
           update response_evidence e set excerpt_snapshot = null
           from interview_responses r
           where e.merchant_id = ${merchantId} and e.response_id = r.id
@@ -175,10 +179,10 @@ async function eraseCustomerPrivate(
   const result = await db.execute(sql`
     update customer_private
     set encrypted_phone_e164 = null, encrypted_given_name = null, phone_last_four = null,
-        deleted_at = ${now}, updated_at = ${now}
+        encrypted_locality = null, deleted_at = ${now}, updated_at = ${now}
     where merchant_id = ${merchantId} and ${filter}
       and (encrypted_phone_e164 is not null or encrypted_given_name is not null
-           or phone_last_four is not null)`);
+           or phone_last_four is not null or encrypted_locality is not null)`);
   return result.rowCount ?? 0;
 }
 
@@ -385,7 +389,7 @@ export async function runPrivacySweep(
     with erased as (
       update customer_private
       set encrypted_phone_e164 = null, encrypted_given_name = null, phone_last_four = null,
-          deleted_at = ${now}, updated_at = ${now}
+          encrypted_locality = null, deleted_at = ${now}, updated_at = ${now}
       where deleted_at is null and expires_at <= ${now}
       returning merchant_id, customer_id
     ), uncontactable as (

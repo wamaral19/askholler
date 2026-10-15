@@ -164,6 +164,40 @@ Holler sets Twilio's call-status and recording-status callbacks itself
 the public origin exactly. See `docs/twilio-r2-setup.md` for Twilio and R2
 provisioning and the secrets to add in Render.
 
+### Zapier as the dialer
+
+With `DIALER_PROVIDER=zapier`, the interview page shows **Call via Zapier**
+instead of the Twilio browser call. Clicking it reveals the number (claim-gated
+and audited with purpose `zapier_dial`) and POSTs it to
+`ZAPIER_DIAL_WEBHOOK_URL` (a Zapier "Catch Hook"; must be `https://` in
+production):
+
+```json
+{
+  "event": "holler.call_requested",
+  "requestedAt": "2026-10-01T14:17:34.838Z",
+  "interviewId": "…",
+  "researcherId": "…",
+  "phone": "+12025550111",
+  "orderNumber": "#1042",
+  "merchant": "…",
+  "moment": "…"
+}
+```
+
+The Zap places the call. Holler does not hear back from Zapier: the researcher
+records the outcome in the interview (complete, **Mark unanswered**, or **Do
+not contact**). Zapier and the phone system it drives receive customer phone
+numbers, so treat them as service providers for customer data.
+
+To try it locally before a Zap exists, run the stand-in hook and start the app
+with `DIALER_PROVIDER=zapier` and
+`ZAPIER_DIAL_WEBHOOK_URL=http://localhost:8787/hooks/catch/holler-dial`:
+
+```bash
+npm run zapier:fake-hook            # add -- --status 500 to simulate a rejection
+```
+
 ### Shopify dev vs production
 
 `shopify.app.toml` still points at Shopify's placeholder URL and has

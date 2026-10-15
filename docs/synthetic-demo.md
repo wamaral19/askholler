@@ -14,8 +14,8 @@ synthetic order 2
   -> researcher explicitly starts a manual/fake call
   -> Interview + transcript + responses/tags + observations
   -> observed/self-reported attribution comparison
-  -> evidence-backed Angle
-  -> September 2026 Disco (stored through the generic Report model)
+  -> evidence-backed finding for the Research Angle
+  -> September 2026 monthly report (stored through the generic Report model)
 ```
 
 All timestamps, IDs, provider responses, and retry decisions are fixed. Tests must use an injected clock and ID source. Human-readable fixture content is fictional. The reserved `.invalid` domain and a North American `555-01xx` fictional number are used; none of this data may be replaced with production PII.

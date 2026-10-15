@@ -51,8 +51,8 @@ pilot scope table in `docs/mvp-plan.md`.
 - **Transcription:** none. No transcription provider receives call audio.
   Researchers capture responses and observations directly.
 - **Shopify:** custom app distribution to the pilot merchant only.
-- **Reports:** Earshot and Disco are assembled manually from reviewed evidence
-  and delivered privately. A manual export that contains direct identifiers
+- **Reports:** the pilot Research Angle report is assembled manually from
+  reviewed evidence and delivered privately. A manual export that contains direct identifiers
   follows the PII-bearing export retention rule below.
 
 Key management, envelope encryption, deletion, retention, and call/recording
@@ -74,7 +74,8 @@ The Google Cloud project IDs have not yet been created or recorded.
   scope is browser calling, explicit consent-controlled recording, signed call
   and recording callbacks, private R2 transfer, and deletion of the Twilio copy
   after verified transfer.
-- SMS: deferred. The Twilio number should be selected with both Voice and SMS
+- SMS: deferred for this pilot. A text invitation is the confirmed post-pilot
+  target. The Twilio number should be selected with both Voice and SMS
   capability, but production messaging remains disabled until its workflow and
   A2P registration are separately approved.
 - Transcription provider: deferred until after the pilot (2026-09-29). Deepgram

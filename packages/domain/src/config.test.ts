@@ -102,6 +102,42 @@ describe("environment configuration", () => {
     }
   });
 
+  it("requires an https Catch Hook when Zapier dials in production", () => {
+    const production = {
+      NODE_ENV: "production",
+      DATABASE_URL: databaseUrl,
+      APP_BASE_URL: "https://app.withholler.com",
+      WORKFORCE_AUTH_PROVIDER: "oidc",
+      OIDC_ISSUER: "https://accounts.google.com",
+      OIDC_AUDIENCE: "1234.apps.googleusercontent.com",
+      GOOGLE_OAUTH_CLIENT_SECRET: "synthetic-client-secret",
+      WORKFORCE_ALLOWED_DOMAIN: "withholler.com",
+      PII_KMS_KEY_ID:
+        "projects/holler-production/locations/us/keyRings/pii/cryptoKeys/customer-data",
+      DIALER_PROVIDER: "zapier",
+      OBJECT_STORE_PROVIDER: "r2",
+      R2_ACCOUNT_ID: "account",
+      R2_ACCESS_KEY_ID: "access",
+      R2_SECRET_ACCESS_KEY: "secret",
+      R2_BUCKET: "holler-production-private",
+    };
+    expect(() => loadServerEnvironment(production)).toThrow(
+      "ZAPIER_DIAL_WEBHOOK_URL",
+    );
+    expect(() =>
+      loadServerEnvironment({
+        ...production,
+        ZAPIER_DIAL_WEBHOOK_URL: "http://hooks.zapier.com/hooks/catch/1/abc/",
+      }),
+    ).toThrow("ZAPIER_DIAL_WEBHOOK_URL");
+    expect(
+      loadServerEnvironment({
+        ...production,
+        ZAPIER_DIAL_WEBHOOK_URL: "https://hooks.zapier.com/hooks/catch/1/abc/",
+      }),
+    ).toMatchObject({ DIALER_PROVIDER: "zapier" });
+  });
+
   it("requires recording-deletion credentials for the production worker", () => {
     expect(() =>
       loadWorkerEnvironment({

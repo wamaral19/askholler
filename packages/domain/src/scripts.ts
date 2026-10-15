@@ -1,9 +1,13 @@
 import { z } from "zod";
 
+import { promptScopeSchema } from "./research-fields";
+
 export const scriptPromptSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9_-]{0,63}$/),
   title: z.string().trim().min(1).max(120),
   prompt: z.string().trim().min(1).max(2000),
+  /** Defaults to "order" when absent. */
+  scope: promptScopeSchema.optional(),
 });
 
 /** script_versions.content for scripts authored in the app. */
@@ -35,10 +39,12 @@ export function readScriptPrompts(content: unknown): ScriptPrompt[] {
         : {};
     const text = (value: unknown, fallback: string) =>
       typeof value === "string" && value.trim() ? value : fallback;
+    const scope = promptScopeSchema.safeParse(record.scope);
     return {
       id: text(record.id, fallbackId),
       title: text(record.title, fallbackTitle),
       prompt: text(record.prompt, ""),
+      ...(scope.success ? { scope: scope.data } : {}),
     };
   });
 }

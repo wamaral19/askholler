@@ -6,7 +6,7 @@ import {
 /** Stored-ciphertext prefix; `synthetic:` values are never accepted here. */
 const PREFIX = "env1:";
 
-export type CustomerPrivateField = "phone_e164" | "given_name";
+export type CustomerPrivateField = "phone_e164" | "given_name" | "locality";
 
 export interface CustomerPrivateSubject {
   readonly merchantId: string;

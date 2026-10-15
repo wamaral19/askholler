@@ -24,6 +24,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx packages/db/src/migrate.ts",
     "shopify:fake-orders": "tsx scripts/fake-shopify-orders.ts",
+    "zapier:fake-hook": "tsx scripts/fake-zapier-hook.ts",
     "workforce": "tsx scripts/workforce.ts"
   },
   "devDependencies": {
