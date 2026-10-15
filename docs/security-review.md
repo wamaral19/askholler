@@ -118,7 +118,7 @@ Required behavior:
 - Do not store a plaintext phone in notes, interview rows, call rows, audit events, clipboard telemetry, or provider metadata.
 - When a telephony adapter is introduced, pass the customer ID server-side and resolve the phone inside the privacy boundary; remove routine raw reveal if the provider workflow makes it unnecessary.
 
-Legal approval for outbound contact, suppression handling, caller identification, time-of-day rules, and recording consent remains a production launch gate even if the software can reveal a number.
+Outbound contact, suppression handling, caller identification, time-of-day rules, and recording consent follow the product-owner approval in `docs/mvp-security-privacy-signoff.md`, even if the software can reveal a number.
 
 ### 7. Current-category cohort semantics
 
@@ -173,11 +173,11 @@ The Foundation PR does not need a working phone reveal UI, real encryption/KMS a
 - Official Shopify auth/session handling, minimum approved scopes, encrypted offline-token storage, verified raw-body HMAC, bounded webhook requests, mandatory privacy webhooks, uninstall handling, and deletion workflows.
 - Managed runtime secrets/KMS, environment isolation, encrypted backups/storage, error-monitoring scrubbing, access audit, production auth with MFA, tenant grants, and cross-tenant test coverage for every repository/service.
 - Retention policies and demonstrable database/object/provider deletion; backup/restore and key-rotation procedures.
-- Shopify protected-customer-data approval and privacy/legal documentation appropriate to the app's actual data use.
+- Shopify protected-customer-data approval and a public privacy policy (`https://withholler.com/privacy`) appropriate to the app's actual data use.
 
 ### Blockers before any live outbound call or recording
 
-- Legal/product approval for contact basis, TCPA/state and time-zone/time-of-day behavior, suppression/opt-out, brand representation, recording consent by jurisdiction, and retention.
+- Product-owner approval (recorded 2026-09-29; outside counsel review not required) for contact basis, TCPA/state and time-zone/time-of-day behavior, suppression/opt-out, brand representation, recording consent by jurisdiction, and retention.
 - Claim-gated phone reveal controls above, or a server-side provider dialer that avoids reveal; production monitoring for reveal abuse.
 - Verified telephony/transcription callbacks, payload minimization, provider security/data-processing review, recording policy enforcement, and provider deletion tests.
 

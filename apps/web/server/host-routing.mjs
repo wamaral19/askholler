@@ -1,11 +1,14 @@
 /**
  * Splits one deployment across two public hostnames:
- * - the marketing origin (e.g. https://withholler.com) serves only the landing page;
+ * - the marketing origin (e.g. https://withholler.com) serves only the landing page
+ *   and the public pages in MARKETING_PATHS;
  * - the app origin (APP_BASE_URL, e.g. https://app.withholler.com) serves Shopify,
  *   Twilio, and workforce routes.
  * Any other host (the platform's default hostname, health checks, localhost) is
  * left alone. When either origin is unconfigured, routing is disabled.
  */
+const MARKETING_PATHS = new Set(["/privacy"]);
+
 export function createHostRouting({ marketingUrl, appBaseUrl }) {
   if (!marketingUrl || !appBaseUrl) return null;
   const marketing = new URL(marketingUrl);
@@ -14,6 +17,9 @@ export function createHostRouting({ marketingUrl, appBaseUrl }) {
   return function resolve({ host, path, method }) {
     const hostname = (host ?? "").split(":")[0].toLowerCase();
     const url = new URL(path, "http://placeholder");
+    const isMarketingPath = MARKETING_PATHS.has(
+      url.pathname.replace(/\/+$/, ""),
+    );
 
     if (hostname === `www.${marketing.hostname}`) {
       return { status: 308, location: `${marketing.origin}${path}` };
@@ -24,7 +30,7 @@ export function createHostRouting({ marketingUrl, appBaseUrl }) {
         url.pathname === "/" &&
         !url.searchParams.has("shop") &&
         !url.searchParams.has("host");
-      if (isLandingPage) return null;
+      if (isLandingPage || isMarketingPath) return null;
       return { status: 308, location: `${app.origin}${path}` };
     }
 
@@ -36,6 +42,8 @@ export function createHostRouting({ marketingUrl, appBaseUrl }) {
         !url.searchParams.has("host");
       if (isBareAppRoot)
         return { status: 302, location: `${marketing.origin}/` };
+      if (isMarketingPath && (method === "GET" || method === "HEAD"))
+        return { status: 308, location: `${marketing.origin}${path}` };
     }
 
     return null;

@@ -21,7 +21,7 @@ export interface SyntheticWorkforceSession {
 }
 
 export interface WorkforceContextResolver {
-  resolve(request: Request): TenantContext;
+  resolve(request: Request): TenantContext | Promise<TenantContext>;
 }
 
 export class WorkforceContextError extends Error {

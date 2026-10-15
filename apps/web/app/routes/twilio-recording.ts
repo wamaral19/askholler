@@ -5,7 +5,7 @@ import {
 import { getTwilioServerDependencies } from "../lib/twilio-server.server";
 
 export async function action({ request }: { request: Request }) {
-  const context = getTenantContext(request);
+  const context = await getTenantContext(request);
   const body = (await request.json().catch(() => null)) as {
     interviewId?: unknown;
     action?: unknown;

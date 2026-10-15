@@ -15,6 +15,11 @@ import {
   getOperationsService,
   getTenantContext,
 } from "../lib/operations-service.server";
+import {
+  isPromptScope,
+  promptScopeOptions,
+  type PromptScope,
+} from "../lib/prompt-scope";
 import { moveItem } from "../lib/reorder";
 import { formErrorFrom, jsonFormValue } from "../lib/route-forms";
 import { promptsFromForm, samePromptList } from "../lib/script-prompts";
@@ -362,7 +367,7 @@ function RuleEditor({ node, root, onChange, onRemove }: RuleEditorProps) {
 
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const service = getOperationsService();
     const [fields, scripts] = await Promise.all([
       service.listResearchFields(context),
@@ -406,6 +411,7 @@ function fieldsFromForm(value: unknown): MomentFieldSelection[] {
           label: String(item.label ?? ""),
           prompt: String(item.prompt ?? ""),
           required: item.required === true,
+          scope: isPromptScope(item.scope) ? item.scope : "order",
         }
       : {
           kind: "library",
@@ -422,7 +428,7 @@ async function saveMomentAction(request: Request) {
       ? (jsonFormValue(form, "script") as Record<string, unknown> | null)
       : null;
     const result = await getOperationsService().saveMoment(
-      getTenantContext(request),
+      await getTenantContext(request),
       {
         name: String(form.get("name") ?? "").trim(),
         objective: String(form.get("objective") ?? "").trim(),
@@ -456,6 +462,7 @@ type SelectedField =
       readonly label: string;
       readonly prompt: string;
       readonly required: boolean;
+      readonly scope: PromptScope;
     };
 
 const sourceLabels: Record<LibraryResearchField["source"], string> = {
@@ -465,7 +472,7 @@ const sourceLabels: Record<LibraryResearchField["source"], string> = {
 };
 
 export function meta() {
-  return [{ title: "Moment builder · Holler" }];
+  return [{ title: "Angle builder · Holler" }];
 }
 
 export default function CohortBuilderRoute() {
@@ -480,6 +487,7 @@ export default function CohortBuilderRoute() {
   const [libraryPick, setLibraryPick] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newPrompt, setNewPrompt] = useState("");
+  const [newScope, setNewScope] = useState<PromptScope>("order");
   const [scriptId, setScriptId] = useState(scripts[0]?.id ?? "");
   const baseScript = scripts.find((script) => script.id === scriptId);
   const [prompts, setPrompts] = useState<ScriptPrompt[]>(() => [
@@ -507,6 +515,7 @@ export default function CohortBuilderRoute() {
             label: item.label,
             prompt: item.prompt,
             required: item.required,
+            scope: item.scope,
           },
     ),
   );
@@ -530,11 +539,11 @@ export default function CohortBuilderRoute() {
   return (
     <AppShell
       eyebrow="Angle setup"
-      title="Moment builder"
-      description="Choose which orders qualify, what to learn, and the script to follow. Launching makes the moment live, so new qualifying orders go straight to the queue."
+      title="Angle builder"
+      description="Choose which orders qualify, what to learn, and the script to follow. Launching makes the angle live, so new qualifying orders go straight to the queue."
       actions={
         <Link className="button button-quiet" to="/moments">
-          Back to moments
+          Back to angles
         </Link>
       }
     >
@@ -561,7 +570,7 @@ export default function CohortBuilderRoute() {
             <div className="panel-heading">
               <div>
                 <span className="step-number">1</span>
-                <h2>Moment basics</h2>
+                <h2>Angle basics</h2>
               </div>
               <span className="status-pill status-draft">Draft</span>
             </div>
@@ -769,6 +778,21 @@ export default function CohortBuilderRoute() {
                   value={newPrompt}
                 />
               </label>
+              <label>
+                <span>Asked about</span>
+                <select
+                  onChange={(event) =>
+                    setNewScope(event.target.value as PromptScope)
+                  }
+                  value={newScope}
+                >
+                  {promptScopeOptions.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 className="button button-quiet"
                 disabled={
@@ -790,6 +814,7 @@ export default function CohortBuilderRoute() {
                       label: newLabel.trim(),
                       prompt: newPrompt.trim(),
                       required: false,
+                      scope: newScope,
                     },
                   ]);
                   setNewLabel("");
@@ -905,7 +930,7 @@ export default function CohortBuilderRoute() {
             type="submit"
             value="publish"
           >
-            Launch moment
+            Launch angle
           </button>
           <button
             className="button button-quiet button-full"

@@ -14,8 +14,8 @@ Shopify order (or synthetic equivalent)
   -> ResearchAssignment
   -> human researcher queue and interview
   -> transcript segments and evidence-backed tags
-  -> Angle
-  -> weekly Earshot + monthly Disco
+  -> evidence-backed finding
+  -> monthly, quarterly, or standalone report
 ```
 
 It deliberately excludes MMM, autonomous interviewers, a customer-facing BI product, complex anomaly detection, and non-Shopify commerce integrations. A narrow internal analytics surface is in scope because analysts need to validate metrics and construct research cohorts.
@@ -104,9 +104,9 @@ The `privacy` module owns `CustomerPrivate` and the only decrypting service. It 
 
 Application-level envelope encryption uses a managed KMS in production. Database backups and object storage remain encrypted independently. Researcher views receive a display name and masked phone only; call initiation passes a customer ID to the server-side telephony adapter, which resolves the number inside the PII boundary. Every decrypt is authorized and audit logged. No PII is permitted in fixtures, source, logs, prompts, traces, analytics, screenshots, or report artifacts.
 
-### 5. Research Moment definitions
+### 5. Research Angle definitions (`ResearchMoment` in code)
 
-The `research-moments` module owns merchant-scoped, versioned definitions. A published `ResearchMomentVersion` is immutable and includes event type, objective, cohort-expression JSON, priority, allocation policy, active interval, script version, and research-field-set version. Editing creates a draft/new version; historical assignments retain the published version used.
+The `research-moments` module owns merchant-scoped, versioned executable definitions of WBD Research Angles. A Research Angle combines a question or hypothesis, a defined customer segment, prioritized interview questions, and a completed-interview target. A published `ResearchMomentVersion` is immutable and includes event type, objective, cohort-expression JSON, priority, allocation policy, active interval, script version, and research-field-set version. `ResearchMoment` remains the internal schema name to avoid a premature migration. Editing creates a draft/new version; historical assignments retain the published version used.
 
 The cohort expression is a recursive `all`/`any`/`not` tree of code-registered, versioned predicates. Each predicate owns its validated JSON configuration, tenant-scoped evaluator, safe parameterized query plan, and human-readable description. Adding custom logic therefore does not require changing the Research Moment schema or immediately adding GUI controls. Arbitrary user-authored SQL is not allowed.
 
@@ -118,7 +118,7 @@ Product categories are current catalog classifications, not order-time snapshots
 
 `evaluateCommerceEvent(eventId)` loads an immutable event snapshot and active moment versions, evaluates them deterministically, records one `QualificationEvaluation` per event/version/engine version, and creates at most one assignment for each qualifying event/moment version.
 
-The audit record contains structured reason codes, rule inputs without PII, outcome, engine version, and allocation decision. MVP allocation is deterministic: weekly merchant cap, configured moment weight/cap, priority, cooldown, and a stable hash tie-breaker. It is not anomaly detection. Database uniqueness is the final idempotency guard.
+The audit record contains structured reason codes, rule inputs without PII, outcome, engine version, and allocation decision. MVP allocation is deterministic: configurable engagement/period targets and per-Angle caps, priority, cooldown, and a stable hash tie-breaker. It is not anomaly detection. Database uniqueness is the final idempotency guard. The schema may retain a weekly cap for compatibility, but weekly volume is not the customer packaging model.
 
 ### 7. ResearchAssignment queue
 
@@ -155,7 +155,7 @@ The live interview surface renders the pinned field set as a top-to-bottom or le
 
 Core research code depends on a `TelephonyProvider` port with operations such as `startCall`, `endCall`, and `getCall`, plus verified callback translation. Provider adapters own vendor IDs and payloads. A `Call` record preserves normalized state, provider reference, consent/recording flags, timestamps, error codes, and callback event deduplication.
 
-The first implementation is a deterministic fake adapter. A real provider is added only after legal/consent and vendor decisions. Callbacks are signature verified and idempotent; provider-specific states map to normalized lifecycle events without leaking into `Interview` or `ResearchAssignment`.
+The first implementation is a deterministic fake adapter. A real provider is added only after consent and vendor decisions. Callbacks are signature verified and idempotent; provider-specific states map to normalized lifecycle events without leaking into `Interview` or `ResearchAssignment`.
 
 ### 11. Recording/transcription
 
@@ -171,17 +171,17 @@ Evidence is normalized through `ResponseEvidence`, linking a response to one or 
 
 `InterviewObservation` captures researcher-only context such as hesitation, excitement, reluctance, or confusion, with call offset and optional field/question association. It is explicitly labeled researcher-observed and does not pretend to be transcript evidence.
 
-### 13. Angles
+### 13. Findings (`Angle` in the current schema)
 
-The `insights` module provides an internal editor. An `Angle` is a versioned finding for a merchant and reporting period, with category, cohort snapshot, question, claim, action, caveat, status, and explicit numerator/denominator where quantitative language is used.
+The `insights` module provides an internal editor. The existing `Angle` table is a legacy name for a versioned **finding**, not the WBD's Research Angle. A finding belongs to a merchant and reporting period and has a category, Research Angle/cohort snapshot, question, claim, action, caveat, status, and explicit numerator/denominator where quantitative language is used. A later schema migration may rename it; new product prose must not conflate the two meanings.
 
 `AngleEvidence` links angles to tag evidence/transcript spans and interviews. `AngleMetric` records metric type, population (`commerce` or `interview_sample`), numerator, denominator, unit, filters, and computation provenance. No free-form JSON evidence list is considered sufficient for a published angle.
 
-### 14. Internal analytics, Earshot, and Disco generation
+### 14. Internal analytics and report generation
 
 The internal dashboard reads from tenant-scoped commerce/reporting projections. It supports merchant, date/granularity, new/repeat, and observed-source filters plus drill-downs needed for cohort construction. Metric definitions are versioned and share the same query services used by reports; the UI never accepts arbitrary SQL. Saved filter sets can seed a validated Research Moment cohort expression.
 
-The weekly `EarshotExport` is a private, auditable, spreadsheet-friendly snapshot of approved interview rows and their pinned field definitions. The monthly `Report` represents the Disco and has draft, rendering, published, failed, and superseded states. `ReportAngle` orders 3-5 executive angles and detailed sections while pinning angle revisions. Methodology and sample notes are mandatory. Render jobs produce the Earshot dataset and print-friendly Disco HTML (optionally PDF), store artifacts privately, and record template/schema versions and checksums. Published artifacts are immutable; corrections create a new revision.
+The legacy `EarshotExport` is a private, auditable, spreadsheet-friendly snapshot of approved interview rows and their pinned field definitions; it is a report input, not a separately promised weekly product. `Report` supports monthly subscriber reports, quarterly long-form reports, and standalone Research Run reports, with draft, rendering, published, failed, and superseded states. `ReportAngle` is a legacy join name that orders evidence-backed findings and pins their revisions. Methodology and sample notes are mandatory. Reports include an executive summary, tagged-data visualizations, learnings and anecdotes, recommended actions/experiments, and authorized raw notes/transcript references. Published artifacts are immutable; corrections create a new revision.
 
 ### 15. Security, tenancy, authorization, retention, and deletion
 
@@ -195,7 +195,7 @@ The weekly `EarshotExport` is a private, auditable, spreadsheet-friendly snapsho
 - Shopify uninstall revokes use of tokens immediately and schedules merchant data handling according to contract and compliance requirements.
 - Audit sensitive reads, role changes, exports, publishes, decrypts, and deletion actions without recording sensitive values.
 
-Legal review of outbound contact, consent, recording, retention, and merchant/customer notices is a production launch gate, not an engineering inference.
+Outbound contact, consent, recording, retention, and merchant/customer notices are product-owner decisions recorded in `docs/mvp-security-privacy-signoff.md`, not engineering inferences.
 
 ### 16. Background jobs, retries, and failure recovery
 

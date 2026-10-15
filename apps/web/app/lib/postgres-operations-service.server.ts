@@ -7,6 +7,7 @@ import {
   customerPrivate,
   customers,
   interviewObservations,
+  interviewPromptProgress,
   interviewResponses,
   interviews,
   merchantResearchFieldSettings,
@@ -15,6 +16,7 @@ import {
   orders,
   outboxEvents,
   productCategories,
+  productCategoryAssignments,
   reportRevisions,
   reports,
   researchAssignments,
@@ -30,25 +32,40 @@ import {
   type HollerDatabase,
 } from "@holler/db";
 import {
+  QUEUE_WINDOW_MS,
   cohortExpressionSchema,
+  fieldScope,
   interviewObservationTypeSchema,
+  promptScopeSchema,
   readScriptPrompts,
   researchFieldDefinitionV1Schema,
   scriptContentV1Schema,
   type ResearchFieldDefinitionV1,
   type ScriptPrompt,
 } from "@holler/domain";
+import {
+  isEnvelopeCiphertext,
+  type CustomerPrivateCipher,
+  type CustomerPrivateField,
+} from "@holler/providers";
+import { shopifyLegacyId } from "@holler/shopify";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type {
   EditableFieldValueType,
   FieldDefaultInput,
+  InterviewOutcome,
   InterviewWorkspace,
   LibraryResearchField,
   LibraryScript,
   MomentRunStatus,
   MomentScript,
+  CallSheetOrder,
+  CallSheetProfile,
+  CallSheetPrompt,
   OperationsApplicationService,
+  PhoneRevealPurpose,
+  PromptProgressInput,
   QueueItem,
   ResearchFieldInput,
   SaveMomentInput,
@@ -83,18 +100,59 @@ export class OperationsError extends Error {
   }
 }
 
-export interface SyntheticPhoneDecryptor {
-  decrypt(ciphertext: string, keyVersion: string): string | undefined;
+export interface PhoneDecryptInput {
+  readonly merchantId: string;
+  readonly customerId: string;
+  readonly ciphertext: string;
+  readonly keyVersion: string;
+  /** Defaults to the phone; the call sheet also reads name and city/state. */
+  readonly field?: CustomerPrivateField;
 }
 
-/** Development/test only. Production must supply a KMS-backed implementation. */
-export class PrefixedSyntheticPhoneDecryptor implements SyntheticPhoneDecryptor {
-  decrypt(ciphertext: string, keyVersion: string): string | undefined {
+/** Returns the E.164 phone, or undefined when the value cannot be trusted. */
+export interface PhoneDecryptor {
+  decrypt(input: PhoneDecryptInput): Promise<string | undefined>;
+}
+
+/** Development/test only. Production uses {@link EnvelopePhoneDecryptor}. */
+export class PrefixedSyntheticPhoneDecryptor implements PhoneDecryptor {
+  async decrypt({
+    ciphertext,
+    keyVersion,
+    field = "phone_e164",
+  }: PhoneDecryptInput): Promise<string | undefined> {
+    if (field !== "phone_e164")
+      return ciphertext.startsWith("synthetic:plain:")
+        ? ciphertext.slice("synthetic:plain:".length)
+        : undefined;
     if (keyVersion !== "synthetic-v1") return undefined;
     const prefix = "synthetic:v1:";
     if (!ciphertext.startsWith(prefix)) return undefined;
     const phone = ciphertext.slice(prefix.length);
     return /^\+120255501\d{2}$/.test(phone) ? phone : undefined;
+  }
+}
+
+/** KMS envelope decryption; refuses synthetic fixture values. */
+export class EnvelopePhoneDecryptor implements PhoneDecryptor {
+  constructor(
+    private readonly cipher: CustomerPrivateCipher,
+    /** Development only: also accept synthetic fixtures. */
+    private readonly synthetic?: PrefixedSyntheticPhoneDecryptor,
+  ) {}
+
+  async decrypt(input: PhoneDecryptInput): Promise<string | undefined> {
+    if (!isEnvelopeCiphertext(input.ciphertext))
+      return this.synthetic?.decrypt(input);
+    try {
+      return await this.cipher.decrypt(
+        { merchantId: input.merchantId, customerId: input.customerId },
+        input.field ?? "phone_e164",
+        input.ciphertext,
+      );
+    } catch {
+      return undefined;
+    }
   }
 }
 
@@ -117,9 +175,17 @@ const formatMoney = (minor: number, currency: string): string =>
     currency,
   }).format(minor / 100);
 
-const maskPhone = (ciphertext: string | null): string => {
-  const match = ciphertext?.match(/(\d{4})$/);
-  return match ? `+1 ••• ••• ${match[1]}` : "Unavailable";
+const maskPhone = (
+  lastFour: string | null,
+  ciphertext: string | null,
+): string => {
+  // Synthetic fixtures carry their digits in the value itself.
+  const digits =
+    lastFour ??
+    (ciphertext?.startsWith("synthetic:")
+      ? ciphertext.match(/(\d{4})$/)?.[1]
+      : undefined);
+  return digits ? `••• ••• ${digits}` : "Unavailable";
 };
 
 type DbTransaction = Parameters<
@@ -168,7 +234,8 @@ function parseFieldInput(input: ResearchFieldInput): ResearchFieldInput {
     (input.valueType === "single_select" &&
       (options.length < 2 ||
         options.length > 20 ||
-        options.some((option) => option.length > 80)))
+        options.some((option) => option.length > 80))) ||
+    !promptScopeSchema.safeParse(input.scope).success
   )
     throw new OperationsError("INVALID_RESEARCH_FIELD", 400);
   return {
@@ -176,6 +243,7 @@ function parseFieldInput(input: ResearchFieldInput): ResearchFieldInput {
     prompt,
     valueType: input.valueType,
     options: input.valueType === "single_select" ? options : [],
+    scope: input.scope,
   };
 }
 
@@ -229,7 +297,7 @@ function samePrompts(
 export class PostgresOperationsApplicationService implements OperationsApplicationService {
   constructor(
     private readonly db: HollerDatabase,
-    private readonly phoneDecryptor: SyntheticPhoneDecryptor,
+    private readonly phoneDecryptor: PhoneDecryptor,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -604,6 +672,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         ...(field.valueType === "single_select"
           ? { options: fieldOptions(field.options, previousOptions) }
           : {}),
+        scope: field.scope,
       };
       const wording = (value: ResearchFieldDefinitionV1) =>
         JSON.stringify([
@@ -611,6 +680,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           value.prompt,
           value.valueType,
           value.options ?? [],
+          fieldScope(value),
         ]);
       if (wording(definition) === wording(previous.data)) return { fieldId };
       const now = this.now();
@@ -929,6 +999,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           archived: row.fieldStatus === "archived",
           includedByDefault: row.includedByDefault ?? true,
           displayOrder: row.displayOrder ?? Number.MAX_SAFE_INTEGER,
+          scope: fieldScope(parsed.data),
         },
       ];
     });
@@ -985,6 +1056,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       evidenceExpected: false,
       attributionSemantic: null,
       completionMode: "live",
+      scope: field.scope,
     };
     await tx.insert(researchFieldVersions).values({
       id: versionId,
@@ -1291,6 +1363,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
                 prompt: selection.prompt.trim() || label,
                 valueType: "long_text",
                 options: [],
+                scope: selection.scope ?? "order",
               },
               { includedByDefault: false, requiredByDefault: false },
             );
@@ -1395,17 +1468,36 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         customerId: researchAssignments.customerId,
         encryptedGivenName: customerPrivate.encryptedGivenName,
         encryptedPhone: customerPrivate.encryptedPhoneE164,
+        phoneLastFour: customerPrivate.phoneLastFour,
         merchantName: merchants.name,
         momentId: researchMoments.id,
         momentName: researchMoments.name,
         momentStatus: researchMoments.status,
         totalMinor: orders.totalMinor,
         currency: orders.currency,
+        orderedAt: orders.orderedAt,
         orderSequence: orders.customerOrderSequence,
+        orderNumber: orders.sourceOrderNumber,
+        shopifyCustomerId: customers.shopifyCustomerId,
         observed: orders.observedAttribution,
+        interviewId: interviews.id,
+        encryptedLocality: customerPrivate.encryptedLocality,
+        keyVersion: customerPrivate.keyVersion,
+        privateDeletedAt: customerPrivate.deletedAt,
+        privateExpiresAt: customerPrivate.expiresAt,
+        contactabilityStatus: customers.contactabilityStatus,
+        customerDeletedAt: customers.deletedAt,
       })
       .from(researchAssignments)
       .innerJoin(merchants, eq(merchants.id, researchAssignments.merchantId))
+      .leftJoin(
+        interviews,
+        and(
+          eq(interviews.researchAssignmentId, researchAssignments.id),
+          eq(interviews.merchantId, context.merchantId),
+          eq(interviews.researcherId, context.researcherId),
+        ),
+      )
       .innerJoin(
         researchMomentVersions,
         eq(
@@ -1422,6 +1514,13 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         and(
           eq(orders.id, researchAssignments.orderId),
           eq(orders.merchantId, context.merchantId),
+        ),
+      )
+      .leftJoin(
+        customers,
+        and(
+          eq(customers.id, researchAssignments.customerId),
+          eq(customers.merchantId, context.merchantId),
         ),
       )
       .leftJoin(
@@ -1458,6 +1557,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
             orderId: researchAssignments.orderId,
             title: orderLineItems.title,
             sku: orderLineItems.sku,
+            quantity: orderLineItems.quantity,
           })
           .from(researchAssignments)
           .innerJoin(
@@ -1477,15 +1577,100 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
             ),
           )
       : [];
+    const contacts = await this.queueContacts(context, rows, now);
     return rows.map((row) =>
       this.queueDto(
-        row,
-        assignmentOrders
-          .filter((item) => item.assignmentId === row.id)
-          .map((item) => item.title ?? item.sku ?? "Product"),
+        {
+          ...row,
+          givenName: contacts.get(row.id)?.givenName ?? null,
+          locality: contacts.get(row.id)?.locality ?? null,
+        },
+        assignmentOrders.filter((item) => item.assignmentId === row.id),
         now,
       ),
     );
+  }
+
+  /**
+   * First names and "City, ST" for the queue rows; the city tells the
+   * researcher the customer's local time. Decrypted under the same customer
+   * conditions as the call sheet, and audited once per queue load (the values
+   * themselves are never logged).
+   */
+  private async queueContacts(
+    context: TenantContext,
+    rows: readonly {
+      id: string;
+      customerId: string | null;
+      encryptedGivenName: string | null;
+      encryptedLocality: string | null;
+      keyVersion: string | null;
+      privateDeletedAt: Date | null;
+      privateExpiresAt: Date | null;
+      contactabilityStatus: string | null;
+      customerDeletedAt: Date | null;
+    }[],
+    now: Date,
+  ): Promise<
+    Map<string, { givenName: string | null; locality: string | null }>
+  > {
+    const contacts = new Map<
+      string,
+      { givenName: string | null; locality: string | null }
+    >();
+    let names = 0;
+    let localities = 0;
+    await Promise.all(
+      rows.map(async (row) => {
+        if (
+          !row.customerId ||
+          !row.keyVersion ||
+          row.contactabilityStatus === "suppressed" ||
+          row.customerDeletedAt ||
+          row.privateDeletedAt ||
+          (row.privateExpiresAt && row.privateExpiresAt <= now)
+        )
+          return;
+        const decrypt = async (
+          field: "given_name" | "locality",
+          ciphertext: string | null,
+        ) =>
+          ciphertext
+            ? ((await this.phoneDecryptor.decrypt({
+                merchantId: context.merchantId,
+                customerId: row.customerId!,
+                ciphertext,
+                keyVersion: row.keyVersion!,
+                field,
+              })) ?? null)
+            : null;
+        const [givenName, locality] = await Promise.all([
+          decrypt("given_name", row.encryptedGivenName),
+          decrypt("locality", row.encryptedLocality),
+        ]);
+        if (givenName) names += 1;
+        if (locality) localities += 1;
+        if (givenName || locality)
+          contacts.set(row.id, { givenName, locality });
+      }),
+    );
+    if (contacts.size)
+      await this.db.insert(auditEvents).values({
+        id: randomUUID(),
+        merchantId: context.merchantId,
+        actorId: context.researcherId,
+        action: "customer_private.queue_names_viewed",
+        subjectType: "merchant",
+        subjectId: context.merchantId,
+        metadata: {
+          count: names,
+          localityCount: localities,
+          purpose: "research_queue",
+          correlationId: context.correlationId,
+        },
+        occurredAt: now,
+      });
+    return contacts;
   }
 
   async claimAssignment(
@@ -1512,6 +1697,12 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
             eq(researchAssignments.status, "queued"),
             eq(researchAssignments.lockVersion, expectedLockVersion),
             sql`${researchAssignments.expiresAt} > ${now}`,
+            // A card left on screen past the queue window cannot be claimed.
+            sql`${researchAssignments.orderId} in (
+              select ${orders.id} from ${orders}
+              where ${orders.merchantId} = ${context.merchantId}
+                and ${orders.orderedAt} > ${new Date(now.getTime() - QUEUE_WINDOW_MS)}
+            )`,
           ),
         )
         .returning();
@@ -1653,7 +1844,11 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     return this.workspace(context, interviewId);
   }
 
-  async revealPhone(context: TenantContext, assignmentId: string) {
+  async revealPhone(
+    context: TenantContext,
+    assignmentId: string,
+    purpose: PhoneRevealPurpose = "manual_dial",
+  ) {
     await this.requireMerchant(context);
     const now = this.now();
     const [row] = await this.db
@@ -1703,7 +1898,12 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       row.customerId &&
       row.ciphertext;
     const phone = allowed
-      ? this.phoneDecryptor.decrypt(row.ciphertext!, row.keyVersion!)
+      ? await this.phoneDecryptor.decrypt({
+          merchantId: context.merchantId,
+          customerId: row.customerId!,
+          ciphertext: row.ciphertext!,
+          keyVersion: row.keyVersion!,
+        })
       : undefined;
     await this.db.insert(auditEvents).values({
       id: randomUUID(),
@@ -1716,7 +1916,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       subjectId: assignmentId,
       metadata: {
         result: phone ? "allowed" : "denied",
-        purpose: "manual_dial",
+        purpose,
         correlationId: context.correlationId,
       },
       occurredAt: now,
@@ -1759,6 +1959,17 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     );
     if (!definition.success || !this.validResponseValue(definition.data, value))
       throw new OperationsError("INVALID_RESPONSE", 400);
+    await this.recordResponse(context, interview, fieldId, value);
+  }
+
+  /** Appends an accepted response version unless the value is unchanged. */
+  private async recordResponse(
+    context: TenantContext,
+    interview: { id: string; researchFieldSetVersionId: string },
+    fieldId: string,
+    value: unknown,
+  ) {
+    const interviewId = interview.id;
     const prior = await this.db
       .select({
         id: interviewResponses.id,
@@ -1776,11 +1987,13 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       )
       .orderBy(desc(interviewResponses.version))
       .limit(1);
-    if (prior[0]?.value === value) return;
+    if (JSON.stringify(prior[0]?.value) === JSON.stringify(value)) return;
     await this.db
       .insert(interviewResponses)
       .values({
-        id: stableUuid(`response:${interviewId}:${fieldId}:${value}`),
+        id: stableUuid(
+          `response:${interviewId}:${fieldId}:${typeof value === "string" ? value : JSON.stringify(value)}`,
+        ),
         merchantId: context.merchantId,
         interviewId,
         researchFieldVersionId: fieldId,
@@ -1824,10 +2037,75 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       .onConflictDoNothing();
   }
 
+  async savePromptProgress(
+    context: TenantContext,
+    interviewId: string,
+    promptKey: string,
+    input: PromptProgressInput,
+  ) {
+    const interview = await this.requireOwnedInterview(context, interviewId);
+    if (interview.status !== "in_progress")
+      throw new OperationsError("INTERVIEW_CLOSED", 409);
+    const prompt = (await this.prompts(context, interview)).find(
+      (candidate) => candidate.key === promptKey,
+    );
+    const selected = [...new Set(input.selected)];
+    const note = input.note.trim();
+    if (
+      !prompt ||
+      note.length > 5_000 ||
+      selected.some((option) => !prompt.options.includes(option))
+    )
+      throw new OperationsError("INVALID_PROMPT_PROGRESS", 400);
+    const now = this.now();
+    const values = {
+      coveredAt: input.covered ? (prompt.covered ? undefined : now) : null,
+      selected,
+      note: note || null,
+      updatedBy: context.researcherId,
+      updatedAt: now,
+    };
+    await this.db
+      .insert(interviewPromptProgress)
+      .values({
+        interviewId,
+        merchantId: context.merchantId,
+        promptKey,
+        ...values,
+        coveredAt: input.covered ? now : null,
+      })
+      .onConflictDoUpdate({
+        target: [
+          interviewPromptProgress.interviewId,
+          interviewPromptProgress.promptKey,
+        ],
+        set: values,
+        where: eq(interviewPromptProgress.merchantId, context.merchantId),
+      });
+    // Item answers stay per item on the call sheet; the response record holds
+    // one answer per field.
+    if (prompt.kind !== "field" || prompt.lineId) return;
+    // Mirror structured answers into the reviewed response record. Free text
+    // on select rows stays on the call sheet, where privacy erasure redacts it.
+    const fieldId = promptKey.slice("field:".length);
+    const value =
+      prompt.valueType === "rating_scale"
+        ? selected.length
+          ? Number(selected.at(-1))
+          : undefined
+        : prompt.options.length
+          ? selected.length
+            ? selected
+            : undefined
+          : note || undefined;
+    if (value !== undefined)
+      await this.recordResponse(context, interview, fieldId, value);
+  }
+
   async completeInterview(
     context: TenantContext,
     interviewId: string,
-    outcome: "completed" | "no_answer",
+    outcome: InterviewOutcome,
   ) {
     const current = await this.requireOwnedInterview(context, interviewId);
     if (current.status === "completed" || current.status === "aborted") return;
@@ -1854,8 +2132,26 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
             eq(interviewResponses.reviewStatus, "accepted"),
           ),
         );
-      const accepted = new Set(responses.map((row) => row.id));
-      if (required.some((row) => !accepted.has(row.id)))
+      // A required field counts once it has an answer or the researcher
+      // marked its row covered; details can come from the recording later.
+      const covered = await this.db
+        .select({ key: interviewPromptProgress.promptKey })
+        .from(interviewPromptProgress)
+        .where(
+          and(
+            eq(interviewPromptProgress.merchantId, context.merchantId),
+            eq(interviewPromptProgress.interviewId, interviewId),
+            sql`${interviewPromptProgress.coveredAt} is not null`,
+          ),
+        );
+      const done = new Set([
+        ...responses.map((row) => row.id),
+        // Item prompts count once any of their items is covered.
+        ...covered.map((row) =>
+          row.key.replace(/^field:/, "").replace(/@line:.*$/, ""),
+        ),
+      ]);
+      if (required.some((row) => !done.has(row.id)))
         throw new OperationsError("INTERVIEW_INCOMPLETE", 409);
     }
     const now = this.now();
@@ -1895,7 +2191,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       await tx
         .update(calls)
         .set({
-          status: outcome === "completed" ? "completed" : "no_answer",
+          status: outcome === "no_answer" ? "no_answer" : "completed",
           endedAt: now,
           updatedAt: now,
         })
@@ -1914,6 +2210,83 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         assignment.lockVersion,
         now,
       );
+      if (outcome === "declined" && assignment.customerId)
+        await this.suppressCustomer(tx, context, assignment.customerId, now);
+    });
+  }
+
+  /**
+   * The customer asked not to be contacted: never queue them again, and
+   * cancel any other open work for them. Permanent unless an operator
+   * reverses it in the database.
+   */
+  private async suppressCustomer(
+    tx: DbTransaction,
+    context: TenantContext,
+    customerId: string,
+    now: Date,
+  ) {
+    await tx
+      .update(customers)
+      .set({ contactabilityStatus: "suppressed", updatedAt: now })
+      .where(
+        and(
+          eq(customers.id, customerId),
+          eq(customers.merchantId, context.merchantId),
+        ),
+      );
+    const open = await tx
+      .select({
+        id: researchAssignments.id,
+        status: researchAssignments.status,
+      })
+      .from(researchAssignments)
+      .where(
+        and(
+          eq(researchAssignments.merchantId, context.merchantId),
+          eq(researchAssignments.customerId, customerId),
+          inArray(researchAssignments.status, ["queued", "no_answer"]),
+        ),
+      )
+      .for("update");
+    for (const { id, status } of open) {
+      const [cancelled] = await tx
+        .update(researchAssignments)
+        .set({
+          status: "cancelled",
+          lockVersion: sql`${researchAssignments.lockVersion} + 1`,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(researchAssignments.id, id),
+            eq(researchAssignments.merchantId, context.merchantId),
+          ),
+        )
+        .returning({ lockVersion: researchAssignments.lockVersion });
+      await this.transition(
+        tx,
+        context,
+        id,
+        status,
+        "cancelled",
+        cancelled!.lockVersion,
+        now,
+        { reason: "customer_suppressed" },
+      );
+    }
+    await tx.insert(auditEvents).values({
+      id: randomUUID(),
+      merchantId: context.merchantId,
+      actorId: context.researcherId,
+      action: "customer.contact_suppressed",
+      subjectType: "customer",
+      subjectId: customerId,
+      metadata: {
+        reason: "customer_request",
+        correlationId: context.correlationId,
+      },
+      occurredAt: now,
     });
   }
 
@@ -1998,41 +2371,58 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   }
 
   private async expireAssignments(merchantId: string, now: Date) {
-    const expired = await this.db
-      .update(researchAssignments)
-      .set({
-        status: "expired",
-        lockVersion: sql`${researchAssignments.lockVersion} + 1`,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(researchAssignments.merchantId, merchantId),
-          or(
-            eq(researchAssignments.status, "queued"),
-            eq(researchAssignments.status, "claimed"),
-          ),
-          sql`${researchAssignments.expiresAt} <= ${now}`,
+    const expire = async (
+      condition: ReturnType<typeof and>,
+      reason: "claim_expired" | "queue_window_passed",
+    ) => {
+      const expired = await this.db
+        .update(researchAssignments)
+        .set({
+          status: "expired",
+          lockVersion: sql`${researchAssignments.lockVersion} + 1`,
+          updatedAt: now,
+        })
+        .where(and(eq(researchAssignments.merchantId, merchantId), condition))
+        .returning({
+          id: researchAssignments.id,
+          lockVersion: researchAssignments.lockVersion,
+        });
+      if (expired.length)
+        await this.db.insert(assignmentTransitions).values(
+          expired.map((row) => ({
+            id: randomUUID(),
+            merchantId,
+            assignmentId: row.id,
+            fromStatus: reason === "claim_expired" ? "claimed" : "queued",
+            toStatus: "expired",
+            occurredAt: now,
+            lockVersion: row.lockVersion,
+            metadata: { reason },
+          })),
+        );
+    };
+    await expire(
+      and(
+        or(
+          eq(researchAssignments.status, "queued"),
+          eq(researchAssignments.status, "claimed"),
         ),
-      )
-      .returning({
-        id: researchAssignments.id,
-        fromStatus: researchAssignments.status,
-        lockVersion: researchAssignments.lockVersion,
-      });
-    if (expired.length)
-      await this.db.insert(assignmentTransitions).values(
-        expired.map((row) => ({
-          id: randomUUID(),
-          merchantId,
-          assignmentId: row.id,
-          fromStatus: row.fromStatus,
-          toStatus: "expired",
-          occurredAt: now,
-          lockVersion: row.lockVersion,
-          metadata: { reason: "claim_expired" },
-        })),
-      );
+        sql`${researchAssignments.expiresAt} <= ${now}`,
+      ),
+      "claim_expired",
+    );
+    // Unclaimed orders leave the queue once the moment has passed.
+    await expire(
+      and(
+        eq(researchAssignments.status, "queued"),
+        sql`${researchAssignments.orderId} in (
+          select ${orders.id} from ${orders}
+          where ${orders.merchantId} = ${merchantId}
+            and ${orders.orderedAt} <= ${new Date(now.getTime() - QUEUE_WINDOW_MS)}
+        )`,
+      ),
+      "queue_window_passed",
+    );
   }
 
   private async getQueueItem(context: TenantContext, id: string) {
@@ -2057,13 +2447,17 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         createdAt: researchAssignments.createdAt,
         encryptedGivenName: customerPrivate.encryptedGivenName,
         encryptedPhone: customerPrivate.encryptedPhoneE164,
+        phoneLastFour: customerPrivate.phoneLastFour,
         merchantName: merchants.name,
         momentId: researchMoments.id,
         momentName: researchMoments.name,
         momentStatus: researchMoments.status,
         totalMinor: orders.totalMinor,
         currency: orders.currency,
+        orderedAt: orders.orderedAt,
         orderSequence: orders.customerOrderSequence,
+        orderNumber: orders.sourceOrderNumber,
+        shopifyCustomerId: customers.shopifyCustomerId,
         observed: orders.observedAttribution,
       })
       .from(researchAssignments)
@@ -2087,6 +2481,13 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         ),
       )
       .leftJoin(
+        customers,
+        and(
+          eq(customers.id, researchAssignments.customerId),
+          eq(customers.merchantId, context.merchantId),
+        ),
+      )
+      .leftJoin(
         customerPrivate,
         and(
           eq(customerPrivate.customerId, researchAssignments.customerId),
@@ -2102,7 +2503,11 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       .limit(1);
     if (!row) throw new OperationsError("ASSIGNMENT_NOT_FOUND", 404);
     const products = await this.db
-      .select({ title: orderLineItems.title, sku: orderLineItems.sku })
+      .select({
+        title: orderLineItems.title,
+        sku: orderLineItems.sku,
+        quantity: orderLineItems.quantity,
+      })
       .from(orderLineItems)
       .innerJoin(
         researchAssignments,
@@ -2114,11 +2519,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           eq(orderLineItems.merchantId, context.merchantId),
         ),
       );
-    return this.queueDto(
-      row,
-      products.map((item) => item.title ?? item.sku ?? "Product"),
-      this.now(),
-    );
+    return this.queueDto(row, products, this.now());
   }
 
   private queueDto(
@@ -2131,24 +2532,41 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       createdAt: Date;
       encryptedGivenName: string | null;
       encryptedPhone: string | null;
+      phoneLastFour: string | null;
       merchantName: string;
       momentId: string;
       momentName: string;
       totalMinor: number;
       currency: string;
+      orderedAt: Date;
       orderSequence: number | null;
+      orderNumber: string | null;
+      shopifyCustomerId: string | null;
       observed: unknown;
+      interviewId?: string | null;
+      /** Decrypted first name, when the caller is allowed to show it. */
+      givenName?: string | null;
+      /** Decrypted "City, ST", when the caller is allowed to show it. */
+      locality?: string | null;
     },
-    products: string[],
+    lines: readonly {
+      title: string | null;
+      sku: string | null;
+      quantity: number;
+    }[],
     now: Date,
   ): QueueItem {
     const observed = safeJson(row.observed);
+    const products = lines.map((item) => item.title ?? item.sku ?? "Product");
     return {
       id: row.id,
-      customerName: row.encryptedGivenName?.startsWith("synthetic:plain:")
-        ? row.encryptedGivenName.slice(16)
-        : "Synthetic customer",
-      maskedPhone: maskPhone(row.encryptedPhone),
+      customerName:
+        row.givenName ??
+        (row.encryptedGivenName?.startsWith("synthetic:plain:")
+          ? row.encryptedGivenName.slice(16)
+          : "Customer"),
+      itemCount: lines.reduce((sum, item) => sum + item.quantity, 0),
+      maskedPhone: maskPhone(row.phoneLastFour, row.encryptedPhone),
       merchant: row.merchantName,
       momentId: row.momentId,
       moment: row.momentName,
@@ -2156,7 +2574,13 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         0,
         Math.floor((now.getTime() - row.createdAt.getTime()) / 60_000),
       ),
+      locality: row.locality ?? null,
+      orderedAt: row.orderedAt.toISOString(),
       orderSequence: row.orderSequence ?? 0,
+      orderNumber: row.orderNumber,
+      shopifyCustomerId: row.shopifyCustomerId
+        ? shopifyLegacyId(row.shopifyCustomerId)
+        : null,
       orderTotal: formatMoney(row.totalMinor, row.currency),
       products,
       observedAttribution:
@@ -2172,6 +2596,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
               ? "claimed"
               : (row.status as "queued" | "claimed"),
       ...(row.claimedBy ? { claimedByResearcherId: row.claimedBy } : {}),
+      ...(row.interviewId ? { interviewId: row.interviewId } : {}),
       lockVersion: row.lockVersion,
     };
   }
@@ -2306,9 +2731,371 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       status:
         interview.status === "completed"
           ? "completed"
-          : interview.outcome === "no_answer"
-            ? "no_answer"
+          : interview.outcome === "no_answer" ||
+              interview.outcome === "declined"
+            ? interview.outcome
             : "dialing",
+      ...(await this.callSheet(context, interview)),
+      prompts: (await this.prompts(context, interview)).map(
+        ({ valueType: _valueType, ...prompt }) => prompt,
+      ),
+    };
+  }
+
+  /** Script prompts, then research fields, with the saved call-sheet state. */
+  private async prompts(
+    context: TenantContext,
+    interview: {
+      id: string;
+      researchAssignmentId: string;
+      scriptVersionId: string;
+      researchFieldSetVersionId: string;
+    },
+  ): Promise<(CallSheetPrompt & { valueType: string | null })[]> {
+    // Item prompts repeat once per line of the order being called about.
+    const lines = await this.db
+      .select({ id: orderLineItems.id })
+      .from(orderLineItems)
+      .innerJoin(
+        researchAssignments,
+        and(
+          eq(researchAssignments.orderId, orderLineItems.orderId),
+          eq(researchAssignments.id, interview.researchAssignmentId),
+        ),
+      )
+      .where(eq(orderLineItems.merchantId, context.merchantId))
+      .orderBy(asc(orderLineItems.shopifyLineItemId));
+    const [script] = await this.db
+      .select({ content: scriptVersions.content })
+      .from(scriptVersions)
+      .where(eq(scriptVersions.id, interview.scriptVersionId))
+      .limit(1);
+    const fields = await this.db
+      .select({
+        id: researchFieldVersions.id,
+        definition: researchFieldVersions.definition,
+        required: researchFieldSetItems.required,
+      })
+      .from(researchFieldSetItems)
+      .innerJoin(
+        researchFieldVersions,
+        eq(researchFieldVersions.id, researchFieldSetItems.fieldVersionId),
+      )
+      .where(
+        eq(
+          researchFieldSetItems.fieldSetVersionId,
+          interview.researchFieldSetVersionId,
+        ),
+      )
+      .orderBy(asc(researchFieldSetItems.displayOrder));
+    const progress = await this.db
+      .select()
+      .from(interviewPromptProgress)
+      .where(
+        and(
+          eq(interviewPromptProgress.merchantId, context.merchantId),
+          eq(interviewPromptProgress.interviewId, interview.id),
+        ),
+      );
+    const saved = new Map(progress.map((row) => [row.promptKey, row]));
+    const withState = (
+      prompt: Omit<
+        CallSheetPrompt,
+        "covered" | "selected" | "note" | "lineId"
+      > & {
+        valueType: string | null;
+      },
+    ) =>
+      (prompt.scope === "item" && lines.length
+        ? lines.map((line) => ({
+            ...prompt,
+            key: `${prompt.key}@line:${line.id}`,
+            lineId: line.id,
+          }))
+        : [{ ...prompt, lineId: null }]
+      ).map((row) => {
+        const progress = saved.get(row.key);
+        return {
+          ...row,
+          covered: Boolean(progress?.coveredAt),
+          selected: Array.isArray(progress?.selected)
+            ? progress.selected.filter(
+                (option): option is string =>
+                  typeof option === "string" && row.options.includes(option),
+              )
+            : [],
+          note: progress?.note ?? "",
+        };
+      });
+    return [
+      ...readScriptPrompts(script?.content).flatMap((prompt) =>
+        withState({
+          key: `script:${prompt.id}`,
+          kind: "script",
+          scope: prompt.scope ?? "order",
+          title: prompt.title,
+          prompt: prompt.prompt,
+          options: [],
+          required: false,
+          valueType: null,
+        }),
+      ),
+      ...fields.flatMap((field) => {
+        const parsed = researchFieldDefinitionV1Schema.safeParse(
+          field.definition,
+        );
+        if (!parsed.success) return [];
+        const definition = parsed.data;
+        return withState({
+          key: `field:${field.id}`,
+          kind: "field",
+          scope: fieldScope(definition),
+          title: definition.label,
+          prompt: definition.prompt,
+          options:
+            definition.valueType === "rating_scale"
+              ? ["1", "2", "3", "4", "5"]
+              : (definition.options?.map((option) => option.label) ?? []),
+          required: field.required,
+          valueType: definition.valueType,
+        });
+      }),
+    ];
+  }
+
+  /**
+   * Profile and order history for the call sheet. Name and city/state are
+   * decrypted only while this researcher's interview is in progress, under
+   * the same conditions as a phone reveal, and every decryption is audited.
+   */
+  private async callSheet(
+    context: TenantContext,
+    interview: { id: string; researchAssignmentId: string; status: string },
+  ): Promise<{
+    profile: CallSheetProfile;
+    pastOrders: CallSheetOrder[];
+    currentOrder: CallSheetOrder | null;
+  }> {
+    const now = this.now();
+    const [row] = await this.db
+      .select({
+        orderId: researchAssignments.orderId,
+        customerId: researchAssignments.customerId,
+        shopifyCustomerId: customers.shopifyCustomerId,
+        orderCount: customers.orderCount,
+        lifetimeRevenueMinor: customers.lifetimeRevenueMinor,
+        currency: customers.currency,
+        firstOrderAt: customers.firstOrderAt,
+        historyCompleteness: customers.historyCompleteness,
+        contactabilityStatus: customers.contactabilityStatus,
+        customerDeletedAt: customers.deletedAt,
+        encryptedGivenName: customerPrivate.encryptedGivenName,
+        encryptedLocality: customerPrivate.encryptedLocality,
+        keyVersion: customerPrivate.keyVersion,
+        privateDeletedAt: customerPrivate.deletedAt,
+        privateExpiresAt: customerPrivate.expiresAt,
+      })
+      .from(researchAssignments)
+      .leftJoin(
+        customers,
+        and(
+          eq(customers.id, researchAssignments.customerId),
+          eq(customers.merchantId, context.merchantId),
+        ),
+      )
+      .leftJoin(
+        customerPrivate,
+        and(
+          eq(customerPrivate.customerId, researchAssignments.customerId),
+          eq(customerPrivate.merchantId, context.merchantId),
+        ),
+      )
+      .where(
+        and(
+          eq(researchAssignments.id, interview.researchAssignmentId),
+          eq(researchAssignments.merchantId, context.merchantId),
+        ),
+      )
+      .limit(1);
+    if (!row) throw new OperationsError("ASSIGNMENT_NOT_FOUND", 404);
+
+    const readable =
+      interview.status === "in_progress" &&
+      row.customerId !== null &&
+      row.keyVersion !== null &&
+      row.contactabilityStatus !== "suppressed" &&
+      !row.customerDeletedAt &&
+      !row.privateDeletedAt &&
+      (!row.privateExpiresAt || row.privateExpiresAt > now);
+    const decrypt = async (
+      field: "given_name" | "locality",
+      ciphertext: string | null,
+    ) =>
+      readable && ciphertext
+        ? ((await this.phoneDecryptor.decrypt({
+            merchantId: context.merchantId,
+            customerId: row.customerId!,
+            ciphertext,
+            keyVersion: row.keyVersion!,
+            field,
+          })) ?? null)
+        : null;
+    const [firstName, locality] = await Promise.all([
+      decrypt("given_name", row.encryptedGivenName),
+      decrypt("locality", row.encryptedLocality),
+    ]);
+    if (firstName !== null || locality !== null)
+      await this.db.insert(auditEvents).values({
+        id: randomUUID(),
+        merchantId: context.merchantId,
+        actorId: context.researcherId,
+        action: "customer_private.profile_viewed",
+        subjectType: "research_assignment",
+        subjectId: interview.researchAssignmentId,
+        metadata: {
+          fields: [
+            ...(firstName !== null ? ["given_name"] : []),
+            ...(locality !== null ? ["locality"] : []),
+          ],
+          purpose: "call_sheet",
+          correlationId: context.correlationId,
+        },
+        occurredAt: now,
+      });
+
+    const orderRows = await this.db
+      .select()
+      .from(orders)
+      .where(
+        and(
+          eq(orders.merchantId, context.merchantId),
+          row.customerId
+            ? eq(orders.customerId, row.customerId)
+            : eq(orders.id, row.orderId),
+        ),
+      )
+      .orderBy(desc(orders.orderedAt));
+    const lineRows = orderRows.length
+      ? await this.db
+          .select()
+          .from(orderLineItems)
+          .where(
+            and(
+              eq(orderLineItems.merchantId, context.merchantId),
+              inArray(
+                orderLineItems.orderId,
+                orderRows.map((order) => order.id),
+              ),
+            ),
+          )
+          .orderBy(asc(orderLineItems.shopifyLineItemId))
+      : [];
+    const productIds = [
+      ...new Set(lineRows.flatMap((line) => line.productId ?? [])),
+    ];
+    const categoryRows = productIds.length
+      ? await this.db
+          .select({
+            productId: productCategoryAssignments.productId,
+            label: productCategories.label,
+          })
+          .from(productCategoryAssignments)
+          .innerJoin(
+            productCategories,
+            eq(productCategories.id, productCategoryAssignments.categoryId),
+          )
+          .where(
+            and(
+              eq(productCategoryAssignments.merchantId, context.merchantId),
+              inArray(productCategoryAssignments.productId, productIds),
+            ),
+          )
+      : [];
+    const categories = new Map<string, string[]>();
+    for (const category of categoryRows)
+      categories.set(category.productId, [
+        ...(categories.get(category.productId) ?? []),
+        category.label,
+      ]);
+
+    const toOrder = (order: (typeof orderRows)[number]): CallSheetOrder => {
+      const lines = lineRows
+        .filter((line) => line.orderId === order.id)
+        .map((line) => {
+          const gross = line.unitPriceMinor * line.quantity;
+          return {
+            id: line.id,
+            product: line.title ?? line.sku ?? "Product",
+            categories: line.productId
+              ? (categories.get(line.productId) ?? [])
+              : [],
+            variant: line.variantTitle,
+            sku: line.sku,
+            quantity: line.quantity,
+            unitPrice: formatMoney(line.unitPriceMinor, line.currency),
+            discount:
+              line.discountMinor > 0
+                ? formatMoney(line.discountMinor, line.currency)
+                : null,
+            lineTotal: formatMoney(gross - line.discountMinor, line.currency),
+            refundedQuantity: line.refundedQuantity,
+            returnStatus:
+              line.refundedQuantity <= 0
+                ? ("kept" as const)
+                : line.refundedQuantity >= line.quantity
+                  ? ("returned" as const)
+                  : ("partially_returned" as const),
+          };
+        });
+      const discountMinor = lineRows
+        .filter((line) => line.orderId === order.id)
+        .reduce((sum, line) => sum + line.discountMinor, 0);
+      const observed = safeJson(order.observedAttribution);
+      return {
+        id: order.id,
+        orderNumber: order.sourceOrderNumber,
+        orderedAt: order.orderedAt.toISOString(),
+        total: formatMoney(order.totalMinor, order.currency),
+        discountTotal:
+          discountMinor > 0 ? formatMoney(discountMinor, order.currency) : null,
+        financialStatus: order.financialStatus,
+        fulfillmentStatus: order.fulfillmentStatus,
+        attribution:
+          [observed.source, observed.channel].filter(Boolean).join(" / ") ||
+          "Unknown",
+        lines,
+      };
+    };
+    const history =
+      (row.historyCompleteness as { state?: string } | null)?.state ===
+      "complete";
+    const current = orderRows.find((order) => order.id === row.orderId);
+    return {
+      profile: {
+        firstName,
+        locality,
+        shopifyCustomerId: row.shopifyCustomerId
+          ? shopifyLegacyId(row.shopifyCustomerId)
+          : null,
+        customerSince: row.firstOrderAt?.toISOString() ?? null,
+        orderCount: row.orderCount ?? orderRows.length,
+        lifetimeValue:
+          row.lifetimeRevenueMinor !== null && row.currency
+            ? formatMoney(row.lifetimeRevenueMinor, row.currency)
+            : null,
+        historyComplete: history,
+      },
+      // History is what came before the order being called about.
+      pastOrders: orderRows
+        .filter(
+          (order) =>
+            order.id !== row.orderId &&
+            (!current || order.orderedAt < current.orderedAt),
+        )
+        .map(toOrder),
+      currentOrder:
+        orderRows.filter((order) => order.id === row.orderId).map(toOrder)[0] ??
+        null,
     };
   }
 

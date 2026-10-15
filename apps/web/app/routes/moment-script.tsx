@@ -29,7 +29,7 @@ interface Args {
 
 export async function loader({ request, params }: Args) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const service = getOperationsService();
     const [script, library] = await Promise.all([
       service.getMomentScript(context, params.momentId ?? ""),
@@ -44,7 +44,7 @@ export async function action({ request, params }: Args) {
     return await executeOperationsRequest(async () => {
       const form = await request.formData();
       const script = await getOperationsService().updateMomentScript(
-        getTenantContext(request),
+        await getTenantContext(request),
         params.momentId ?? "",
         promptsFromForm(jsonFormValue(form, "prompts")),
       );
@@ -56,7 +56,7 @@ export async function action({ request, params }: Args) {
 }
 
 export function meta() {
-  return [{ title: "Moment script · Holler" }];
+  return [{ title: "Angle script · Holler" }];
 }
 
 export default function MomentScriptRoute() {
@@ -74,7 +74,7 @@ export default function MomentScriptRoute() {
       description="Adapt the interview script for this research run only. The library script is not changed."
       actions={
         <Link className="button button-quiet" to="/moments">
-          Back to moments
+          Back to angles
         </Link>
       }
     >

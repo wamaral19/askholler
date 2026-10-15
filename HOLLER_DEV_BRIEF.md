@@ -1,5 +1,16 @@
 # Holler - Product & Engineering Brief
 
+> **Authority:** The product-owner Working Backwards Document in
+> `docs/working-backwards-document.md` is the primary source of truth;
+> `docs/working-backwards-source-of-truth.md` is its implementation
+> interpretation and product-owner decision ledger. Its explicit resolutions
+> control where the verbatim WBD contradicts itself.
+> This older brief remains useful for engineering detail, but any conflict in
+> terminology, customer promise, packaging, workflow, or priority is superseded
+> by that document. In particular, a WBD **Research Angle** is implemented by
+> the code's `ResearchMoment`; the invented Earshot/Disco names and weekly
+> subscription model are not current product requirements.
+
 ## 1. Company Thesis
 
 Holler gives businesses access to high-quality, point-in-time customer research tied directly to real customer events.
@@ -49,11 +60,13 @@ Holler researchers act on behalf of the brand. Customers receive personal commun
 
 ## 2. Product Model
 
-The unit of work is a **Research Moment**.
+The product unit of work is a **Research Angle**. The implementation currently
+calls its executable event/rule/script configuration a `ResearchMoment`.
 
-A Research Moment is:
+A Research Angle is:
 
-> A specific customer event + eligibility criteria + research objective + interview script + structured tags.
+> A question or hypothesis + defined customer segment + qualification trigger +
+> prioritized interview questions + structured tags.
 
 Examples:
 
@@ -113,10 +126,10 @@ Future moments may include:
 4. Merchant defines:
    - research objectives
    - preferred cohorts
-   - weekly interview volume
+   - target completed interviews and engagement timeline
    - brand voice / call introduction
    - configurable research tags
-5. Holler activates Research Moments.
+5. Holler activates Research Angles (`ResearchMoment` in the current code).
 
 ### Ongoing Workflow
 
@@ -128,31 +141,43 @@ Future moments may include:
    - priority
    - which script to use
    - which research tags matter
-5. Eligible research moment enters interview queue.
-6. Human researcher contacts customer.
+5. An eligible customer enters the research queue for the matching Angle.
+6. Holler initiates the approved outreach flow. The first pilot uses a
+   human-initiated direct call with no SMS. A text invitation followed by a
+   human call is the post-pilot target and requires separate approval.
 7. Researcher follows approved script.
 8. Interview is recorded/transcribed subject to applicable consent requirements.
 9. Interview receives structured metadata and tags.
 10. Raw evidence is retained according to customer/company policy.
-11. Findings accumulate into two deliverables:
-   - a weekly **Earshot**, the approved raw research dataset
-   - a monthly **Disco**, the decision-oriented synthesis of trends and their likely causes
-12. Customer receives the Earshot and Disco through a private, exportable delivery path.
+11. Findings accumulate into monthly and quarterly subscriber reports or a
+    standalone Research Run report.
+12. The customer receives the report and authorized supporting evidence through
+    a private delivery path.
 
 There is no need for a real-time "insights inbox" in the MVP.
 
 ---
 
-## 4. Earshot, Disco, and Angles
+## 4. Research Angles and reports
 
-Holler has two named customer deliverables:
+The WBD defines a **Research Angle** as a question or hypothesis paired with a
+defined customer segment and prioritized interview questions. Its executable,
+versioned form is currently named `ResearchMoment` in code. An Angle is not a
+synthesized finding.
 
-- **Earshot** is the weekly, filterable raw research export. It contains approved customer/cohort attributes, research-run identity, reviewed field/tag values, and authorized links to recordings and transcripts. Each row represents one customer interview in one research run. Direct identifiers are excluded by default and sensitive links require authorization and audit.
-- **Disco** is the monthly decision document. It explains material changes, uses first-party conversations to investigate why they occurred, distinguishes hypotheses from supported findings, and recommends what the merchant should test or change.
+Holler has three report contexts:
 
-An **Angle** is an evidence-backed finding used inside the Disco; it is not the name of the deliverable.
+- a monthly subscriber report;
+- a quarterly long-form subscriber report; and
+- a standalone Research Run report for a one-time Angle-led engagement.
 
-The Disco should be designed for a marketing/growth team and answer:
+The starting $1,000 monthly subscription includes 25 completed interviews and
+two hours of consented audio recordings. Monthly subscribers also
+receive the quarterly long-form report; there is no separate quarterly
+subscription. Customers receive transcripts and authorized transcript links as
+supporting evidence alongside Holler's analysis and recommendations.
+
+Reports should be designed for a marketing/growth team and answer:
 
 > What changed?
 > Why?
@@ -189,9 +214,9 @@ Example:
 - Current product page emphasizes durability and price.
 - Recommended test: shift paid creative toward convenience use cases.
 
-#### Detailed Angles
+#### Detailed findings
 
-An Angle is a synthesized research finding tied to:
+An evidence-backed finding is tied to:
 - cohort
 - research question
 - tags
@@ -246,18 +271,20 @@ Every Angle should be traceable to:
 
 Avoid presenting qualitative samples as statistically representative when they are not.
 
-### Earshot Dataset
+### Raw research dataset
 
-The weekly Earshot should be spreadsheet-friendly and include:
+The supporting dataset should be spreadsheet-friendly and include:
 
 - opaque customer/interview ID and research run
 - non-sensitive segmentation fields used to qualify the customer
 - order and cohort context approved for export
-- one column per effective Research Field/Angle, with typed reviewed values
+- one column per effective research field, with typed reviewed values
 - tags with provenance and review status
 - authorized recording and transcript references
 
-Columns are derived from the immutable field-set version used by the interview, so exports remain interpretable when a field definition later changes. AI may suggest transcript tags, but only reviewed values enter a customer-facing Earshot.
+Columns are derived from the immutable field-set version used by the interview,
+so exports remain interpretable when a field definition later changes. AI may
+suggest transcript tags, but only reviewed values enter customer-facing output.
 
 ---
 
@@ -311,11 +338,11 @@ AI may assist with suggested tagging later, but tags must always remain auditabl
 
 Holler should not simply interview a random fixed sample forever.
 
-A merchant purchases a weekly interview volume.
-
-Example:
-- 25 interviews/week
-- 100 interviews/month
+A merchant purchases a subscription or standalone Research Run with a target
+number of completed interviews. The starting $1,000 monthly subscription
+includes 25 completed interviews and two hours of consented audio recordings.
+Monthly subscribers also receive a quarterly long-form report. Targets should
+remain configurable for future packages and larger runs.
 
 Holler allocates that capacity dynamically.
 
@@ -402,15 +429,15 @@ Do not overbuild anomaly detection initially.
 - observed attribution fields
 - self-reported attribution fields
 
-#### Earshot and Disco
+#### Reports
 For MVP, report generation may be partially manual.
 
 System should provide:
-- weekly Earshot export
-- angle builder / structured findings editor
+- raw-research export for report packages
+- structured findings editor tied back to the Research Angle
 - one-page summary data
 - links from findings back to evidence
-- monthly Disco in PDF/HTML-friendly output
+- monthly, quarterly, and standalone reports in PDF/HTML-friendly output
 
 ### Explicitly Out of Scope for Initial MVP
 
@@ -460,10 +487,10 @@ Researcher Application
 Interview + Research Data
    |
    v
-Angle Builder
+Finding Builder
    |
    v
-Weekly Earshot + Monthly Disco
+Monthly / Quarterly / Standalone Report
 ```
 
 ### Suggested Stack
@@ -494,7 +521,7 @@ Do not prematurely couple the system to a single telephony or transcription vend
 - shop_domain
 - name
 - timezone
-- weekly_interview_target
+- weekly_interview_target (legacy scheduling field; package targets are configurable)
 - status
 
 ### Customer
@@ -688,7 +715,7 @@ The development system must be fully functional with synthetic phone numbers and
    The value comes from comparing observed commerce/attribution data with customer explanation.
 
 6. **Deliverables over dashboard theater**
-   Earshot and Disco are the customer deliverables. The initial dashboard is an internal, admin-only tool for quality checks, cohort selection, and investigation—not a replacement for a full analytics platform.
+   Monthly, quarterly, and standalone reports are the customer deliverables. The initial dashboard is an internal, admin-only tool for quality checks, cohort selection, and investigation—not a replacement for a full analytics platform.
 
 7. **Marketing team is the primary buyer**
    Attribution and messaging are the first two jobs to be done.
@@ -710,14 +737,14 @@ The MVP succeeds if a Shopify merchant can:
 
 1. Install Holler.
 2. Stream new orders into Holler.
-3. Define an active Research Moment.
+3. Define an active Research Angle (`ResearchMoment` internally).
 4. Automatically qualify relevant customers.
 5. Put them into a live researcher queue.
 6. Complete and record a structured interview.
 7. Store a transcript and structured tags.
 8. Compare self-reported attribution against observed attribution.
-9. Assemble multiple interviews into a documented Angle.
-10. Export a weekly Earshot and generate a monthly Disco whose findings link back to source evidence.
+9. Assemble multiple interviews into evidence-backed findings for the Angle.
+10. Generate a private report whose findings link back to authorized source evidence.
 
 Anything beyond this should require a strong reason.
 
@@ -739,7 +766,7 @@ Assumption:
 - checkout-triggered opportunities should enter the actionable queue within seconds; Holler targets call initiation within 60 seconds when qualification, staffing, contact policy, and consent allow
 - qualification never auto-dials; a human researcher explicitly initiates the call
 - not every qualifying event must be called
-- the cohort/weekly interview allocation determines sampling
+- configurable engagement targets and per-Angle caps determine sampling
 
 ### Customer Consent
 Assumption:
@@ -764,7 +791,8 @@ Assumption:
 
 ### Reporting
 Assumption:
-- weekly Earshot and monthly Disco are the primary client-facing outputs
+- monthly and quarterly subscriber reports and standalone Research Run reports
+  are the primary client-facing outputs
 - internal software may contain operational dashboards
 - client does not need a constant insight feed in MVP
 

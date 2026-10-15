@@ -56,6 +56,7 @@ const products = [
     id: 910000000001,
     variant: 920000000001,
     sku: "KIT-TRAVEL",
+    variantTitle: null as string | null,
     title: "Travel kit",
     price: "42.00",
   },
@@ -63,6 +64,7 @@ const products = [
     id: 910000000002,
     variant: 920000000002,
     sku: "SERUM-DEW",
+    variantTitle: "30 ml" as string | null,
     title: "Cloud dew serum",
     price: "28.50",
   },
@@ -70,6 +72,7 @@ const products = [
     id: 910000000003,
     variant: 920000000003,
     sku: "TEE-HARBOR",
+    variantTitle: "M / Navy" as string | null,
     title: "Harbor tee",
     price: "34.00",
   },
@@ -77,10 +80,19 @@ const products = [
     id: 910000000004,
     variant: 920000000004,
     sku: "SOCK-TRAIL",
+    variantTitle: "L" as string | null,
     title: "Trail socks",
     price: "12.00",
   },
 ];
+
+// Fictional shipping cities; only city and state are kept by Holler.
+const cities = [
+  ["Portland", "OR"],
+  ["Austin", "TX"],
+  ["Asheville", "NC"],
+  ["Madison", "WI"],
+] as const;
 
 const attributions = [
   "/products/travel-kit?utm_source=meta&utm_medium=paid_social&utm_campaign=fall-launch",
@@ -153,6 +165,7 @@ function buildOrder(scenario: Scenario, now: Date) {
     .toFixed(2);
   const landing = pick(attributions);
   const createdAt = now.toISOString();
+  const [city, province] = pick(cities);
   return {
     id: orderId,
     admin_graphql_api_id: `gid://shopify/Order/${orderId}`,
@@ -168,6 +181,12 @@ function buildOrder(scenario: Scenario, now: Date) {
     // Fields Holler must drop; present so the allowlist is exercised.
     email: `fake-${orderSequence}@example.invalid`,
     note: "Synthetic order from fake-shopify-orders",
+    shipping_address: {
+      address1: "1 Example St",
+      zip: "00000",
+      city,
+      province_code: province,
+    },
     landing_site: landing,
     referring_site: landing?.includes("utm_source=meta")
       ? "https://l.instagram.com/"
@@ -188,18 +207,33 @@ function buildOrder(scenario: Scenario, now: Date) {
       variant_id: product.variant,
       sku: product.sku,
       title: product.title,
+      variant_title: product.variantTitle,
       quantity,
       price: product.price,
+      // Roughly a third of lines carry a 15% promo.
+      discount_allocations:
+        lineId % 3 === 0
+          ? [
+              {
+                amount: (Number(product.price) * quantity * 0.15).toFixed(2),
+              },
+            ]
+          : [],
     })),
   };
 }
 
-async function send(body: string, webhookId: string, triggeredAt: Date) {
+async function send(
+  body: string,
+  webhookId: string,
+  triggeredAt: Date,
+  topic = "orders/create",
+) {
   const response = await fetch(args.url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Shopify-Topic": "orders/create",
+      "X-Shopify-Topic": topic,
       "X-Shopify-Shop-Domain": args.shop,
       "X-Shopify-API-Version": args["api-version"],
       "X-Shopify-Webhook-Id": webhookId,
@@ -256,6 +290,29 @@ for (let index = 0; index < count; index += 1) {
     status = await send(body, webhookId, now);
     lastDelivery = { body, webhookId };
     label = `${order.name} $${order.total_price}${order.customer ? ` customer ${order.customer.id}` : ""}`;
+    // Every fourth order gets its first line refunded via orders/updated.
+    if (orderSequence % 4 === 0) {
+      const line = order.line_items[0]!;
+      const refunded = {
+        ...order,
+        updated_at: new Date(now.getTime() + 1000).toISOString(),
+        financial_status: "partially_refunded",
+        refunds: [
+          {
+            refund_line_items: [
+              { line_item_id: line.id, quantity: line.quantity },
+            ],
+          },
+        ],
+      };
+      const refundStatus = await send(
+        JSON.stringify(refunded),
+        randomUUID(),
+        now,
+        "orders/updated",
+      );
+      label += ` · refund ${refundStatus}`;
+    }
   }
   tally.set(scenario, (tally.get(scenario) ?? 0) + 1);
   console.info(

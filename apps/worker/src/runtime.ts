@@ -3,6 +3,9 @@ import type { WorkerEnvironment } from "@holler/domain";
 import { run, type Runner, type TaskList } from "graphile-worker";
 import { GraphileOutboxDispatcher } from "./outbox";
 
+/** Hourly, on the hour; Graphile runs a missed hour once on startup. */
+export const PRIVACY_SWEEP_CRONTAB = "0 * * * * privacy_sweep ?fill=1h";
+
 export interface WorkerRuntime {
   stop(signal?: string): Promise<void>;
   done: Promise<void>;
@@ -16,6 +19,7 @@ export interface RuntimeDependencies {
     gracefulShutdownAbortTimeout: number;
     noHandleSignals: true;
     taskList: TaskList;
+    crontab?: string;
   }): Promise<Pick<Runner, "stop" | "promise">>;
   createDispatcher(databaseUrl: string): {
     drainBatch(batchSize: number): Promise<number>;
@@ -47,6 +51,7 @@ export async function startWorkerRuntime(
     gracefulShutdownAbortTimeout: environment.WORKER_SHUTDOWN_TIMEOUT_MS,
     noHandleSignals: true,
     taskList,
+    ...(taskList.privacy_sweep ? { crontab: PRIVACY_SWEEP_CRONTAB } : {}),
   });
   const dispatcher = dependencies.createDispatcher(environment.DATABASE_URL);
   let stopped = false;

@@ -32,7 +32,7 @@ For strict cross-tenant integrity, important child references use composite cand
 | `shop_domain`                     | citext nullable      | Canonical `*.myshopify.com`; unique when present         |
 | `name`                            | text                 | Display name, not customer PII                           |
 | `timezone`                        | text                 | IANA name used for weekly/monthly boundaries             |
-| `weekly_interview_target`         | integer              | `>= 0`                                                   |
+| `weekly_interview_target`         | integer              | Legacy scheduling cap; not a package guarantee           |
 | `status`                          | text                 | `pending`, `active`, `paused`, `uninstalled`, `deleting` |
 | `default_retention_policy_id`     | uuid nullable FK     | Current merchant policy                                  |
 | `installed_at` / `uninstalled_at` | timestamptz nullable | Lifecycle                                                |
@@ -368,9 +368,15 @@ Use one row per scalar/category answer; multi-select can use multiple rows or a 
 
 Primary key `(interview_tag_id, transcript_segment_id, start_char)`. At least one evidence row is required before an evidence-bearing tag can become `accepted`, enforced in the service transaction and verified by integrity tests.
 
-## Angles, Earshots, and Disco reports
+## Research findings, raw exports, and reports
 
-### Angle
+### Angle (legacy schema name for a finding)
+
+The WBD defines a **Research Angle** as a hypothesis/question plus a customer
+segment and prioritized questions. That executable configuration is currently
+stored as `ResearchMoment`/`ResearchMomentVersion`. The `Angle` entities below
+predate the WBD alignment and represent evidence-backed findings. Keep this
+distinction explicit until a safe schema rename is planned.
 
 Stable identity: `id`, `merchant_id`, `reporting_period_start`, `reporting_period_end`, `category`, and current lifecycle status. Reporting boundaries follow the merchant timezone and are stored as exclusive UTC instants plus a display month.
 
@@ -419,7 +425,9 @@ Observed-versus-self-reported comparisons use two metrics with different populat
 
 ### Report
 
-Stable monthly Disco identity. `report_type` is fixed to `disco` in the MVP so the generic storage name does not leak into customer-facing terminology.
+Stable report identity. The model must support `monthly`, `quarterly`, and
+`standalone` report types. Existing `disco` values are legacy data and may be
+read during migration, but **Disco** is not current customer-facing terminology.
 
 | Column                        | Type             | Notes                                                     |
 | ----------------------------- | ---------------- | --------------------------------------------------------- |
@@ -429,7 +437,7 @@ Stable monthly Disco identity. `report_type` is fixed to `disco` in the MVP so t
 | `display_month`               | date             | First local day of month                                  |
 | `status`                      | text             | `draft`, `rendering`, `published`, `failed`, `superseded` |
 | `current_revision_id`         | uuid nullable FK | Published/current revision                                |
-| `report_type`                 | text             | `disco` in MVP                                            |
+| `report_type`                 | text             | `monthly`, `quarterly`, or `standalone`; legacy `disco`   |
 
 Unique `(merchant_id, period_start, period_end)`.
 
@@ -439,9 +447,9 @@ Unique `(merchant_id, period_start, period_end)`.
 
 `ReportAngle(report_revision_id, angle_revision_id, section, display_order, promoted_to_executive_summary)` pins exact findings. `ReportArtifact(id, report_revision_id, merchant_id, format, object_key, checksum, byte_size, rendered_at, expires_at, deleted_at)` stores private generated outputs.
 
-### EarshotExport
+### EarshotExport (legacy raw-research export name)
 
-`EarshotExport(id, merchant_id, period_start, period_end, field_set_schema_version, status, object_key, checksum, byte_size, generated_by, generated_at, expires_at, deleted_at)` records a private weekly export artifact. Its rows are generated from tenant-scoped interviews, assignments, qualification snapshots, reviewed responses/tags, and authorized evidence references; the export does not become a second source of truth. `EarshotExportColumn(export_id, field_definition_version_id nullable, key, label, value_type, display_order)` freezes column meaning for reproducibility. Export creation/download is authorized and audited.
+`EarshotExport(id, merchant_id, period_start, period_end, field_set_schema_version, status, object_key, checksum, byte_size, generated_by, generated_at, expires_at, deleted_at)` records a private raw-research export artifact used in a report package. Its cadence follows the engagement/report rather than a weekly product promise. Its rows are generated from tenant-scoped interviews, assignments, qualification snapshots, reviewed responses/tags, and authorized evidence references; the export does not become a second source of truth. `EarshotExportColumn(export_id, field_definition_version_id nullable, key, label, value_type, display_order)` freezes column meaning for reproducibility. Every row carries fixed reference columns, the Shopify order name (`orders.source_order_number`) and the numeric Shopify customer ID (null for guest checkouts), so the merchant can tie an interview back to its own order history; direct identifiers (name, phone, email) are never exported. Export creation/download is authorized and audited.
 
 ## Jobs, audit, retention, and deletion
 

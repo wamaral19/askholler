@@ -1,5 +1,6 @@
 import type { ScriptPrompt } from "@holler/domain";
 
+import { promptScopeOptions } from "../lib/prompt-scope";
 import { moveItem } from "../lib/reorder";
 import { newPromptId } from "../lib/script-prompts";
 
@@ -47,6 +48,26 @@ export function ScriptEditor({
                   required
                   value={prompt.title}
                 />
+              </label>
+              <label>
+                <span>Asked about</span>
+                <select
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    update(index, {
+                      scope: event.target.value as NonNullable<
+                        ScriptPrompt["scope"]
+                      >,
+                    })
+                  }
+                  value={prompt.scope ?? "order"}
+                >
+                  {promptScopeOptions.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 <span>What the researcher says</span>

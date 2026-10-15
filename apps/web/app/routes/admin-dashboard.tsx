@@ -9,7 +9,7 @@ import {
 
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     return getOperationsService().getDashboard(
       context,
       parseDashboardFilters(new URL(request.url)),

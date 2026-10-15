@@ -2,7 +2,7 @@
 
 ## Goal and sequencing rule
 
-The MVP is complete when a Shopify merchant can install Holler, new orders can safely enter the system, eligible customers appear in a live human-research queue, completed interviews become auditable evidence, and an internal analyst can export a weekly Earshot and publish a monthly Disco that traces every finding to that evidence.
+The MVP is complete when a Shopify merchant can install Holler, define a targeted Research Angle, safely qualify new orders into a human-research queue, complete enough interviews to answer at least one substantive Angle question per counted conversation, and privately deliver an evidence-backed report. The first pilot may assemble that report manually; monthly, quarterly, and standalone report automation follows the validated engagement workflow.
 
 Implementation follows a vertical-slice rule: establish the smallest shared contracts first, then make the complete synthetic path work before expanding production integrations. No broad feature work starts until the architecture/data model and shared types are reviewed.
 
@@ -21,12 +21,31 @@ Working foundations include:
 The product is not pilot-ready. The next work is integration and production hardening rather than another architecture scaffold:
 
 1. finish the durable worker path and verify end-to-end PostgreSQL orchestration
-2. complete Shopify development-store install/webhook/history tests and protected-data approval
-3. implement production workforce auth/MFA, tenant roles, KMS-backed PII encryption, and retention/deletion operations
+2. complete Shopify development-store install/webhook/history tests and protected-data approval for a custom-distribution app
+3. implement Google-only workforce auth/MFA for the internal team, KMS-backed PII encryption, and retention/deletion operations
 4. add the internal metric/cohort dashboard and the question-coverage interview UX
-5. add weekly Earshot generation and rename the customer-facing monthly artifact to Disco
-6. integrate and validate a live dialer/transcription provider after legal/consent review
+5. produce the first Research Angle report manually from reviewed evidence; automated monthly/quarterly report generation follows the pilot
+6. enable the approved direct-call pilot path with consent-controlled recording; defer the SMS invitation flow to a separately approved post-pilot phase
 7. add alerting, reconciliation, failure replay, export auditing, and pilot runbooks
+
+## Pilot scope (2026-09-29)
+
+The product owner approved these reductions for the first merchant pilot. They
+remove work from the pilot path; they do not relax the privacy, consent,
+encryption, or deletion gates.
+
+| Area                 | Pilot scope                                                                                                                                                                                         | Deferred until after the pilot                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Transcription        | No transcription provider. Researchers record structured research-field responses and observations during and after the call. Recording, if consented, is stored in private R2 as the source audio. | Selecting and integrating a transcription vendor (Deepgram remains a candidate).     |
+| Shopify distribution | Custom app distribution, installed by link on the pilot merchant's store only. Protected customer data access is still requested and approved.                                                      | Public App Store listing and review.                                                 |
+| Workforce access     | Holler's internal team only, signed in with `withholler.com` Google Workspace accounts with 2-step verification. Memberships and roles are seeded by an operator.                                   | Invitation-only email-link sign-in, merchant user access, and a membership admin UI. |
+| Reports              | An internal analyst assembles the pilot Research Angle report by hand from reviewed evidence and delivers it privately.                                                                             | Automated monthly/quarterly and standalone reports and signed-download delivery.     |
+
+Transcript evidence (resolved 2026-09-29): `angle_evidence.transcript_segment_id`
+is required, so a stored Angle cannot yet cite a notes-only interview. This
+does not block the pilot, whose Research Angle report is assembled manually and
+cites interview responses and observations directly. Before automating reports
+without transcription, add a response- or observation-backed evidence kind.
 
 ## Original repository assessment
 
@@ -76,7 +95,7 @@ Gate 0 is complete. No real customer PII, live phone call, or production credent
 7. Persist a synthetic transcript, transcript segments, reviewed tag values, and exact evidence links.
 8. Show an attribution comparison with observed source (order/event) separate from self-reported discovery source, purchase trigger, and influence (evidence-backed tags).
 9. Create an Angle revision with at least one evidence link, separate population metrics, denominator/sample size, action, and caveat.
-10. Generate a private monthly HTML Disco with executive summary, detailed angle, methodology/sample notes, and evidence references.
+10. Generate a private HTML report with an executive summary, visualized tagged findings, recommended actions/experiments, methodology/sample notes, and authorized evidence references.
 
 ### Acceptance criteria
 
@@ -134,7 +153,7 @@ Shopify event contract and shared versioning models are stable.
 - Internal CRUD/publish workflow for scripts, tag-definition versions, and Research Moment versions.
 - Validated MVP eligibility-rule editor/schema.
 - First-time/repeat, value, SKU/product, order count, observed source, phone eligibility, event age, and cooldown rules.
-- Deterministic weekly target, per-moment weight/cap, priority, and stable tie-break allocation.
+- Deterministic configurable engagement/period target, per-Angle weight/cap, priority, and stable tie-break allocation.
 - Qualification audit/explanation UI and operational replay for safe failed evaluations.
 
 ### Acceptance criteria
@@ -155,7 +174,7 @@ Assignment transitions, auth roles, PII service boundary, and provider interface
 - Production-quality live queue filters/order/age indicators and assignment detail.
 - Claim/release/retry/expire flows with transition audit and stale-claim recovery.
 - Read-only script runner, target tags/questions, notes, outcomes, and script feedback.
-- Fake provider lifecycle finalized; selected real telephony adapter added only after legal/product approval.
+- Fake provider lifecycle finalized; selected real telephony adapter added only after product approval.
 - Verified provider callbacks, normalized calls, optional consent-gated recording, object storage, transcription adapter, and manual fallback.
 
 ### Acceptance criteria
@@ -188,7 +207,7 @@ Interview/transcript lifecycle and versioned tag definitions are stable.
 - Attribution comparison labels source, sample, cohort, and missing/unknown values accurately.
 - Exports are authorized, audited, private, and contain only approved fields.
 
-## Milestone 6: analyst workspace, Earshot, and Disco
+## Milestone 6: analyst workspace and reports
 
 ### Dependencies
 
@@ -200,9 +219,9 @@ Evidence integrity and attribution comparison are complete.
 - Admin-only commerce dashboard with merchant, date/granularity, new/repeat, attribution, cohort, discount, SKU/category, returns, and repurchase metrics.
 - Reusable filtered cohorts that compile to validated Research Moment predicates.
 - Draft/review/publish Angle workflow with selected evidence and metrics.
-- Weekly, auditable Earshot spreadsheet export with pinned column definitions and reviewed values.
-- 3-5 finding executive summary and detailed Angle ordering.
-- Versioned monthly Disco HTML template, private artifact delivery, and optional PDF rendering.
+- Auditable raw-research export with pinned column definitions and reviewed values for inclusion in report packages.
+- Executive summary, visualized tagged findings, recommended actions/experiments, and authorized raw-evidence links.
+- Versioned monthly, quarterly, and standalone report templates, private artifact delivery, and optional PDF rendering.
 - Corrections through superseding revisions, not mutation.
 
 ### Acceptance criteria
@@ -210,7 +229,7 @@ Evidence integrity and attribution comparison are complete.
 - Publishing refuses an Angle without evidence and a caveat; percentage metrics require numerator/denominator/population.
 - Commerce-population metrics and interview-sample metrics are visibly distinct.
 - A monthly report is reproducible from pinned angle revisions and template version.
-- An Earshot is reproducible from its period, filters, schema version, and reviewed source records.
+- A raw-research export is reproducible from its period, filters, schema version, and reviewed source records.
 - Evidence backlinks resolve for authorized users and never expose public object URLs.
 - Report generation is retry-safe, and a failed render leaves the prior published revision intact.
 
@@ -218,7 +237,7 @@ Evidence integrity and attribution comparison are complete.
 
 ### Dependencies
 
-All production flows exist in staging. Legal/product decisions for contact and recording are documented.
+All production flows exist in staging. Product decisions for contact and recording are documented.
 
 ### Scope
 
@@ -319,7 +338,7 @@ These are the compatibility boundary. UI view models may be module-specific; raw
 
 ## Five highest technical risks / unresolved decisions
 
-1. **Outbound contact, consent, and recording legality.** Jurisdiction, merchant relationship, TCPA/state rules, caller identity, and consent requirements may materially change contactability and recording flows. Legal/product decisions are mandatory before live calls.
+1. **Outbound contact, consent, and recording legality.** Jurisdiction, merchant relationship, TCPA/state rules, caller identity, and consent requirements may materially change contactability and recording flows. Product-owner decisions are mandatory before live calls; they were recorded on 2026-09-29 in `docs/mvp-security-privacy-signoff.md`, and outside counsel review is not required for the pilot.
 2. **Protected customer data and tenant isolation.** Phone access is essential but high impact. Shopify approval, data minimization, encryption/key operations, researcher masking, export controls, deletion, and cross-tenant tests are launch-critical.
 3. **Attribution semantics and Shopify data quality.** Shopify-observed attribution may be missing, inconsistent, or demand-capture-biased. A versioned normalization taxonomy and honest unknowns are needed; comparisons must never imply causal truth.
 4. **At-least-once workflow correctness.** Duplicate/out-of-order webhooks, job retries, concurrent claims, callback replays, and partial provider failures can create duplicate assignments or contradictory state without strong constraints and replay tests.

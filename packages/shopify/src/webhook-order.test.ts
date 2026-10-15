@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { ZodError } from "zod";
 
-import { mapShopifyOrderWebhook, moneyToMinor } from "./webhook-order";
+import {
+  mapShopifyOrderWebhook,
+  moneyToMinor,
+  shopifyLegacyId,
+} from "./webhook-order";
 
 /** Fictional REST-shaped payload including fields Holler must drop. */
 function restPayload(overrides: Record<string, unknown> = {}) {
   return {
     id: 900000000701,
     admin_graphql_api_id: "gid://shopify/Order/900000000701",
+    name: "#1042",
     created_at: "2026-09-28T10:00:00-04:00",
     updated_at: "2026-09-28T10:00:01-04:00",
     cancelled_at: null,
@@ -56,6 +61,43 @@ const delivery = {
 };
 
 describe("mapShopifyOrderWebhook", () => {
+  it("keeps only city and state, line discounts, variants, and refunds", () => {
+    const base = restPayload();
+    const line = base.line_items[0]!;
+    const ingress = mapShopifyOrderWebhook({
+      ...delivery,
+      payload: {
+        ...base,
+        shipping_address: null,
+        billing_address: {
+          address1: "1 Example St",
+          zip: "97201",
+          city: " Portland ",
+          province_code: "OR",
+        },
+        line_items: [
+          {
+            ...line,
+            quantity: 3,
+            variant_title: "M / Navy",
+            discount_allocations: [{ amount: "2.10" }, { amount: "0.20" }],
+          },
+        ],
+        refunds: [
+          { refund_line_items: [{ line_item_id: 900000000703, quantity: 1 }] },
+          { refund_line_items: [{ line_item_id: 900000000703, quantity: 1 }] },
+        ],
+      },
+    });
+    expect(ingress.order.customer?.locality).toBe("Portland, OR");
+    expect(ingress.order.lineItems[0]).toMatchObject({
+      variantTitle: "M / Navy",
+      discount: { amount: "2.3", currency: "USD" },
+      refundedQuantity: 2,
+    });
+    expect(JSON.stringify(ingress)).not.toMatch(/Example St|97201/);
+  });
+
   it("maps a REST order into the allowlisted envelope", () => {
     const ingress = mapShopifyOrderWebhook({
       ...delivery,
@@ -64,6 +106,7 @@ describe("mapShopifyOrderWebhook", () => {
 
     expect(ingress.order).toMatchObject({
       id: "gid://shopify/Order/900000000701",
+      name: "#1042",
       createdAt: "2026-09-28T14:00:00.000Z",
       test: true,
       total: { amount: "42.50", currency: "USD" },
@@ -125,5 +168,12 @@ describe("moneyToMinor", () => {
     expect(moneyToMinor("7", "USD")).toBe(700);
     expect(moneyToMinor("1200", "JPY")).toBe(1200);
     expect(() => moneyToMinor("1.005", "USD")).toThrow();
+  });
+});
+
+describe("shopifyLegacyId", () => {
+  it("returns the numeric ID merchants see in Shopify admin", () => {
+    expect(shopifyLegacyId("gid://shopify/Customer/12345")).toBe("12345");
+    expect(() => shopifyLegacyId("12345")).toThrow();
   });
 });

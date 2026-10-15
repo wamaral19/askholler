@@ -10,6 +10,7 @@
   "dependencies": {
     "@holler/db": "*",
     "@holler/domain": "*",
+    "@holler/providers": "*",
     "@holler/shopify": "*",
     "@react-router/express": "7.18.4",
     "@shopify/shopify-app-react-router": "latest",
@@ -18,6 +19,7 @@
     "drizzle-orm": "latest",
     "express": "^5.2.1",
     "isbot": "latest",
+    "jose": "^5.10.0",
     "react": "latest",
     "react-dom": "latest",
     "react-router": "latest",

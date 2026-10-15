@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   OperationsApplicationService,
@@ -13,20 +13,26 @@ import { SyntheticWorkforceContextResolver } from "../lib/workforce-session.serv
 import { action as queueAction, loader as queueLoader } from "./research-queue";
 import { action as momentsAction } from "./research-moments";
 import { action as merchantAction } from "./workforce-merchant";
+import { action as interviewAction } from "./live-interview";
 
 const merchantId = "00000000-0000-7000-8000-000000002001";
 const researcherId = "00000000-0000-7000-8000-000000002002";
 const assignment: QueueItem = {
   id: "00000000-0000-7000-8000-000000002003",
   customerName: "Synthetic customer",
+  locality: "Portland, OR",
   maskedPhone: "+1 ••• ••• 0123",
   merchant: "Synthetic merchant",
   momentId: "00000000-0000-7000-8000-000000002004",
   moment: "Synthetic moment",
   eventAgeMinutes: 1,
+  orderedAt: "2026-10-15T16:00:00.000Z",
   orderSequence: 1,
+  orderNumber: "#1001",
+  shopifyCustomerId: "900000000101",
   orderTotal: "$10.00",
   products: ["Synthetic product"],
+  itemCount: 1,
   observedAttribution: "direct",
   priority: "standard",
   status: "claimed",
@@ -82,6 +88,18 @@ function service(): OperationsApplicationService {
       fields: [],
       answeredFieldIds: [],
       status: "dialing" as const,
+      profile: {
+        firstName: "Avery",
+        locality: "Portland, OR",
+        shopifyCustomerId: "900000000101",
+        customerSince: null,
+        orderCount: 1,
+        lifetimeValue: null,
+        historyComplete: true,
+      },
+      pastOrders: [],
+      currentOrder: null,
+      prompts: [],
     })),
     revealPhone: vi.fn(async () => ({ phone: "+12025550123" })),
     getInterview: vi.fn(async () => {
@@ -89,6 +107,7 @@ function service(): OperationsApplicationService {
     }),
     saveResponse: vi.fn(async () => undefined),
     addObservation: vi.fn(async () => undefined),
+    savePromptProgress: vi.fn(async () => undefined),
     completeInterview: vi.fn(async () => undefined),
     generateReport: vi.fn(async () => ({ reportId: "report" })),
   };
@@ -170,6 +189,35 @@ describe("operations routes", () => {
     );
   });
 
+  it("opens a queued order by claiming it and starting the interview", async () => {
+    const stub = service();
+    stub.claimAssignment = vi.fn(async () => ({
+      ...assignment,
+      lockVersion: 2,
+    }));
+    configureOperationsService(stub);
+    signedIn();
+    const response = await queueAction({
+      request: post("/queue", {
+        intent: "open",
+        assignmentId: assignment.id,
+        lockVersion: "1",
+        status: "queued",
+      }),
+    });
+    expect(stub.claimAssignment).toHaveBeenCalledWith(
+      expect.objectContaining({ merchantId, researcherId }),
+      assignment.id,
+      1,
+    );
+    expect(stub.startInterview).toHaveBeenCalledWith(
+      expect.anything(),
+      assignment.id,
+      2,
+    );
+    expect((response as Response).status).toBe(302);
+  });
+
   it("passes the submitted optimistic lock version to claim", async () => {
     const stub = service();
     configureOperationsService(stub);
@@ -221,7 +269,7 @@ describe("operations routes", () => {
     });
   }
 
-  it("filters the queue to one live or paused moment", async () => {
+  it("offers live and paused angles as queue filters", async () => {
     const stub = service();
     const other = { ...assignment, id: "other", momentId: "moment-other" };
     stub.listQueue = vi.fn(async () => [assignment, other]);
@@ -241,24 +289,18 @@ describe("operations routes", () => {
     );
     configureOperationsService(stub);
     signedIn();
-    const load = (query: string) =>
-      queueLoader({
-        request: new Request(`https://holler.invalid/queue${query}`, {
-          headers: { "x-holler-workforce-session": "route-session" },
-        }),
-      });
-    const filtered = await load(`?moment=${assignment.momentId}`);
-    expect(filtered.assignments.map((item) => item.id)).toEqual([
-      assignment.id,
-    ]);
-    expect(filtered.momentOptions.map((moment) => moment.status)).toEqual([
+    const board = await queueLoader({
+      request: new Request("https://holler.invalid/queue", {
+        headers: { "x-holler-workforce-session": "route-session" },
+      }),
+    });
+    expect(board.angles.map((angle) => angle.status)).toEqual([
       "live",
       "paused",
     ]);
-    // A completed moment is not a filter option, so it falls back to all.
-    const unfiltered = await load("?moment=moment-done");
-    expect(unfiltered.selectedMomentId).toBeNull();
-    expect(unfiltered.assignments).toHaveLength(2);
+    expect(board.assignments).toHaveLength(2);
+    expect(board.researcherId).toBe(researcherId);
+    expect(board.liveCount).toBe(1);
   });
 
   it("validates moment status changes before calling the service", async () => {
@@ -300,5 +342,182 @@ describe("operations routes", () => {
         }),
       }),
     ).rejects.toMatchObject({ status: 403 });
+  });
+
+  describe("live interview calling", () => {
+    const interviewId = "00000000-0000-7000-8000-000000002006";
+    const workspace = {
+      id: interviewId,
+      assignment,
+      scriptName: "Synthetic",
+      scriptVersion: 1,
+      fieldSetVersion: 1,
+      script: [],
+      fields: [],
+      answeredFieldIds: [],
+      status: "dialing" as const,
+      profile: {
+        firstName: "Avery",
+        locality: "Portland, OR",
+        shopifyCustomerId: "900000000101",
+        customerSince: null,
+        orderCount: 1,
+        lifetimeValue: null,
+        historyComplete: true,
+      },
+      pastOrders: [],
+      currentOrder: null,
+      prompts: [],
+    };
+    const interviewPost = (intent: string) =>
+      interviewAction({
+        request: post(`/interviews/${interviewId}`, { intent }),
+        params: { interviewId },
+      });
+
+    beforeEach(() => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    });
+
+    it("reveals the phone for the interview's assignment", async () => {
+      const stub = service();
+      stub.getInterview = vi.fn(async () => workspace);
+      configureOperationsService(stub);
+      signedIn();
+      await interviewPost("reveal");
+      expect(stub.revealPhone).toHaveBeenCalledWith(
+        expect.objectContaining({ merchantId, researcherId }),
+        assignment.id,
+      );
+    });
+
+    it("hands the call to Zapier after an audited reveal", async () => {
+      vi.stubEnv("DIALER_PROVIDER", "zapier");
+      vi.stubEnv(
+        "ZAPIER_DIAL_WEBHOOK_URL",
+        "https://hooks.zapier.invalid/catch",
+      );
+      const fetchMock = vi.fn(async () => new Response("{}"));
+      vi.stubGlobal("fetch", fetchMock);
+      const stub = service();
+      stub.getInterview = vi.fn(async () => workspace);
+      configureOperationsService(stub);
+      signedIn();
+      await expect(interviewPost("dial")).resolves.toEqual({
+        intent: "dial",
+        sent: true,
+      });
+      expect(stub.revealPhone).toHaveBeenCalledWith(
+        expect.objectContaining({ merchantId, researcherId }),
+        assignment.id,
+        "zapier_dial",
+      );
+      const [url, init] = fetchMock.mock.calls[0] as unknown as [
+        string,
+        RequestInit,
+      ];
+      expect(url).toBe("https://hooks.zapier.invalid/catch");
+      expect(JSON.parse(String(init.body))).toMatchObject({
+        interviewId,
+        researcherId,
+        phone: "+12025550123",
+        orderNumber: "#1001",
+      });
+    });
+
+    it("tells the researcher when Zapier rejects the call", async () => {
+      vi.stubEnv("DIALER_PROVIDER", "zapier");
+      vi.stubEnv(
+        "ZAPIER_DIAL_WEBHOOK_URL",
+        "https://hooks.zapier.invalid/catch",
+      );
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response("", { status: 500 })),
+      );
+      const stub = service();
+      stub.getInterview = vi.fn(async () => workspace);
+      configureOperationsService(stub);
+      signedIn();
+      await expect(interviewPost("dial")).resolves.toEqual({
+        intent: "dial",
+        sent: false,
+        error: "ZAPIER_REJECTED",
+      });
+    });
+
+    it("refuses to dial when Zapier is not the dialer", async () => {
+      vi.stubEnv("DIALER_PROVIDER", "fake");
+      const stub = service();
+      configureOperationsService(stub);
+      signedIn();
+      await expect(interviewPost("dial")).rejects.toMatchObject({
+        status: 400,
+      });
+      expect(stub.revealPhone).not.toHaveBeenCalled();
+    });
+
+    it("saves a researcher note with or without tags", async () => {
+      const stub = service();
+      configureOperationsService(stub);
+      signedIn();
+      await interviewAction({
+        request: post(`/interviews/${interviewId}`, {
+          intent: "observation",
+          detail: "Laughed when asked about price",
+        }),
+        params: { interviewId },
+      });
+      expect(stub.addObservation).toHaveBeenCalledWith(
+        expect.objectContaining({ researcherId }),
+        interviewId,
+        "context",
+        "Laughed when asked about price",
+      );
+      const tagged = new URLSearchParams({
+        intent: "observation",
+        detail: "Paused before answering",
+      });
+      tagged.append("kind", "hesitation");
+      tagged.append("kind", "follow_up_needed");
+      await interviewAction({
+        request: new Request(
+          `https://holler.invalid/interviews/${interviewId}`,
+          {
+            method: "POST",
+            headers: {
+              "content-type": "application/x-www-form-urlencoded",
+              "x-holler-workforce-session": "route-session",
+            },
+            body: tagged,
+          },
+        ),
+        params: { interviewId },
+      });
+      expect(stub.addObservation).toHaveBeenCalledTimes(3);
+      expect(stub.addObservation).toHaveBeenLastCalledWith(
+        expect.anything(),
+        interviewId,
+        "follow_up_needed",
+        "Paused before answering",
+      );
+    });
+
+    it("records an unanswered call", async () => {
+      const stub = service();
+      configureOperationsService(stub);
+      signedIn();
+      await interviewPost("no_answer");
+      expect(stub.completeInterview).toHaveBeenCalledWith(
+        expect.objectContaining({ merchantId, researcherId }),
+        interviewId,
+        "no_answer",
+      );
+    });
   });
 });

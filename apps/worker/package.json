@@ -10,6 +10,7 @@
   "dependencies": {
     "@holler/db": "*",
     "@holler/domain": "*",
+    "@holler/providers": "*",
     "@holler/reporting": "*",
     "@holler/research": "*",
     "graphile-worker": "latest",

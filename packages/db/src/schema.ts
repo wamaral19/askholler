@@ -87,6 +87,10 @@ export const customerPrivate = pgTable("customer_private", {
     .references(() => merchants.id),
   encryptedGivenName: text("encrypted_given_name"),
   encryptedPhoneE164: text("encrypted_phone_e164"),
+  /** Plaintext last four digits for masked display only (e.g. "••• 0142"). */
+  phoneLastFour: text("phone_last_four"),
+  /** Shipping city and state/province as "City, ST". */
+  encryptedLocality: text("encrypted_locality"),
   keyVersion: text("key_version").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -170,6 +174,8 @@ export const orders = pgTable(
       .references(() => merchants.id),
     customerId: uuid("customer_id").references(() => customers.id),
     shopifyOrderId: text("shopify_order_id").notNull(),
+    /** Shopify's order `name` (e.g. "#1042"); null for orders ingested before it was captured. */
+    sourceOrderNumber: text("source_order_number"),
     orderedAt: timestamp("ordered_at", { withTimezone: true }).notNull(),
     sourceUpdatedAt: timestamp("source_updated_at", {
       withTimezone: true,
@@ -210,8 +216,16 @@ export const orderLineItems = pgTable(
     shopifyVariantId: text("shopify_variant_id"),
     sku: text("sku"),
     title: text("title"),
+    /** Shopify variant title, e.g. "M / Navy"; null for single-variant products. */
+    variantTitle: text("variant_title"),
     quantity: integer("quantity").notNull(),
     unitPriceMinor: bigint("unit_price_minor", { mode: "number" }).notNull(),
+    /** Total discount applied to the line (all units). */
+    discountMinor: bigint("discount_minor", { mode: "number" })
+      .notNull()
+      .default(0),
+    /** Units refunded so far; kept current by orders/updated. */
+    refundedQuantity: integer("refunded_quantity").notNull().default(0),
     currency: text("currency").notNull(),
     ...timestamps,
   },
@@ -756,6 +770,39 @@ export const interviewResponses = pgTable(
   ],
 );
 
+/**
+ * The call sheet's working state for one script prompt (`script:<id>`) or
+ * research field (`field:<fieldVersionId>`) on an interview.
+ */
+export const interviewPromptProgress = pgTable(
+  "interview_prompt_progress",
+  {
+    interviewId: uuid("interview_id")
+      .notNull()
+      .references(() => interviews.id),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    promptKey: text("prompt_key").notNull(),
+    coveredAt: timestamp("covered_at", { withTimezone: true }),
+    /** Option labels the researcher tagged. */
+    selected: jsonb("selected").notNull().default([]),
+    note: text("note"),
+    updatedBy: uuid("updated_by"),
+    ...timestamps,
+  },
+  (table) => [
+    primaryKey({
+      name: "interview_prompt_progress_pk",
+      columns: [table.interviewId, table.promptKey],
+    }),
+    index("interview_prompt_progress_merchant_idx").on(
+      table.merchantId,
+      table.interviewId,
+    ),
+  ],
+);
+
 export const responseEvidence = pgTable(
   "response_evidence",
   {
@@ -1077,8 +1124,11 @@ export const workforceUsers = pgTable(
   "workforce_users",
   {
     id: uuid("id").primaryKey(),
-    oidcIssuer: text("oidc_issuer").notNull(),
-    oidcSubject: text("oidc_subject").notNull(),
+    /** Null until the provisioned user's first sign-in binds the identity. */
+    oidcIssuer: text("oidc_issuer"),
+    oidcSubject: text("oidc_subject"),
+    /** Lowercased Workspace email an operator provisions before first sign-in. */
+    email: text("email"),
     status: text("status").notNull(),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     ...timestamps,
@@ -1088,6 +1138,31 @@ export const workforceUsers = pgTable(
       table.oidcIssuer,
       table.oidcSubject,
     ),
+    uniqueIndex("workforce_users_email_uidx").on(table.email),
+  ],
+);
+
+/** Server-side workforce sessions; the cookie carries only a random token whose hash is stored here. */
+export const workforceSessions = pgTable(
+  "workforce_sessions",
+  {
+    id: uuid("id").primaryKey(),
+    tokenHash: text("token_hash").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => workforceUsers.id),
+    authenticatedAt: timestamp("authenticated_at", {
+      withTimezone: true,
+    }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("workforce_sessions_token_hash_uidx").on(table.tokenHash),
+    index("workforce_sessions_user_idx").on(table.userId),
   ],
 );
 
@@ -1132,6 +1207,8 @@ export const deletionRequests = pgTable(
       .references(() => merchants.id),
     scope: text("scope").notNull(),
     subjectRefHash: text("subject_ref_hash").notNull(),
+    /** Holler customer UUID for customer scope; null for shop scope. */
+    subjectId: uuid("subject_id"),
     status: text("status").notNull(),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     legalHold: boolean("legal_hold").notNull().default(false),

@@ -5,6 +5,8 @@ import {
   researchMoments,
 } from "./prototype-data";
 import type {
+  CallSheetOrder,
+  CallSheetPrompt,
   InterviewWorkspace,
   LibraryResearchField,
   LibraryScript,
@@ -20,18 +22,25 @@ import {
   dashboardFiltersToCohort,
 } from "./analytics";
 import { createDatabase } from "@holler/db";
+import { loadServerEnvironment } from "@holler/domain";
 import { redirect } from "react-router";
 import {
+  EnvelopePhoneDecryptor,
   OperationsError,
   PostgresOperationsApplicationService,
   PrefixedSyntheticPhoneDecryptor,
 } from "./postgres-operations-service.server";
+import { getCustomerPrivateCipher } from "./customer-private.server";
 import {
   SyntheticWorkforceContextResolver,
   WorkforceContextError,
   syntheticSessionsFromEnvironment,
   type WorkforceContextResolver,
 } from "./workforce-session.server";
+import {
+  DatabaseWorkforceContextResolver,
+  WorkforceDirectory,
+} from "./workforce-directory.server";
 
 export async function executeOperationsRequest<T>(
   operation: () => Promise<T>,
@@ -60,8 +69,82 @@ const SYNTHETIC_CONTEXT: TenantContext = {
   roles: ["researcher"],
 };
 
+/** Fictional order history so the synthetic call sheet has every section. */
+function syntheticOrders(item: QueueItem): {
+  pastOrders: CallSheetOrder[];
+  currentOrder: CallSheetOrder;
+} {
+  const line = (
+    id: string,
+    product: string,
+    category: string,
+    variant: string | null,
+    unitPrice: string,
+    extra: Partial<CallSheetOrder["lines"][number]> = {},
+  ): CallSheetOrder["lines"][number] => ({
+    id,
+    product,
+    categories: [category],
+    variant,
+    sku: null,
+    quantity: 1,
+    unitPrice,
+    discount: null,
+    lineTotal: unitPrice,
+    refundedQuantity: 0,
+    returnStatus: "kept",
+    ...extra,
+  });
+  return {
+    currentOrder: {
+      id: `${item.id}-current`,
+      orderNumber: item.orderNumber,
+      orderedAt: item.orderedAt,
+      total: item.orderTotal,
+      discountTotal: null,
+      financialStatus: "paid",
+      fulfillmentStatus: null,
+      attribution: item.observedAttribution,
+      lines: item.products.map((product, index) =>
+        line(`${item.id}-current-${index}`, product, "Apparel", "M", "$64.00"),
+      ),
+    },
+    pastOrders:
+      item.orderSequence > 1
+        ? [
+            {
+              id: `${item.id}-past-1`,
+              orderNumber: "#0987",
+              orderedAt: "2026-07-14T16:20:00.000Z",
+              total: "$76.50",
+              discountTotal: "$8.50",
+              financialStatus: "partially_refunded",
+              fulfillmentStatus: "fulfilled",
+              attribution: "google / cpc",
+              lines: [
+                line("past-1-a", "Harbor Tee", "Tops", "L / Navy", "$34.00", {
+                  discount: "$8.50",
+                  lineTotal: "$25.50",
+                  refundedQuantity: 1,
+                  returnStatus: "returned",
+                }),
+                line("past-1-b", "Trail Socks", "Socks", "M", "$12.00", {
+                  quantity: 2,
+                  lineTotal: "$24.00",
+                }),
+              ],
+            },
+          ]
+        : [],
+  };
+}
+
 function createSyntheticService(): OperationsApplicationService {
+  // Synthetic orders are placed relative to when the service starts, so their
+  // ages grow like real ones.
+  const startedAt = Date.now();
   const statuses = new Map<string, QueueItem["status"]>();
+  const progress = new Map<string, Map<string, CallSheetPrompt>>();
   const interviews = new Map<string, InterviewWorkspace>();
   const answers = new Map<string, Set<string>>();
   const momentStatuses = new Map<string, MomentStatus>(
@@ -86,6 +169,7 @@ function createSyntheticService(): OperationsApplicationService {
       archived: false,
       includedByDefault: field.source !== "research_run",
       displayOrder: index,
+      scope: field.scope ?? "order",
     }),
   );
   let scriptLibrary: LibraryScript[] = [
@@ -118,11 +202,19 @@ function createSyntheticService(): OperationsApplicationService {
     const status = statuses.get(id) ?? "queued";
     return {
       ...safe,
+      itemCount: safe.products.length,
+      orderedAt: new Date(
+        startedAt - safe.eventAgeMinutes * 60_000,
+      ).toISOString(),
       status,
       lockVersion: status === "queued" ? 0 : 1,
       ...(status === "queued"
         ? {}
         : { claimedByResearcherId: SYNTHETIC_CONTEXT.researcherId }),
+      // The in-memory prototype keys interviews by assignment.
+      ...(status === "dialing" || status === "reached"
+        ? { interviewId: id }
+        : {}),
     };
   };
 
@@ -176,6 +268,7 @@ function createSyntheticService(): OperationsApplicationService {
         ...(input.valueType === "single_select"
           ? { options: input.options }
           : {}),
+        scope: input.scope,
       };
       if (!wording.label || !wording.prompt)
         throw Response.json(
@@ -364,6 +457,49 @@ function createSyntheticService(): OperationsApplicationService {
         fields: researchFields,
         answeredFieldIds: [...(answers.get(id) ?? [])],
         status: "dialing",
+        profile: {
+          firstName: assignment.customerName.replace(/^Synthetic /, ""),
+          locality: assignment.locality,
+          shopifyCustomerId: assignment.shopifyCustomerId,
+          customerSince: "2026-07-14T16:20:00.000Z",
+          orderCount: assignment.orderSequence,
+          lifetimeValue: null,
+          historyComplete: true,
+        },
+        ...syntheticOrders(assignment),
+        prompts: [
+          ...pinnedScript.map((prompt) => ({
+            key: `script:${prompt.id}`,
+            kind: "script" as const,
+            scope: "order" as const,
+            title: prompt.title,
+            prompt: prompt.prompt,
+            options: [],
+            required: false,
+          })),
+          ...researchFields.map((field) => ({
+            key: `field:${field.id}`,
+            kind: "field" as const,
+            scope: field.scope ?? ("order" as const),
+            title: field.label,
+            prompt: field.prompt,
+            options:
+              field.valueType === "rating_scale"
+                ? ["1", "2", "3", "4", "5"]
+                : (field.options ?? []),
+            required: field.required,
+          })),
+        ].map(
+          (prompt): CallSheetPrompt =>
+            progress.get(id)?.get(prompt.key) ?? {
+              ...prompt,
+              // The prototype order has no line IDs; item prompts ask once.
+              lineId: null,
+              covered: false,
+              selected: [],
+              note: "",
+            },
+        ),
       };
       interviews.set(id, workspace);
       return workspace;
@@ -391,6 +527,23 @@ function createSyntheticService(): OperationsApplicationService {
     },
     async addObservation(context, id) {
       requireClaim(context, id);
+    },
+    async savePromptProgress(context, id, key, input) {
+      requireClaim(context, id);
+      const current = interviews.get(id);
+      const prompt = current?.prompts.find((item) => item.key === key);
+      if (!current || !prompt)
+        throw new Response("Prompt not found", { status: 400 });
+      const saved = { ...prompt, ...input, note: input.note.trim() };
+      const rows = progress.get(id) ?? new Map<string, CallSheetPrompt>();
+      rows.set(key, saved);
+      progress.set(id, rows);
+      interviews.set(id, {
+        ...current,
+        prompts: current.prompts.map((item) =>
+          item.key === key ? saved : item,
+        ),
+      });
     },
     async completeInterview(context, id, outcome) {
       requireClaim(context, id);
@@ -428,28 +581,42 @@ export function resetOperationsCompositionForTests(): void {
   configuredService = undefined;
   constructedService = undefined;
   configuredContextResolver = undefined;
+  constructedDirectory = undefined;
 }
 
 export function getOperationsService(): OperationsApplicationService {
   if (configuredService) return configuredService;
   if (constructedService) return constructedService;
   const mode = process.env.HOLLER_OPERATIONS_MODE;
+  const production = process.env.NODE_ENV === "production";
+  if (production && mode !== "postgres")
+    throw new Error("Production requires HOLLER_OPERATIONS_MODE=postgres");
+  // Fails closed on missing OIDC, KMS, Twilio, or R2 production settings.
+  if (production) loadServerEnvironment(process.env);
   if (mode === "synthetic-memory") {
     constructedService = createSyntheticService();
     return constructedService;
   }
-  if (mode !== "synthetic-postgres") {
+  if (mode !== "synthetic-postgres" && mode !== "postgres") {
     throw new Error(
-      "HOLLER_OPERATIONS_MODE must explicitly select synthetic-postgres or synthetic-memory",
+      "HOLLER_OPERATIONS_MODE must explicitly select postgres, synthetic-postgres, or synthetic-memory",
     );
   }
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl)
-    throw new Error("DATABASE_URL is required for synthetic-postgres mode");
+    throw new Error(`DATABASE_URL is required for ${mode} mode`);
   const { db } = createDatabase(databaseUrl);
+  // postgres reads only KMS envelopes; synthetic-postgres also accepts fixtures.
+  const cipher = getCustomerPrivateCipher();
+  if (mode === "postgres" && !cipher)
+    throw new Error("postgres mode requires PII_KMS_KEY_ID");
+  const synthetic =
+    mode === "synthetic-postgres"
+      ? new PrefixedSyntheticPhoneDecryptor()
+      : undefined;
   constructedService = new PostgresOperationsApplicationService(
     db,
-    new PrefixedSyntheticPhoneDecryptor(),
+    cipher ? new EnvelopePhoneDecryptor(cipher, synthetic) : synthetic!,
   );
   return constructedService;
 }
@@ -460,14 +627,37 @@ export function configureWorkforceContextResolver(
   configuredContextResolver = resolver;
 }
 
-export function getTenantContext(request: Request): TenantContext {
-  const resolver =
-    configuredContextResolver ??
-    new SyntheticWorkforceContextResolver(
-      syntheticSessionsFromEnvironment(process.env),
-    );
+/** Whether workforce identity comes from Google OIDC rather than dev tokens. */
+export function usesOidcWorkforceAuth(): boolean {
+  return process.env.WORKFORCE_AUTH_PROVIDER === "oidc";
+}
+
+let constructedDirectory: WorkforceDirectory | undefined;
+export function getWorkforceDirectory(): WorkforceDirectory {
+  if (constructedDirectory) return constructedDirectory;
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl)
+    throw new Error("DATABASE_URL is required for OIDC workforce sessions");
+  constructedDirectory = new WorkforceDirectory(createDatabase(databaseUrl).db);
+  return constructedDirectory;
+}
+
+function defaultContextResolver(): WorkforceContextResolver {
+  if (usesOidcWorkforceAuth())
+    return new DatabaseWorkforceContextResolver(getWorkforceDirectory());
+  if (process.env.NODE_ENV === "production")
+    throw new Error("Production requires WORKFORCE_AUTH_PROVIDER=oidc");
+  return new SyntheticWorkforceContextResolver(
+    syntheticSessionsFromEnvironment(process.env),
+  );
+}
+
+export async function getTenantContext(
+  request: Request,
+): Promise<TenantContext> {
   try {
-    return resolver.resolve(request);
+    const resolver = configuredContextResolver ?? defaultContextResolver();
+    return await resolver.resolve(request);
   } catch (error) {
     if (
       error instanceof WorkforceContextError &&

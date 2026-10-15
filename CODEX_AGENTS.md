@@ -1,6 +1,9 @@
 # Holler - Codex Multi-Agent Build Prompts
 
-Use `HOLLER_DEV_BRIEF.md` as the shared source of truth.
+Use `docs/working-backwards-document.md` as the verbatim product source of truth
+and `docs/working-backwards-source-of-truth.md` as its implementation
+interpretation and product-owner decision ledger. Use `HOLLER_DEV_BRIEF.md` for implementation
+detail only where it does not conflict with those product sources.
 
 All agents should:
 - read the brief before making changes
@@ -25,7 +28,9 @@ Do not attempt to implement every feature personally. First inspect the reposito
 
 ## Primary Responsibilities
 
-1. Read `HOLLER_DEV_BRIEF.md`.
+1. Read `docs/working-backwards-document.md`, then
+   `docs/working-backwards-source-of-truth.md`, then `HOLLER_DEV_BRIEF.md` for
+   non-conflicting implementation detail.
 2. Audit the repository:
    - framework
    - deployment model
@@ -172,7 +177,7 @@ A `ResearchMoment` includes:
 - priority
 - linked script version
 - target research tags
-- optional weekly allocation constraints
+- optional configurable period allocation constraints
 
 A `ResearchAssignment` is the concrete opportunity created for one customer/event.
 
@@ -196,7 +201,7 @@ Avoid building a general-purpose rules language.
 ## Allocation
 
 MVP can use simple deterministic allocation:
-- weekly merchant interview target
+- configurable engagement/period interview target
 - target percentage by active Research Moment
 - priority
 - cap per cohort
@@ -221,7 +226,7 @@ Include:
 - non-qualifying buyer
 - repeat buyer
 - competing active Research Moments
-- weekly cap reached
+- configured period cap reached
 - duplicate evaluation
 - missing phone
 - expired opportunity
@@ -645,7 +650,9 @@ Agent 0 integrates throughout.
 
 You are the technical lead for Holler.
 
-Read `HOLLER_DEV_BRIEF.md` and `CODEX_AGENTS.md` completely before modifying code.
+Read `docs/working-backwards-source-of-truth.md`, `HOLLER_DEV_BRIEF.md`, and
+`CODEX_AGENTS.md` completely before modifying code. The first document governs
+product conflicts.
 
 Holler is a point-in-time customer research platform, initially for Shopify ecommerce companies. Its core workflow is:
 
@@ -655,8 +662,8 @@ Shopify event
 → structured interview
 → recording/transcript
 → research tags
-→ evidence-backed Angle
-→ weekly Earshot and monthly Disco.
+→ evidence-backed findings
+→ monthly, quarterly, or standalone report.
 
 The initial commercial value proposition is:
 
@@ -691,4 +698,4 @@ Before significant implementation, produce:
 
 Then implement in small, reviewable increments.
 
-The MVP is complete when a synthetic Shopify order can flow through the full system, its reviewed interview data can appear in a weekly Earshot export, and its evidence-backed findings can appear in a monthly Disco.
+The MVP is complete when a synthetic Shopify order can flow through the full system, qualify for a Research Angle, produce reviewed interview evidence, and appear in a private evidence-backed report.

@@ -1,32 +1,9 @@
 import { cohortExpressionSchema, type CohortExpression } from "@holler/domain";
 
+import { ordinal } from "./ordinal";
+
 /** Resolves a category reference to the label people see in the store. */
 export type CategoryLabeler = (namespace: string, key: string) => string;
-
-const ordinals = [
-  "first",
-  "second",
-  "third",
-  "fourth",
-  "fifth",
-  "sixth",
-  "seventh",
-  "eighth",
-  "ninth",
-  "tenth",
-];
-
-function ordinal(value: number): string {
-  if (ordinals[value - 1]) return ordinals[value - 1]!;
-  const tens = value % 100;
-  const suffix =
-    tens >= 11 && tens <= 13
-      ? "th"
-      : (({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[
-          value % 10
-        ] ?? "th");
-  return `${value}${suffix}`;
-}
 
 /** "bottoms" → "Bottoms", "gift-sets" → "Gift sets". */
 export function humanizeKey(key: string): string {

@@ -55,6 +55,7 @@ export function buildSyntheticShopifyOrderIngress(
     triggeredAt: DEFAULT_OCCURRED_AT,
     order: {
       id: syntheticShopifyIds.order,
+      name: "#1001",
       createdAt: DEFAULT_OCCURRED_AT,
       updatedAt: DEFAULT_OCCURRED_AT,
       cancelledAt: null,
@@ -68,6 +69,7 @@ export function buildSyntheticShopifyOrderIngress(
               id: syntheticShopifyIds.customer,
               phone: "+12025550123",
               firstName: "Synthetic",
+              locality: "Portland, OR",
               createdAt: "2026-01-05T12:00:00.000Z",
             }
           : overrides.customer,
@@ -78,8 +80,11 @@ export function buildSyntheticShopifyOrderIngress(
           variantId: syntheticShopifyIds.variant,
           sku: "SYN-TRAVEL-001",
           title: "Synthetic Travel Kit",
+          variantTitle: null,
           quantity: 1,
           unitPrice: { amount: "128.00", currency: "USD" },
+          discount: null,
+          refundedQuantity: 0,
         },
       ],
       observedAttribution,

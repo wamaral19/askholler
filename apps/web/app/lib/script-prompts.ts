@@ -1,5 +1,7 @@
 import type { ScriptPrompt } from "@holler/domain";
 
+import { isPromptScope } from "./prompt-scope";
+
 /** Reads the prompt list a ScriptEditor submits; the service validates it. */
 export function promptsFromForm(value: unknown): ScriptPrompt[] {
   if (!Array.isArray(value))
@@ -10,6 +12,7 @@ export function promptsFromForm(value: unknown): ScriptPrompt[] {
       id: String(record.id ?? ""),
       title: String(record.title ?? ""),
       prompt: String(record.prompt ?? ""),
+      ...(isPromptScope(record.scope) ? { scope: record.scope } : {}),
     };
   });
 }

@@ -9,6 +9,20 @@ import {
 } from "react-router";
 import "./styles.css";
 
+export function links() {
+  return [
+    { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+    {
+      rel: "icon",
+      href: "/favicon-32x32.png",
+      type: "image/png",
+      sizes: "32x32",
+    },
+    { rel: "icon", href: "/icon-192.png", type: "image/png", sizes: "192x192" },
+    { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+  ];
+}
+
 export function loader({ request }: LoaderFunctionArgs) {
   return { origin: new URL(request.url).origin };
 }

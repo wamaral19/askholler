@@ -5,10 +5,13 @@ import type { ActionFunctionArgs } from "react-router";
 import { ZodError } from "zod";
 
 import {
+  applyShopifyOrderUpdate,
   getShopifyIngestionDatabase as getDatabase,
   ingestShopifyOrder,
+  recordShopifyPrivacyRequest,
   recordShopifyUninstall,
 } from "../lib/shopify-ingestion.server";
+import { getCustomerPrivateCipher } from "../lib/customer-private.server";
 import { getShopifyApp } from "../shopify.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -30,7 +33,34 @@ export async function action({ request }: ActionFunctionArgs) {
     await recordShopifyUninstall(getDatabase(), shop);
   }
 
-  if (topic === "ORDERS_CREATE") {
+  if (
+    topic === "CUSTOMERS_REDACT" ||
+    topic === "SHOP_REDACT" ||
+    topic === "CUSTOMERS_DATA_REQUEST"
+  ) {
+    // Recorded here, executed by the worker's hourly privacy sweep.
+    const outcome = await recordShopifyPrivacyRequest(
+      getDatabase(),
+      shop,
+      topic,
+      context.payload,
+    );
+    // Data requests are answered by an operator (see the security runbook).
+    const log =
+      topic === "CUSTOMERS_DATA_REQUEST" && outcome === "recorded"
+        ? console.error
+        : console.info;
+    log(
+      JSON.stringify({
+        event: "shopify.privacy_webhook",
+        topic,
+        webhookId: context.webhookId,
+        outcome,
+      }),
+    );
+  }
+
+  if (topic === "ORDERS_CREATE" || topic === "ORDERS_UPDATED") {
     let ingress;
     try {
       ingress = mapShopifyOrderWebhook({
@@ -53,8 +83,18 @@ export async function action({ request }: ActionFunctionArgs) {
       return new Response(null, { status: 200 });
     }
     // Failures propagate as 500 so Shopify redelivers; the delivery ID dedupe
-    // and stable identities make the retry safe.
-    const result = await ingestShopifyOrder(getDatabase(), ingress, bodySha256);
+    // and stable identities make the retry safe. Updates refresh refunds and
+    // status only; they never queue an order.
+    const result =
+      topic === "ORDERS_CREATE"
+        ? await ingestShopifyOrder(
+            getDatabase(),
+            ingress,
+            bodySha256,
+            new Date(),
+            getCustomerPrivateCipher(),
+          )
+        : await applyShopifyOrderUpdate(getDatabase(), ingress, bodySha256);
     console.info(
       JSON.stringify({
         event: "shopify.order_webhook_ingested",

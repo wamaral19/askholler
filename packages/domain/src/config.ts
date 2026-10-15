@@ -12,12 +12,19 @@ const serverEnvironmentSchema = z
     DATABASE_URL: z.string().url().startsWith("postgresql://"),
     APP_BASE_URL: z.string().url(),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-    DIALER_PROVIDER: z.enum(["fake", "twilio"]).default("fake"),
+    DIALER_PROVIDER: z.enum(["fake", "twilio", "zapier"]).default("fake"),
+    /** Zapier "Catch Hook" URL; receives the number to dial. */
+    ZAPIER_DIAL_WEBHOOK_URL: z.string().url().optional(),
     TRANSCRIPTION_PROVIDER: z.enum(["fake"]).default("fake"),
     OBJECT_STORE_PROVIDER: z.enum(["fake", "r2"]).default("fake"),
     WORKFORCE_AUTH_PROVIDER: z.enum(["synthetic", "oidc"]).default("synthetic"),
     OIDC_ISSUER: z.string().url().optional(),
     OIDC_AUDIENCE: z.string().min(1).optional(),
+    GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+    WORKFORCE_ALLOWED_DOMAIN: z
+      .string()
+      .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/)
+      .optional(),
     PII_KMS_KEY_ID: z.string().min(1).optional(),
     TWILIO_ACCOUNT_SID: z
       .string()
@@ -63,6 +70,18 @@ const serverEnvironmentSchema = z
         path: ["OIDC_AUDIENCE"],
         message: "Production OIDC audience is required",
       });
+    if (!value.GOOGLE_OAUTH_CLIENT_SECRET)
+      context.addIssue({
+        code: "custom",
+        path: ["GOOGLE_OAUTH_CLIENT_SECRET"],
+        message: "Production Google OAuth client secret is required",
+      });
+    if (!value.WORKFORCE_ALLOWED_DOMAIN)
+      context.addIssue({
+        code: "custom",
+        path: ["WORKFORCE_ALLOWED_DOMAIN"],
+        message: "Production workforce Workspace domain is required",
+      });
     if (
       !value.PII_KMS_KEY_ID ||
       /example|replace|changeme/i.test(value.PII_KMS_KEY_ID)
@@ -97,6 +116,15 @@ const serverEnvironmentSchema = z
             message: `Production Twilio configuration requires ${key}`,
           });
     }
+    if (
+      value.DIALER_PROVIDER === "zapier" &&
+      !value.ZAPIER_DIAL_WEBHOOK_URL?.startsWith("https://")
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["ZAPIER_DIAL_WEBHOOK_URL"],
+        message: "Production Zapier dialing requires an https webhook URL",
+      });
     if (value.OBJECT_STORE_PROVIDER === "r2") {
       for (const key of [
         "R2_ACCOUNT_ID",
@@ -113,33 +141,61 @@ const serverEnvironmentSchema = z
     }
   });
 
-const workerEnvironmentSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-  DATABASE_URL: z.string().url().startsWith("postgresql://"),
-  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-  WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(100).default(5),
-  WORKER_POLL_INTERVAL_MS: z.coerce
-    .number()
-    .int()
-    .min(100)
-    .max(60_000)
-    .default(1_000),
-  OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(1_000).default(25),
-  OUTBOX_POLL_INTERVAL_MS: z.coerce
-    .number()
-    .int()
-    .min(100)
-    .max(60_000)
-    .default(1_000),
-  WORKER_SHUTDOWN_TIMEOUT_MS: z.coerce
-    .number()
-    .int()
-    .min(1_000)
-    .max(120_000)
-    .default(15_000),
-});
+const workerEnvironmentSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+    DATABASE_URL: z.string().url().startsWith("postgresql://"),
+    // The privacy sweep deletes recordings from R2 and any Twilio copy.
+    R2_ACCOUNT_ID: z.string().min(1).optional(),
+    R2_ACCESS_KEY_ID: z.string().min(1).optional(),
+    R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    R2_BUCKET: z.string().min(1).optional(),
+    TWILIO_ACCOUNT_SID: z
+      .string()
+      .regex(/^AC[0-9a-fA-F]{32}$/)
+      .optional(),
+    TWILIO_AUTH_TOKEN: z.string().min(16).optional(),
+    LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+    WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(100).default(5),
+    WORKER_POLL_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(100)
+      .max(60_000)
+      .default(1_000),
+    OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(1_000).default(25),
+    OUTBOX_POLL_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(100)
+      .max(60_000)
+      .default(1_000),
+    WORKER_SHUTDOWN_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1_000)
+      .max(120_000)
+      .default(15_000),
+  })
+  .superRefine((value, context) => {
+    if (value.NODE_ENV !== "production") return;
+    for (const key of [
+      "R2_ACCOUNT_ID",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY",
+      "R2_BUCKET",
+      "TWILIO_ACCOUNT_SID",
+      "TWILIO_AUTH_TOKEN",
+    ] as const)
+      if (!value[key])
+        context.addIssue({
+          code: "custom",
+          path: [key],
+          message: `Production privacy sweep requires ${key}`,
+        });
+  });
 
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
 export type DatabaseEnvironment = z.infer<typeof databaseEnvironmentSchema>;

@@ -93,6 +93,8 @@ export const categoryOptions = [
   { key: "socks", label: "Socks" },
 ] as const;
 
+import type { PromptScope } from "./prompt-scope";
+
 export type FieldSource =
   "platform_default" | "merchant_default" | "research_run";
 
@@ -104,6 +106,7 @@ export interface PrototypeResearchField {
   readonly required: boolean;
   readonly valueType: "single_select" | "long_text" | "rating_scale";
   readonly options?: readonly string[];
+  readonly scope?: PromptScope;
 }
 
 export const researchFields: readonly PrototypeResearchField[] = [
@@ -115,6 +118,7 @@ export const researchFields: readonly PrototypeResearchField[] = [
     required: true,
     valueType: "single_select",
     options: ["Creator", "Word of mouth", "Meta", "Google", "Other"],
+    scope: "marketing",
   },
   {
     id: "purchase-trigger",
@@ -124,6 +128,7 @@ export const researchFields: readonly PrototypeResearchField[] = [
     required: true,
     valueType: "single_select",
     options: ["Email", "SMS", "Paid ad", "Planned purchase", "Other"],
+    scope: "marketing",
   },
   {
     id: "marketing-influence",
@@ -132,6 +137,7 @@ export const researchFields: readonly PrototypeResearchField[] = [
     source: "platform_default",
     required: true,
     valueType: "long_text",
+    scope: "marketing",
   },
   {
     id: "brand-language",
@@ -148,6 +154,7 @@ export const researchFields: readonly PrototypeResearchField[] = [
     source: "merchant_default",
     required: false,
     valueType: "rating_scale",
+    scope: "item",
   },
   {
     id: "category-transition",
@@ -170,6 +177,7 @@ export const researchFields: readonly PrototypeResearchField[] = [
 export interface QueueAssignment {
   readonly id: string;
   readonly customerName: string;
+  readonly locality: string | null;
   readonly maskedPhone: string;
   readonly syntheticPhone: string;
   readonly merchant: string;
@@ -177,6 +185,8 @@ export interface QueueAssignment {
   readonly moment: string;
   readonly eventAgeMinutes: number;
   readonly orderSequence: number;
+  readonly orderNumber: string | null;
+  readonly shopifyCustomerId: string | null;
   readonly orderTotal: string;
   readonly products: readonly string[];
   readonly observedAttribution: string;
@@ -187,13 +197,16 @@ export const queueAssignments: readonly QueueAssignment[] = [
   {
     id: "assignment-001",
     customerName: "Synthetic Avery",
+    locality: "Portland, OR",
     maskedPhone: "+1 ••• ••• 0123",
     syntheticPhone: "+1 202 555 0123",
     merchant: "Northstar Outfitters — synthetic",
     momentId: "moment-category-transition",
     moment: "Second-order category transition",
-    eventAgeMinutes: 3,
+    eventAgeMinutes: 1,
     orderSequence: 2,
+    orderNumber: "#1042",
+    shopifyCustomerId: "900000000101",
     orderTotal: "$128.00",
     products: ["Everyday Trouser", "Ribbed Sock"],
     observedAttribution: "Meta / paid social",
@@ -202,13 +215,16 @@ export const queueAssignments: readonly QueueAssignment[] = [
   {
     id: "assignment-002",
     customerName: "Synthetic Morgan",
+    locality: "Brooklyn, NY",
     maskedPhone: "+1 ••• ••• 0148",
     syntheticPhone: "+1 202 555 0148",
     merchant: "Northstar Outfitters — synthetic",
     momentId: "moment-attribution-audit",
     moment: "First-purchase attribution audit",
-    eventAgeMinutes: 11,
+    eventAgeMinutes: 2,
     orderSequence: 1,
+    orderNumber: "#1043",
+    shopifyCustomerId: "900000000102",
     orderTotal: "$84.00",
     products: ["Transit Overshirt"],
     observedAttribution: "Google / brand search",
@@ -217,13 +233,16 @@ export const queueAssignments: readonly QueueAssignment[] = [
   {
     id: "assignment-003",
     customerName: "Synthetic Jordan",
+    locality: "Austin, TX",
     maskedPhone: "+1 ••• ••• 0162",
     syntheticPhone: "+1 202 555 0162",
     merchant: "Morrow Skin — synthetic",
     momentId: "moment-moisturizer-texture",
     moment: "Moisturizer texture study",
-    eventAgeMinutes: 24,
+    eventAgeMinutes: 4,
     orderSequence: 3,
+    orderNumber: "#2187",
+    shopifyCustomerId: "900000000103",
     orderTotal: "$62.00",
     products: ["Barrier Moisturizer"],
     observedAttribution: "Direct / unknown",

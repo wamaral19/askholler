@@ -24,7 +24,7 @@ const statusOrder: readonly MomentStatus[] = [
 
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
-    const context = getTenantContext(request);
+    const context = await getTenantContext(request);
     const moments = await getOperationsService().listMoments(context);
     return {
       moments: [...moments].sort(
@@ -45,7 +45,7 @@ export async function action({ request }: { request: Request }) {
       if (!momentId || !isMomentRunStatus(status))
         throw new Response("Invalid moment status", { status: 400 });
       const moment = await getOperationsService().setMomentStatus(
-        getTenantContext(request),
+        await getTenantContext(request),
         momentId,
         status,
       );
@@ -60,7 +60,7 @@ export async function action({ request }: { request: Request }) {
     return {
       intent,
       ...(await getOperationsService().generateReport(
-        getTenantContext(request),
+        await getTenantContext(request),
         period,
       )),
     };
@@ -68,7 +68,7 @@ export async function action({ request }: { request: Request }) {
 }
 
 export function meta() {
-  return [{ title: "Moments · Holler" }];
+  return [{ title: "Live angles · Holler" }];
 }
 
 export default function ResearchMomentsRoute() {
@@ -92,11 +92,11 @@ export default function ResearchMomentsRoute() {
   return (
     <AppShell
       eyebrow="Angle setup"
-      title="Moments"
-      description="Live moments send new orders to the queue for researchers to call. Pause or complete a moment to stop new orders; reopen it any time."
+      title="Live angles"
+      description="Live angles send new orders to the queue for researchers to call. Pause or complete an angle to stop new orders; reopen it any time."
       actions={
         <Link className="button button-primary" to="/moments/new">
-          New moment
+          New angle
         </Link>
       }
     >
@@ -121,21 +121,21 @@ export default function ResearchMomentsRoute() {
         ) : null}
       </Form>
 
-      <section className="metric-grid" aria-label="Moment summary">
+      <section className="metric-grid" aria-label="Angle summary">
         <article className="metric-card">
-          <span>Live moments</span>
+          <span>Live angles</span>
           <strong>{liveCount}</strong>
           <small>of {moments.length} configured</small>
         </article>
         <article className="metric-card">
           <span>Completed this week</span>
           <strong>{completedThisWeek}</strong>
-          <small>interviews across all moments</small>
+          <small>interviews across all angles</small>
         </article>
         <article className="metric-card">
           <span>Weekly target</span>
           <strong>{weeklyTarget}</strong>
-          <small>across live and paused moments</small>
+          <small>across live and paused angles</small>
         </article>
       </section>
 
@@ -146,8 +146,8 @@ export default function ResearchMomentsRoute() {
             <h2>Current research portfolio</h2>
           </div>
           <label className="search-control">
-            <span className="sr-only">Search moments</span>
-            <input placeholder="Search moments" type="search" />
+            <span className="sr-only">Search angles</span>
+            <input placeholder="Search angles" type="search" />
           </label>
         </div>
         <div className="moment-list">
