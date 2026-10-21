@@ -7,6 +7,11 @@ import {
 
 export default [
   index("routes/home.tsx"),
+  route("use-cases", "routes/use-cases.tsx"),
+  route("how-it-works", "routes/how-it-works.tsx"),
+  route("work-with-holler", "routes/work-with-holler.tsx"),
+  route("about", "routes/about.tsx"),
+  route("contact", "routes/contact.tsx"),
   route("privacy", "routes/privacy.tsx"),
   route("app", "routes/shopify-app.tsx", [
     index("routes/shopify-app-index.tsx"),
@@ -25,12 +30,19 @@ export default [
     route("moments/new", "routes/cohort-builder.tsx"),
     route("moments/:momentId/script", "routes/moment-script.tsx"),
     route("queue", "routes/research-queue.tsx"),
+    route("calls", "routes/completed-calls.tsx"),
+    route("calls/:interviewId", "routes/call-review.tsx"),
     route("interviews/:interviewId", "routes/live-interview.tsx"),
   ]),
+  route("calls/:interviewId/recording", "routes/call-recording.ts"),
   route("merchant", "routes/workforce-merchant.ts"),
   route("api/twilio/token", "routes/twilio-token.ts"),
   route("api/twilio/recording", "routes/twilio-recording.ts"),
   route("api/twilio/voice", "routes/twilio-voice.ts"),
   route("api/twilio/call-status", "routes/twilio-call-status.ts"),
   route("api/twilio/recording-status", "routes/twilio-recording-status.ts"),
+  route(
+    "api/twilio/transcription-status",
+    "routes/twilio-transcription-status.ts",
+  ),
 ] satisfies RouteConfig;

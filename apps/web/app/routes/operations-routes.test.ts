@@ -23,6 +23,7 @@ const assignment: QueueItem = {
   locality: "Portland, OR",
   maskedPhone: "+1 ••• ••• 0123",
   merchant: "Synthetic merchant",
+  general: false,
   momentId: "00000000-0000-7000-8000-000000002004",
   moment: "Synthetic moment",
   eventAgeMinutes: 1,
@@ -71,6 +72,7 @@ function service(): OperationsApplicationService {
     }),
     listMerchants: vi.fn(async () => []),
     listMoments: vi.fn(async () => []),
+    getGeneralCalls: vi.fn(async () => null),
     setMomentStatus: vi.fn(async () => {
       throw new Error("unused");
     }),
@@ -109,6 +111,10 @@ function service(): OperationsApplicationService {
     addObservation: vi.fn(async () => undefined),
     savePromptProgress: vi.fn(async () => undefined),
     completeInterview: vi.fn(async () => undefined),
+    listCompletedCalls: vi.fn(async () => []),
+    getCallReview: vi.fn(),
+    reviewPromptProgress: vi.fn(async () => undefined),
+    getRecordingObjectKey: vi.fn(async () => null),
     generateReport: vi.fn(async () => ({ reportId: "report" })),
   };
 }

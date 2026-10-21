@@ -1,6 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { calls, createDatabase, interviews, recordings } from "@holler/db";
+import {
+  calls,
+  createDatabase,
+  interviews,
+  recordings,
+  transcriptSegments,
+  transcripts,
+} from "@holler/db";
 import type { DialerProvider } from "@holler/domain";
 import {
   createTwilioVoiceToken,
@@ -17,6 +24,7 @@ import type { TenantContext } from "./operations-types";
 const INTENT_TTL_SECONDS = 300;
 const CALL_SID = /^CA[a-fA-F0-9]{32}$/;
 const RECORDING_SID = /^RE[a-fA-F0-9]{32}$/;
+const TRANSCRIPTION_SID = /^GT[a-fA-F0-9]{32}$/;
 
 type Database = ReturnType<typeof createDatabase>["db"];
 
@@ -295,6 +303,202 @@ export class PostgresTwilioCallStore implements TwilioCallStore {
   }
 }
 
+export interface TranscriptionEvent {
+  readonly callSid: string;
+  readonly transcriptionSid: string;
+  readonly kind: "content" | "stopped" | "error";
+  /** Content only: Twilio's per-session SequenceId, final utterances only. */
+  readonly sequence?: number;
+  readonly speaker?: "researcher" | "customer" | "unknown";
+  readonly text?: string;
+  readonly occurredAt?: Date | undefined;
+}
+
+export interface TwilioTranscriptStore {
+  /**
+   * Creates the interview's transcript before Twilio starts, or returns null
+   * when one already started: a second session would restart SequenceId.
+   */
+  beginTranscript(
+    merchantId: string,
+    interviewId: string,
+  ): Promise<string | null>;
+  setTranscriptReference(
+    transcriptId: string,
+    transcriptionSid: string,
+  ): Promise<void>;
+  getActiveTranscription(
+    context: TenantContext,
+    interviewId: string,
+  ): Promise<{ callSid: string; transcriptionSid: string } | null>;
+  /** False when no transcript belongs to the call (unknown or foreign). */
+  recordTranscriptionEvent(event: TranscriptionEvent): Promise<boolean>;
+}
+
+/**
+ * Live transcription is keyed by the researcher's call: callbacks name the
+ * CallSid, and each interview has exactly one Twilio call and transcript.
+ */
+export class PostgresTwilioTranscriptStore implements TwilioTranscriptStore {
+  constructor(private readonly db: Database) {}
+
+  async beginTranscript(
+    merchantId: string,
+    interviewId: string,
+  ): Promise<string | null> {
+    const id = stableUuid(`twilio-transcript:${interviewId}`);
+    await this.db
+      .insert(transcripts)
+      .values({
+        id,
+        merchantId,
+        interviewId,
+        provider: "twilio",
+        language: "en-US",
+        status: "processing",
+        schemaVersion: 1,
+      })
+      .onConflictDoNothing();
+    const [row] = await this.db
+      .select({ providerRef: transcripts.providerRef })
+      .from(transcripts)
+      .where(
+        and(eq(transcripts.id, id), eq(transcripts.merchantId, merchantId)),
+      );
+    return row && !row.providerRef ? id : null;
+  }
+
+  async setTranscriptReference(
+    transcriptId: string,
+    transcriptionSid: string,
+  ): Promise<void> {
+    await this.db
+      .update(transcripts)
+      .set({
+        providerRef: transcriptionSid,
+        status: "processing",
+        updatedAt: new Date(),
+      })
+      .where(eq(transcripts.id, transcriptId));
+  }
+
+  async getActiveTranscription(
+    context: TenantContext,
+    interviewId: string,
+  ): Promise<{ callSid: string; transcriptionSid: string } | null> {
+    const [row] = await this.db
+      .select({
+        transcriptionSid: transcripts.providerRef,
+        callSid: calls.providerCallRef,
+      })
+      .from(transcripts)
+      .innerJoin(
+        interviews,
+        and(
+          eq(interviews.id, transcripts.interviewId),
+          eq(interviews.merchantId, transcripts.merchantId),
+        ),
+      )
+      .innerJoin(
+        calls,
+        and(
+          eq(calls.interviewId, transcripts.interviewId),
+          eq(calls.merchantId, transcripts.merchantId),
+          eq(calls.provider, "twilio"),
+        ),
+      )
+      .where(
+        and(
+          eq(transcripts.interviewId, interviewId),
+          eq(transcripts.merchantId, context.merchantId),
+          eq(transcripts.provider, "twilio"),
+          eq(transcripts.status, "processing"),
+          eq(interviews.researcherId, context.researcherId),
+        ),
+      );
+    return row?.transcriptionSid &&
+      row.callSid &&
+      TRANSCRIPTION_SID.test(row.transcriptionSid) &&
+      CALL_SID.test(row.callSid)
+      ? { callSid: row.callSid, transcriptionSid: row.transcriptionSid }
+      : null;
+  }
+
+  async recordTranscriptionEvent(event: TranscriptionEvent): Promise<boolean> {
+    const [row] = await this.db
+      .select({
+        id: transcripts.id,
+        merchantId: transcripts.merchantId,
+        interviewId: transcripts.interviewId,
+        providerRef: transcripts.providerRef,
+        createdAt: transcripts.createdAt,
+      })
+      .from(transcripts)
+      .innerJoin(
+        calls,
+        and(
+          eq(calls.interviewId, transcripts.interviewId),
+          eq(calls.merchantId, transcripts.merchantId),
+          eq(calls.provider, "twilio"),
+        ),
+      )
+      .where(
+        and(
+          eq(calls.providerCallRef, event.callSid),
+          eq(transcripts.provider, "twilio"),
+        ),
+      );
+    // A callback can beat the API response that records the reference; any
+    // other mismatch is a transcription this interview did not start.
+    if (!row || (row.providerRef && row.providerRef !== event.transcriptionSid))
+      return false;
+    const now = new Date();
+    if (event.kind === "content") {
+      await this.db
+        .insert(transcriptSegments)
+        .values({
+          id: stableUuid(`twilio-segment:${row.id}:${event.sequence}`),
+          merchantId: row.merchantId,
+          transcriptId: row.id,
+          interviewId: row.interviewId,
+          sequence: event.sequence!,
+          speaker: event.speaker!,
+          // Twilio stamps when the utterance was finalised, so this is its end.
+          startMs: null,
+          endMs: event.occurredAt
+            ? Math.max(0, event.occurredAt.getTime() - row.createdAt.getTime())
+            : null,
+          text: event.text!,
+        })
+        .onConflictDoNothing();
+      return true;
+    }
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(transcripts)
+        .set(
+          event.kind === "stopped"
+            ? { status: "completed", completedAt: now, updatedAt: now }
+            : { status: "failed", updatedAt: now },
+        )
+        .where(eq(transcripts.id, row.id));
+      await tx
+        .update(interviews)
+        .set({
+          transcriptStatus: event.kind === "stopped" ? "ready" : "failed",
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(interviews.id, row.interviewId),
+            eq(interviews.merchantId, row.merchantId),
+          ),
+        );
+    });
+    return true;
+  }
+}
+
 export interface TwilioServerDependencies {
   store: TwilioCallStore;
   dialer: Pick<DialerProvider, "startRecording" | "stopRecording">;
@@ -306,6 +510,16 @@ export interface TwilioServerDependencies {
   now(): number;
   transferCompletedRecording?:
     ((recordingSid: string) => Promise<void>) | undefined;
+  /** Set when TRANSCRIPTION_PROVIDER=twilio; starts with recording consent. */
+  transcription?:
+    | {
+        store: TwilioTranscriptStore;
+        dialer: Pick<
+          TwilioDialerProvider,
+          "startTranscription" | "stopTranscription"
+        >;
+      }
+    | undefined;
 }
 
 let configured: TwilioServerDependencies | undefined;
@@ -355,6 +569,10 @@ export function getTwilioServerDependencies(): TwilioServerDependencies {
     appBaseUrl,
     intentSecret: required("TWILIO_CALL_INTENT_SECRET"),
     now: () => Date.now(),
+    transcription:
+      process.env.TRANSCRIPTION_PROVIDER === "twilio"
+        ? { store: new PostgresTwilioTranscriptStore(db), dialer }
+        : undefined,
     // Without R2, completed recordings stay with Twilio as ready_for_transfer.
     transferCompletedRecording: objectStore
       ? async (recordingSid) => {

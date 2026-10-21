@@ -148,6 +148,64 @@ export class TwilioDialerProvider implements DialerProvider {
     return toRecordingSession(response);
   }
 
+  /**
+   * Starts real-time transcription of both legs. Results arrive only at the
+   * status callback; with no Intelligence service or conversation set,
+   * Twilio does not keep the transcript. On the researcher's browser call
+   * (an inbound call to Twilio) the inbound track is the researcher.
+   */
+  async startTranscription(input: {
+    providerCallReference: string;
+    statusCallbackUrl: string;
+  }): Promise<{ providerTranscriptionReference: string }> {
+    assertSid(input.providerCallReference, "providerCallReference", "CA");
+    assertHttpsUrl(input.statusCallbackUrl, "statusCallbackUrl");
+    const response = await this.requestJson<{ sid: string }>(
+      "start transcription",
+      `/2010-04-01/Accounts/${this.config.accountSid}/Calls/${input.providerCallReference}/Transcriptions.json`,
+      {
+        method: "POST",
+        body: new URLSearchParams({
+          Track: "both_tracks",
+          InboundTrackLabel: "researcher",
+          OutboundTrackLabel: "customer",
+          TranscriptionEngine: "deepgram",
+          SpeechModel: "nova-3",
+          LanguageCode: "en-US",
+          PartialResults: "false",
+          EnableAutomaticPunctuation: "true",
+          StatusCallbackUrl: input.statusCallbackUrl,
+          StatusCallbackMethod: "POST",
+        }),
+      },
+    );
+    assertSid(response.sid, "transcription sid", "GT");
+    return { providerTranscriptionReference: response.sid };
+  }
+
+  async stopTranscription(
+    providerCallReference: string,
+    providerTranscriptionReference: string,
+  ): Promise<void> {
+    assertSid(providerCallReference, "providerCallReference", "CA");
+    assertSid(
+      providerTranscriptionReference,
+      "providerTranscriptionReference",
+      "GT",
+    );
+    try {
+      await this.request(
+        "stop transcription",
+        `/2010-04-01/Accounts/${this.config.accountSid}/Calls/${providerCallReference}/Transcriptions/${providerTranscriptionReference}.json`,
+        { method: "POST", body: new URLSearchParams({ Status: "stopped" }) },
+      );
+    } catch (error) {
+      // Already ended with the call; nothing left to stop.
+      if (error instanceof TwilioProviderError && error.status === 404) return;
+      throw error;
+    }
+  }
+
   async getRecording(
     providerRecordingReference: string,
   ): Promise<RecordingSession> {

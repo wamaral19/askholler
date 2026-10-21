@@ -22,9 +22,10 @@ export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
     const context = await getTenantContext(request);
     const service = getOperationsService();
-    const [assignments, moments] = await Promise.all([
+    const [assignments, moments, general] = await Promise.all([
       service.listQueue(context),
       service.listMoments(context),
+      service.getGeneralCalls(context),
     ]);
     // Only running or paused angles can have work waiting in the queue.
     const angles = moments
@@ -37,6 +38,7 @@ export async function loader({ request }: { request: Request }) {
       angles,
       researcherId: context.researcherId,
       liveCount: angles.filter((angle) => angle.status === "live").length,
+      generalLive: general?.status === "live",
       refreshedAt: new Date().toISOString(),
     };
   });
@@ -126,7 +128,7 @@ export function shouldRevalidate({
 }
 
 export function meta() {
-  return [{ title: "Order queue · Holler" }];
+  return [{ title: "Live queue · Holler" }];
 }
 
 /** Orders drop out after five minutes, so the table keeps itself current. */
@@ -212,8 +214,14 @@ const newestFirst = (a: QueueItem, b: QueueItem) =>
   Date.parse(b.orderedAt) - Date.parse(a.orderedAt);
 
 export default function ResearchQueueRoute() {
-  const { assignments, angles, researcherId, liveCount, refreshedAt } =
-    useLoaderData<typeof loader>();
+  const {
+    assignments,
+    angles,
+    researcherId,
+    liveCount,
+    generalLive,
+    refreshedAt,
+  } = useLoaderData<typeof loader>();
   const revalidator = useRevalidator();
   const [params, setParams] = useSearchParams();
 
@@ -266,7 +274,7 @@ export default function ResearchQueueRoute() {
       .filter((item) => !angles.some((angle) => angle.id === item.momentId))
       .map((item) => ({
         id: item.momentId,
-        name: item.moment,
+        name: item.general ? "No angle" : item.moment,
         status: undefined,
       })),
   ].filter(
@@ -287,7 +295,7 @@ export default function ResearchQueueRoute() {
           ? item.orderSequence > 1
           : true),
   );
-  // The ten newest qualifying orders, then the researcher's chosen order.
+  // The ten newest matching orders, then the researcher's chosen order.
   const visible = [...qualifying]
     .sort(newestFirst)
     .slice(0, VISIBLE_ROWS)
@@ -304,14 +312,14 @@ export default function ResearchQueueRoute() {
     <AppShell
       className="app-shell--console"
       eyebrow="Research operations"
-      title="Order queue"
-      description="The ten newest qualifying orders."
+      title="Live queue"
+      description="The ten newest callable orders. Research angle is blank when no angle matched."
       hideHeader
     >
       <div className="call-sheet queue-sheet">
         <section className="call-bar queue-bar" aria-label="Queue filters">
           <div className="queue-bar__title">
-            <strong>Order queue</strong>
+            <strong>Live queue</strong>
             <span>
               <span className="status-dot" />
               Updated {easternTime.format(new Date(refreshedAt))} ET · every 15
@@ -375,10 +383,11 @@ export default function ResearchQueueRoute() {
           </div>
         </section>
 
-        {liveCount === 0 ? (
+        {liveCount === 0 && !generalLive ? (
           <p className="inline-notice" role="status">
-            No angles are live, so no new orders are coming in. Resume or launch
-            an angle in Angle setup to start calling again.
+            No angles are live and general calls are paused, so no new orders
+            are coming in. Resume general calls or launch an angle in Angle
+            setup to start calling again.
           </p>
         ) : null}
 
@@ -387,10 +396,10 @@ export default function ResearchQueueRoute() {
             <h2>Newest orders</h2>
             <span className="sheet-section__meta">
               {visible.length
-                ? `${visible.length} of ${qualifying.length} qualifying${filtered ? " (filtered)" : ""} · faded after 3 minutes`
+                ? `${visible.length} of ${qualifying.length} orders${filtered ? " (filtered)" : ""} · faded after 3 minutes`
                 : filtered
                   ? "No orders match these filters"
-                  : "Waiting for qualifying orders"}
+                  : "Waiting for new orders"}
             </span>
           </header>
           <div className="queue-table-wrap">

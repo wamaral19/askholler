@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   bigint,
@@ -440,15 +441,29 @@ export const researchFieldSetItems = pgTable(
   ],
 );
 
-export const researchMoments = pgTable("research_moments", {
-  id: uuid("id").primaryKey(),
-  merchantId: uuid("merchant_id")
-    .notNull()
-    .references(() => merchants.id),
-  name: text("name").notNull(),
-  status: text("status").notNull(),
-  ...timestamps,
-});
+export const researchMoments = pgTable(
+  "research_moments",
+  {
+    id: uuid("id").primaryKey(),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    name: text("name").notNull(),
+    status: text("status").notNull(),
+    /**
+     * "angle" moments queue orders their cohort matches. The one "general"
+     * moment per merchant queues callable orders no angle claimed, using the
+     * merchant's default fields and its own editable script.
+     */
+    kind: text("kind").notNull().default("angle"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("research_moments_general_uidx")
+      .on(table.merchantId)
+      .where(sql`${table.kind} = 'general'`),
+  ],
+);
 
 export const researchMomentVersions = pgTable(
   "research_moment_versions",

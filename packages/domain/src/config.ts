@@ -15,7 +15,7 @@ const serverEnvironmentSchema = z
     DIALER_PROVIDER: z.enum(["fake", "twilio", "zapier"]).default("fake"),
     /** Zapier "Catch Hook" URL; receives the number to dial. */
     ZAPIER_DIAL_WEBHOOK_URL: z.string().url().optional(),
-    TRANSCRIPTION_PROVIDER: z.enum(["fake"]).default("fake"),
+    TRANSCRIPTION_PROVIDER: z.enum(["fake", "twilio"]).default("fake"),
     OBJECT_STORE_PROVIDER: z.enum(["fake", "r2"]).default("fake"),
     WORKFORCE_AUTH_PROVIDER: z.enum(["synthetic", "oidc"]).default("synthetic"),
     OIDC_ISSUER: z.string().url().optional(),

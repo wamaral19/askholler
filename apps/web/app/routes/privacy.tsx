@@ -1,12 +1,14 @@
+import {
+  MarketingFooter,
+  MarketingHeader,
+  marketingMeta,
+} from "../components/marketing-shell";
+
 export function meta() {
-  return [
-    { title: "Privacy Policy — Holler" },
-    {
-      name: "description",
-      content:
-        "How Holler collects, uses, and protects personal information, including during customer research calls.",
-    },
-  ];
+  return marketingMeta(
+    "Privacy Policy | Holler",
+    "How Holler collects, uses, and protects personal information, including during customer research calls.",
+  );
 }
 
 const lastUpdated = "September 29, 2026";
@@ -15,20 +17,11 @@ const privacyHref = `mailto:${privacyEmail}`;
 
 export default function Privacy() {
   return (
-    <main className="simple-landing privacy-page" id="top">
-      <header className="simple-header is-scrolled">
-        <div className="simple-header-inner">
-          <a className="simple-brand" href="/" aria-label="Holler home">
-            <img src="/brand/holler-wordmark-primary.png" alt="Holler" />
-          </a>
-          <a className="simple-header-cta" href="/">
-            Home
-          </a>
-        </div>
-      </header>
+    <main className="holler-preview privacy-page" id="top">
+      <MarketingHeader />
 
       <article className="privacy-policy">
-        <p className="simple-eyebrow">Last updated {lastUpdated}</p>
+        <p className="preview-kicker">Last updated {lastUpdated}</p>
         <h1>Privacy Policy</h1>
 
         <p>
@@ -294,10 +287,7 @@ export default function Privacy() {
         </section>
       </article>
 
-      <footer className="simple-footer">
-        <span>© {new Date().getFullYear()} Holler</span>
-        <a href="#top">Back to top ↑</a>
-      </footer>
+      <MarketingFooter />
     </main>
   );
 }

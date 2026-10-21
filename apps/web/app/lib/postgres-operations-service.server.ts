@@ -17,6 +17,7 @@ import {
   outboxEvents,
   productCategories,
   productCategoryAssignments,
+  recordings,
   reportRevisions,
   reports,
   researchAssignments,
@@ -29,6 +30,8 @@ import {
   researchMomentVersions,
   scripts,
   scriptVersions,
+  transcriptSegments,
+  transcripts,
   type HollerDatabase,
 } from "@holler/db";
 import {
@@ -60,9 +63,11 @@ import type {
   LibraryScript,
   MomentRunStatus,
   MomentScript,
+  CallReview,
   CallSheetOrder,
   CallSheetProfile,
   CallSheetPrompt,
+  CompletedCall,
   OperationsApplicationService,
   PhoneRevealPurpose,
   PromptProgressInput,
@@ -78,7 +83,10 @@ import {
   momentStatusFromPersisted,
   persistedMomentStatus,
 } from "./moment-status";
-import type { PrototypeResearchField } from "./prototype-data";
+import type {
+  PrototypeResearchField,
+  ResearchMomentSummary,
+} from "./prototype-data";
 import {
   cohortCategoryKeys,
   describeCohort,
@@ -168,6 +176,18 @@ const safeJson = (value: unknown): Record<string, unknown> =>
 
 const textValue = (value: unknown, fallback: string): string =>
   typeof value === "string" && value.trim() ? value : fallback;
+
+const closedOutcome = (outcome: string | null): InterviewOutcome =>
+  outcome === "no_answer" || outcome === "declined" ? outcome : "completed";
+
+/** Seconds from answer to hang-up; null for calls that never connected. */
+const callSeconds = (
+  answeredAt: Date | null | undefined,
+  endedAt: Date | null | undefined,
+) =>
+  answeredAt && endedAt
+    ? Math.max(0, Math.round((endedAt.getTime() - answeredAt.getTime()) / 1000))
+    : null;
 
 const formatMoney = (minor: number, currency: string): string =>
   new Intl.NumberFormat("en-US", {
@@ -391,6 +411,25 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
 
   async listMoments(context: TenantContext) {
     await this.requireMerchant(context);
+    return this.momentSummaries(context, "angle");
+  }
+
+  /**
+   * The merchant's general calls (orders no angle matched), created on first
+   * use and kept on the merchant's default fields; null without any script.
+   */
+  async getGeneralCalls(
+    context: TenantContext,
+  ): Promise<ResearchMomentSummary | null> {
+    await this.requireMerchant(context);
+    await this.ensureGeneralMoment(context);
+    return (await this.momentSummaries(context, "general"))[0] ?? null;
+  }
+
+  private async momentSummaries(
+    context: TenantContext,
+    kind: "angle" | "general",
+  ): Promise<ResearchMomentSummary[]> {
     const rows = await this.db
       .select({
         id: researchMoments.id,
@@ -427,7 +466,12 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           researchMomentVersions.researchFieldSetVersionId,
         ),
       )
-      .where(eq(researchMoments.merchantId, context.merchantId))
+      .where(
+        and(
+          eq(researchMoments.merchantId, context.merchantId),
+          eq(researchMoments.kind, kind),
+        ),
+      )
       .groupBy(
         researchMoments.id,
         researchMoments.name,
@@ -462,7 +506,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           row.publishedAt !== null,
         ),
         trigger: row.eventType.replaceAll("_", " "),
-        cohortSummary: describeCohort(row.cohortExpression, labeler),
+        cohortSummary:
+          kind === "general"
+            ? "Callable orders that no live angle matched"
+            : describeCohort(row.cohortExpression, labeler),
         weeklyTarget:
           typeof allocation.weeklyCap === "number" ? allocation.weeklyCap : 0,
         fieldCount: row.fieldCount,
@@ -559,9 +606,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     await this.requireMerchant(context);
     if (!canManageMoments(context.roles))
       throw new OperationsError("MOMENT_MANAGER_ROLE_REQUIRED", 403);
-    const current = (await this.listMoments(context)).find(
-      (moment) => moment.id === momentId,
-    );
+    const current = [
+      ...(await this.momentSummaries(context, "angle")),
+      ...(await this.momentSummaries(context, "general")),
+    ].find((moment) => moment.id === momentId);
     if (!current) throw new OperationsError("RESEARCH_MOMENT_NOT_FOUND", 404);
     if (
       current.status === "draft" ||
@@ -781,6 +829,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           });
       }
     });
+    await this.ensureGeneralMoment(context);
   }
 
   async listScripts(context: TenantContext): Promise<readonly LibraryScript[]> {
@@ -1211,6 +1260,138 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     });
   }
 
+  /**
+   * Creates the merchant's general moment, or gives it a new version when the
+   * merchant's default fields changed. Its script starts as the first library
+   * script and is edited like any angle's. Returns null without a script.
+   */
+  private async ensureGeneralMoment(
+    context: TenantContext,
+  ): Promise<string | null> {
+    return this.db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${`general-moment:${context.merchantId}`}))`,
+      );
+      const defaults = (await this.fieldLibrary(tx, context, false))
+        .filter((field) => field.includedByDefault)
+        .map((field) => ({
+          fieldVersionId: field.id,
+          required: field.required,
+          source:
+            field.source === "platform_default"
+              ? "platform_default"
+              : "merchant_default",
+        }));
+      const [existing] = await tx
+        .select({ id: researchMoments.id })
+        .from(researchMoments)
+        .where(
+          and(
+            eq(researchMoments.merchantId, context.merchantId),
+            eq(researchMoments.kind, "general"),
+          ),
+        );
+      const fieldSetId = stableUuid(`general-field-set:${context.merchantId}`);
+      const now = this.now();
+      const insertFieldSetVersion = async (version: number) => {
+        const id = randomUUID();
+        await tx.insert(researchFieldSetVersions).values({
+          id,
+          researchFieldSetId: fieldSetId,
+          version,
+          status: "published",
+          publishedAt: now,
+        });
+        if (defaults.length)
+          await tx.insert(researchFieldSetItems).values(
+            defaults.map((item, index) => ({
+              fieldSetVersionId: id,
+              ...item,
+              displayOrder: index,
+            })),
+          );
+        return id;
+      };
+
+      if (!existing) {
+        const [script] = await this.scriptLibrary(tx, context);
+        if (!script) return null;
+        const momentId = stableUuid(`general-moment:${context.merchantId}`);
+        await tx.insert(researchMoments).values({
+          id: momentId,
+          merchantId: context.merchantId,
+          name: "General calls",
+          status: "active",
+          kind: "general",
+        });
+        await tx.insert(researchFieldSets).values({
+          id: fieldSetId,
+          merchantId: context.merchantId,
+          name: "General calls fields",
+        });
+        await tx.insert(researchMomentVersions).values({
+          id: randomUUID(),
+          researchMomentId: momentId,
+          merchantId: context.merchantId,
+          version: 1,
+          eventType: "order_completed",
+          objective:
+            "Learn from customers whose orders matched no research angle.",
+          // Never evaluated: the worker falls back to it when no angle queues.
+          cohortExpression: { all: [] },
+          priority: 0,
+          allocationPolicy: {},
+          scriptVersionId: script.versionId,
+          researchFieldSetVersionId: await insertFieldSetVersion(1),
+          activeFrom: now,
+          publishedAt: now,
+        });
+        return momentId;
+      }
+
+      const current = await this.currentMomentVersion(tx, context, existing.id);
+      const pinned = await tx
+        .select({
+          fieldVersionId: researchFieldSetItems.fieldVersionId,
+          required: researchFieldSetItems.required,
+        })
+        .from(researchFieldSetItems)
+        .where(
+          eq(
+            researchFieldSetItems.fieldSetVersionId,
+            current.version.researchFieldSetVersionId,
+          ),
+        )
+        .orderBy(asc(researchFieldSetItems.displayOrder));
+      const unchanged =
+        pinned.length === defaults.length &&
+        pinned.every(
+          (item, index) =>
+            item.fieldVersionId === defaults[index]!.fieldVersionId &&
+            item.required === defaults[index]!.required,
+        );
+      if (unchanged) return existing.id;
+      const [latest] = await tx
+        .select({
+          version: sql<number>`coalesce(max(${researchFieldSetVersions.version}), 0)::int`,
+        })
+        .from(researchFieldSetVersions)
+        .where(eq(researchFieldSetVersions.researchFieldSetId, fieldSetId));
+      const { id: _previous, version, ...carried } = current.version;
+      await tx.insert(researchMomentVersions).values({
+        ...carried,
+        id: randomUUID(),
+        version: version + 1,
+        researchFieldSetVersionId: await insertFieldSetVersion(
+          (latest?.version ?? 0) + 1,
+        ),
+        createdAt: now,
+        updatedAt: now,
+      });
+      return existing.id;
+    });
+  }
+
   private async currentMomentVersion(
     executor: DbExecutor,
     context: TenantContext,
@@ -1220,6 +1401,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       .select({
         version: researchMomentVersions,
         momentName: researchMoments.name,
+        momentKind: researchMoments.kind,
         momentStatus: researchMoments.status,
         scriptName: scripts.name,
         scriptKind: scripts.kind,
@@ -1455,6 +1637,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
 
   async listQueue(context: TenantContext): Promise<readonly QueueItem[]> {
     await this.requireMerchant(context);
+    await this.ensureGeneralMoment(context);
     const now = this.now();
     await this.expireAssignments(context.merchantId, now);
     const rows = await this.db
@@ -1472,6 +1655,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         merchantName: merchants.name,
         momentId: researchMoments.id,
         momentName: researchMoments.name,
+        momentKind: researchMoments.kind,
         momentStatus: researchMoments.status,
         totalMinor: orders.totalMinor,
         currency: orders.currency,
@@ -1773,7 +1957,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   ): Promise<InterviewWorkspace> {
     await this.requireMerchant(context);
     const existing = await this.findInterview(context, assignmentId);
-    if (existing) return this.workspace(context, existing.id);
+    if (existing) return this.getInterview(context, existing.id);
     const now = this.now();
     const interviewId = stableUuid(
       `interview:${context.merchantId}:${assignmentId}`,
@@ -1838,10 +2022,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     });
     if (!started) {
       const retry = await this.findInterview(context, assignmentId);
-      if (retry) return this.workspace(context, retry.id);
+      if (retry) return this.getInterview(context, retry.id);
       throw new OperationsError("ASSIGNMENT_CONFLICT", 409);
     }
-    return this.workspace(context, interviewId);
+    return this.getInterview(context, interviewId);
   }
 
   async revealPhone(
@@ -1926,7 +2110,208 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   }
 
   async getInterview(context: TenantContext, interviewId: string) {
-    return this.workspace(context, interviewId);
+    return this.workspace(
+      context,
+      await this.requireOwnedInterview(context, interviewId),
+    );
+  }
+
+  async listCompletedCalls(
+    context: TenantContext,
+  ): Promise<readonly CompletedCall[]> {
+    await this.requireMerchant(context);
+    const rows = await this.db
+      .select({
+        interviewId: interviews.id,
+        outcome: interviews.outcome,
+        endedAt: interviews.endedAt,
+        researcherId: interviews.researcherId,
+        momentName: researchMoments.name,
+        momentKind: researchMoments.kind,
+        orderNumber: orders.sourceOrderNumber,
+        answeredAt: calls.answeredAt,
+        callEndedAt: calls.endedAt,
+        recordingStatus: recordings.status,
+        transcriptLines: sql<number>`(select count(*)::int from ${transcriptSegments} where ${transcriptSegments.interviewId} = ${interviews.id} and ${transcriptSegments.merchantId} = ${interviews.merchantId})`,
+        promptsCovered: sql<number>`(select count(*)::int from ${interviewPromptProgress} where ${interviewPromptProgress.interviewId} = ${interviews.id} and ${interviewPromptProgress.merchantId} = ${interviews.merchantId} and ${interviewPromptProgress.coveredAt} is not null)`,
+      })
+      .from(interviews)
+      .innerJoin(
+        researchAssignments,
+        and(
+          eq(researchAssignments.id, interviews.researchAssignmentId),
+          eq(researchAssignments.merchantId, interviews.merchantId),
+        ),
+      )
+      .innerJoin(
+        researchMomentVersions,
+        eq(
+          researchMomentVersions.id,
+          researchAssignments.researchMomentVersionId,
+        ),
+      )
+      .innerJoin(
+        researchMoments,
+        eq(researchMoments.id, researchMomentVersions.researchMomentId),
+      )
+      .innerJoin(
+        orders,
+        and(
+          eq(orders.id, researchAssignments.orderId),
+          eq(orders.merchantId, interviews.merchantId),
+        ),
+      )
+      .leftJoin(
+        calls,
+        and(
+          eq(calls.interviewId, interviews.id),
+          eq(calls.merchantId, interviews.merchantId),
+        ),
+      )
+      .leftJoin(
+        recordings,
+        and(
+          eq(recordings.interviewId, interviews.id),
+          eq(recordings.merchantId, interviews.merchantId),
+          isNull(recordings.deletedAt),
+        ),
+      )
+      .where(
+        and(
+          eq(interviews.merchantId, context.merchantId),
+          inArray(interviews.status, ["completed", "aborted"]),
+          ...(canManageMoments(context.roles)
+            ? []
+            : [eq(interviews.researcherId, context.researcherId)]),
+        ),
+      )
+      .orderBy(desc(interviews.endedAt))
+      .limit(200);
+    return rows.map((row) => ({
+      interviewId: row.interviewId,
+      outcome: closedOutcome(row.outcome),
+      endedAt: row.endedAt?.toISOString() ?? null,
+      angle: row.momentKind === "general" ? "" : row.momentName,
+      orderNumber: row.orderNumber,
+      durationSeconds: callSeconds(row.answeredAt, row.callEndedAt),
+      transcriptLines: row.transcriptLines,
+      hasRecording: row.recordingStatus?.startsWith("stored") ?? false,
+      promptsCovered: row.promptsCovered,
+      mine: row.researcherId === context.researcherId,
+    }));
+  }
+
+  async getCallReview(
+    context: TenantContext,
+    interviewId: string,
+  ): Promise<CallReview> {
+    const interview = await this.requireReviewableInterview(
+      context,
+      interviewId,
+    );
+    const [call] = await this.db
+      .select({ answeredAt: calls.answeredAt, endedAt: calls.endedAt })
+      .from(calls)
+      .where(
+        and(
+          eq(calls.interviewId, interviewId),
+          eq(calls.merchantId, context.merchantId),
+        ),
+      )
+      .limit(1);
+    const [transcript] = await this.db
+      .select({ id: transcripts.id, status: transcripts.status })
+      .from(transcripts)
+      .where(
+        and(
+          eq(transcripts.interviewId, interviewId),
+          eq(transcripts.merchantId, context.merchantId),
+          isNull(transcripts.deletedAt),
+        ),
+      )
+      .orderBy(desc(transcripts.createdAt))
+      .limit(1);
+    const lines = transcript
+      ? await this.db
+          .select({
+            sequence: transcriptSegments.sequence,
+            speaker: transcriptSegments.speaker,
+            atMs: transcriptSegments.endMs,
+            text: transcriptSegments.text,
+          })
+          .from(transcriptSegments)
+          .where(
+            and(
+              eq(transcriptSegments.transcriptId, transcript.id),
+              eq(transcriptSegments.merchantId, context.merchantId),
+            ),
+          )
+          .orderBy(asc(transcriptSegments.sequence))
+      : [];
+    const [recording] = await this.db
+      .select({ status: recordings.status })
+      .from(recordings)
+      .where(
+        and(
+          eq(recordings.interviewId, interviewId),
+          eq(recordings.merchantId, context.merchantId),
+          isNull(recordings.deletedAt),
+        ),
+      )
+      .limit(1);
+    return {
+      ...(await this.workspace(context, interview)),
+      outcome: closedOutcome(interview.outcome),
+      endedAt: interview.endedAt?.toISOString() ?? null,
+      durationSeconds: callSeconds(call?.answeredAt, call?.endedAt),
+      transcriptStatus: !transcript
+        ? "none"
+        : transcript.status === "completed" || transcript.status === "ready"
+          ? "completed"
+          : transcript.status === "failed"
+            ? "failed"
+            : "processing",
+      transcript: lines.map((line) => ({
+        sequence: line.sequence,
+        speaker:
+          line.speaker === "researcher" || line.speaker === "customer"
+            ? line.speaker
+            : "unknown",
+        atMs: line.atMs,
+        text: line.text,
+      })),
+      hasRecording: recording?.status.startsWith("stored") ?? false,
+    };
+  }
+
+  async getRecordingObjectKey(
+    context: TenantContext,
+    interviewId: string,
+  ): Promise<string | null> {
+    await this.requireReviewableInterview(context, interviewId);
+    const [recording] = await this.db
+      .select({ objectKey: recordings.objectKey, status: recordings.status })
+      .from(recordings)
+      .where(
+        and(
+          eq(recordings.interviewId, interviewId),
+          eq(recordings.merchantId, context.merchantId),
+          isNull(recordings.deletedAt),
+        ),
+      )
+      .limit(1);
+    if (!recording?.status.startsWith("stored")) return null;
+    await this.db.insert(auditEvents).values({
+      id: randomUUID(),
+      merchantId: context.merchantId,
+      actorId: context.researcherId,
+      action: "recording.playback_authorized",
+      subjectType: "interview",
+      subjectId: interviewId,
+      metadata: { correlationId: context.correlationId },
+      occurredAt: this.now(),
+    });
+    return recording.objectKey;
   }
 
   async saveResponse(
@@ -1968,6 +2353,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     interview: { id: string; researchFieldSetVersionId: string },
     fieldId: string,
     value: unknown,
+    origin: { provenance: string; source: string } = {
+      provenance: "human_entered",
+      source: "live_interview",
+    },
   ) {
     const interviewId = interview.id;
     const prior = await this.db
@@ -2000,8 +2389,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         researchFieldSetVersionId: interview.researchFieldSetVersionId,
         version: (prior[0]?.version ?? 0) + 1,
         value,
-        provenance: "human_entered",
-        provenanceDetails: { source: "live_interview" },
+        provenance: origin.provenance,
+        provenanceDetails: { source: origin.source },
         reviewStatus: "accepted",
         createdBy: context.researcherId,
         reviewedBy: context.researcherId,
@@ -2046,6 +2435,36 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     const interview = await this.requireOwnedInterview(context, interviewId);
     if (interview.status !== "in_progress")
       throw new OperationsError("INTERVIEW_CLOSED", 409);
+    await this.applyPromptProgress(context, interview, promptKey, input, {
+      provenance: "human_entered",
+      source: "live_interview",
+    });
+  }
+
+  async reviewPromptProgress(
+    context: TenantContext,
+    interviewId: string,
+    promptKey: string,
+    input: PromptProgressInput,
+  ) {
+    const interview = await this.requireReviewableInterview(
+      context,
+      interviewId,
+    );
+    await this.applyPromptProgress(context, interview, promptKey, input, {
+      provenance: "human_reviewed",
+      source: "call_review",
+    });
+  }
+
+  private async applyPromptProgress(
+    context: TenantContext,
+    interview: typeof interviews.$inferSelect,
+    promptKey: string,
+    input: PromptProgressInput,
+    origin: { provenance: string; source: string },
+  ) {
+    const interviewId = interview.id;
     const prompt = (await this.prompts(context, interview)).find(
       (candidate) => candidate.key === promptKey,
     );
@@ -2099,7 +2518,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
             : undefined
           : note || undefined;
     if (value !== undefined)
-      await this.recordResponse(context, interview, fieldId, value);
+      await this.recordResponse(context, interview, fieldId, value, origin);
   }
 
   async completeInterview(
@@ -2451,6 +2870,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         merchantName: merchants.name,
         momentId: researchMoments.id,
         momentName: researchMoments.name,
+        momentKind: researchMoments.kind,
         momentStatus: researchMoments.status,
         totalMinor: orders.totalMinor,
         currency: orders.currency,
@@ -2536,6 +2956,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       merchantName: string;
       momentId: string;
       momentName: string;
+      momentKind: string;
       totalMinor: number;
       currency: string;
       orderedAt: Date;
@@ -2569,7 +2990,9 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       maskedPhone: maskPhone(row.phoneLastFour, row.encryptedPhone),
       merchant: row.merchantName,
       momentId: row.momentId,
-      moment: row.momentName,
+      // Orders no angle matched carry no angle name.
+      moment: row.momentKind === "general" ? "" : row.momentName,
+      general: row.momentKind === "general",
       eventAgeMinutes: Math.max(
         0,
         Math.floor((now.getTime() - row.createdAt.getTime()) / 60_000),
@@ -2616,6 +3039,30 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     return row;
   }
 
+  /** A finished call, open to the researcher who made it or a manager. */
+  private async requireReviewableInterview(
+    context: TenantContext,
+    interviewId: string,
+  ) {
+    await this.requireMerchant(context);
+    const [row] = await this.db
+      .select()
+      .from(interviews)
+      .where(
+        and(
+          eq(interviews.id, interviewId),
+          eq(interviews.merchantId, context.merchantId),
+          inArray(interviews.status, ["completed", "aborted"]),
+          ...(canManageMoments(context.roles)
+            ? []
+            : [eq(interviews.researcherId, context.researcherId)]),
+        ),
+      )
+      .limit(1);
+    if (!row) throw new OperationsError("INTERVIEW_ACCESS_DENIED", 403);
+    return row;
+  }
+
   private async requireOwnedInterview(
     context: TenantContext,
     interviewId: string,
@@ -2645,9 +3092,9 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
 
   private async workspace(
     context: TenantContext,
-    interviewId: string,
+    interview: typeof interviews.$inferSelect,
   ): Promise<InterviewWorkspace> {
-    const interview = await this.requireOwnedInterview(context, interviewId);
+    const interviewId = interview.id;
     const assignment = await this.getAssignmentItem(
       context,
       interview.researchAssignmentId,

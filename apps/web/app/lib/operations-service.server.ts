@@ -202,6 +202,7 @@ function createSyntheticService(): OperationsApplicationService {
     const status = statuses.get(id) ?? "queued";
     return {
       ...safe,
+      general: false,
       itemCount: safe.products.length,
       orderedAt: new Date(
         startedAt - safe.eventAgeMinutes * 60_000,
@@ -405,6 +406,10 @@ function createSyntheticService(): OperationsApplicationService {
     async listMoments() {
       return moments();
     },
+    // Synthetic orders always belong to an angle.
+    async getGeneralCalls() {
+      return null;
+    },
     async setMomentStatus(context, momentId, status) {
       if (!canManageMoments(context.roles))
         throw new Response("Moment manager role required", { status: 403 });
@@ -544,6 +549,19 @@ function createSyntheticService(): OperationsApplicationService {
           item.key === key ? saved : item,
         ),
       });
+    },
+    // Synthetic calls keep no transcript or recording to review.
+    async listCompletedCalls() {
+      return [];
+    },
+    async getCallReview() {
+      throw new Response("Call review needs a database", { status: 404 });
+    },
+    async reviewPromptProgress() {
+      throw new Response("Call review needs a database", { status: 404 });
+    },
+    async getRecordingObjectKey() {
+      return null;
     },
     async completeInterview(context, id, outcome) {
       requireClaim(context, id);

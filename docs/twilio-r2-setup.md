@@ -51,6 +51,9 @@ TWILIO_TWIML_APP_SID=AP...
 TWILIO_CALLER_ID=+1...
 TWILIO_CALL_INTENT_SECRET=<at least 32 random characters>
 
+# Real-time transcription (requires accepting Twilio's AI/ML features addendum)
+TRANSCRIPTION_PROVIDER=twilio
+
 OBJECT_STORE_PROVIDER=r2
 R2_ACCOUNT_ID=...
 R2_ACCESS_KEY_ID=...
@@ -78,6 +81,13 @@ or password generator. It is independent of all Twilio credentials.
    consent control. Holler persists consent before calling Twilio's recording
    API.
 6. Signed callbacks update call and recording state idempotently.
+   With `TRANSCRIPTION_PROVIDER=twilio`, the same consent step also starts
+   Twilio real-time transcription (Deepgram Nova-3, both tracks). Signed
+   callbacks to `/api/twilio/transcription-status` store each final utterance
+   as a transcript segment; the browser leg's inbound track is the researcher
+   and the outbound track the customer. No Intelligence service or
+   conversation is attached, so Twilio delivers the text without keeping it.
+   Stopping the recording stops transcription; the call ending stops both.
 7. On recording completion, Holler downloads the authenticated recording,
    verifies its SHA-256 checksum, uploads it to private R2, records the durable
    transfer state, and deletes the Twilio copy.

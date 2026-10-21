@@ -28,7 +28,7 @@ export function loader({ request }: LoaderFunctionArgs) {
 }
 
 export function meta({ data }: MetaArgs<typeof loader>) {
-  const title = "Holler — Hear what your customers think";
+  const title = "Holler | Hear what your customers think";
   const description =
     "Holler has human, 1:1 conversations with your customers at exactly the moments you want to hear from them.";
   const socialImage = `${data?.origin ?? ""}/og.png`;

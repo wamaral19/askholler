@@ -92,7 +92,10 @@ export function AppShell({
               </NavLink>
               <NavLink to="/moments/new">Angle builder</NavLink>
             </NavGroup>
-            <NavLink to="/queue">Order queue</NavLink>
+            <NavGroup label="Live research">
+              <NavLink to="/queue">Live queue</NavLink>
+              <NavLink to="/calls">Completed calls</NavLink>
+            </NavGroup>
           </nav>
           <div className="sidebar-note">
             <span className="status-dot" />

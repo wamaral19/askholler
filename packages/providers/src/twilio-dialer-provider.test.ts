@@ -93,6 +93,59 @@ describe("TwilioDialerProvider", () => {
     await expect(dialer.deleteRecording(recordingSid)).resolves.toBeUndefined();
   });
 
+  it("starts live transcription of both legs with labelled tracks", async () => {
+    const transcriptionSid = `GT${"d".repeat(32)}`;
+    let requestedUrl = "";
+    let body: URLSearchParams | undefined;
+    const twilio = provider(
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        requestedUrl = String(url);
+        body = init?.body as URLSearchParams;
+        return Response.json({ sid: transcriptionSid, status: "in-progress" });
+      }),
+    );
+    await expect(
+      twilio.startTranscription({
+        providerCallReference: callSid,
+        statusCallbackUrl:
+          "https://app.withholler.com/api/twilio/transcription-status",
+      }),
+    ).resolves.toEqual({ providerTranscriptionReference: transcriptionSid });
+    expect(requestedUrl).toBe(
+      `https://twilio.test/2010-04-01/Accounts/${accountSid}/Calls/${callSid}/Transcriptions.json`,
+    );
+    expect(Object.fromEntries(body!)).toMatchObject({
+      Track: "both_tracks",
+      InboundTrackLabel: "researcher",
+      OutboundTrackLabel: "customer",
+      PartialResults: "false",
+      StatusCallbackUrl:
+        "https://app.withholler.com/api/twilio/transcription-status",
+    });
+    // No Intelligence service or conversation: Twilio keeps no transcript.
+    expect(body!.has("IntelligenceService")).toBe(false);
+    expect(body!.has("ConversationConfiguration")).toBe(false);
+  });
+
+  it("stops live transcription and tolerates one that already ended", async () => {
+    const transcriptionSid = `GT${"d".repeat(32)}`;
+    let body: URLSearchParams | undefined;
+    const stopped = provider(
+      vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+        body = init?.body as URLSearchParams;
+        return Response.json({ sid: transcriptionSid, status: "stopped" });
+      }),
+    );
+    await stopped.stopTranscription(callSid, transcriptionSid);
+    expect(body?.get("Status")).toBe("stopped");
+    const gone = provider(
+      vi.fn(async () => new Response(null, { status: 404 })),
+    );
+    await expect(
+      gone.stopTranscription(callSid, transcriptionSid),
+    ).resolves.toBeUndefined();
+  });
+
   it("requires a destination and emits redacted provider errors", async () => {
     const dialer = provider(
       vi.fn(

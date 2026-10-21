@@ -7,7 +7,8 @@
  *   npm run shopify:fake-orders -- --count 20 --interval 3s --install
  *
  * Reads SHOPIFY_API_SECRET (and DATABASE_URL for --install) from the shell,
- * falling back to .env.local. All customers, phones, and products are fictional.
+ * falling back to .env.local. All customers, phones, and products are fictional
+ * unless --phone supplies a real number for an end-to-end call test.
  */
 import { createHmac, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -27,6 +28,7 @@ const { values: args } = parseArgs({
     interval: { type: "string", default: "2s" },
     "api-version": { type: "string", default: "2026-10" },
     install: { type: "boolean", default: false },
+    phone: { type: "string" },
     help: { type: "boolean", default: false },
   },
 });
@@ -38,13 +40,21 @@ if (args.help) {
   --count <n>            orders to send (default 10)
   --interval <ms|Ns>     delay between orders (default 2s)
   --install              record the app install for --shop in DATABASE_URL first
-                         (needed if the shop never completed OAuth locally)`);
+                         (needed if the shop never completed OAuth locally)
+  --phone <+1XXXXXXXXXX> give every order a new customer with this real number
+                         (end-to-end call tests; needs PII_KMS_KEY_ID on the
+                         server, or the number is dropped at ingestion)`);
   process.exit(0);
 }
 
 const secret = process.env.SHOPIFY_API_SECRET;
 if (!secret) {
   console.error("SHOPIFY_API_SECRET is required (shell env or .env.local).");
+  process.exit(1);
+}
+
+if (args.phone !== undefined && !/^\+[1-9]\d{7,14}$/.test(args.phone)) {
+  console.error("--phone must be E.164, like +15551234567.");
   process.exit(1);
 }
 
@@ -195,7 +205,8 @@ function buildOrder(scenario: Scenario, now: Date) {
       id: customer.id,
       admin_graphql_api_id: `gid://shopify/Customer/${customer.id}`,
       email: `fake-customer-${customer.id}@example.invalid`,
-      phone: `+120255501${String(customer.id % 100).padStart(2, "0")}`,
+      phone:
+        args.phone ?? `+120255501${String(customer.id % 100).padStart(2, "0")}`,
       first_name: "Synthetic",
       last_name: "Shopper",
       created_at: customer.createdAt,
@@ -274,10 +285,10 @@ console.info(
 const tally = new Map<string, number>();
 for (let index = 0; index < count; index += 1) {
   const now = new Date();
-  const scenario = pickScenario(
-    knownCustomers.length > 0,
-    lastDelivery !== undefined,
-  );
+  // A real number only helps if the order can qualify and reach a call.
+  const scenario: Scenario = args.phone
+    ? "new_customer"
+    : pickScenario(knownCustomers.length > 0, lastDelivery !== undefined);
   let status: number;
   let label: string;
   if (scenario === "redelivery" && lastDelivery) {

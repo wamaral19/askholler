@@ -341,7 +341,7 @@ describe.skipIf(databaseUrl === undefined)(
       await service.releaseAssignment(context, queued!.id, 1);
     });
 
-    it("records repeat, capped, and incomplete-history orders without assigning", async () => {
+    it("records why repeat, capped, and incomplete-history orders miss the angle, then queues them as general calls", async () => {
       const now = new Date("2026-09-28T16:00:00.000Z");
       const cases = [
         // Same customer's second order: sequence 2, cohort requires 1.
@@ -372,7 +372,10 @@ describe.skipIf(databaseUrl === undefined)(
           now,
         );
         const evaluation = await isolated.db.execute(
-          sql`select reason_codes from qualification_evaluations where commerce_event_id = ${result.commerceEventId}`,
+          sql`select e.reason_codes from qualification_evaluations e
+              join research_moment_versions v on v.id = e.research_moment_version_id
+              join research_moments m on m.id = v.research_moment_id
+              where e.commerce_event_id = ${result.commerceEventId} and m.kind = 'angle'`,
         );
         reasons.push(evaluation.rows[0]?.reason_codes as string[]);
       }
@@ -382,9 +385,17 @@ describe.skipIf(databaseUrl === undefined)(
         ["cohort.match", "allocation.weekly_cap_reached"],
         ["customer.order_sequence.v1.history_incomplete"],
       ]);
-      expect(await count(sql`select count(*) from research_assignments`)).toBe(
-        1,
-      );
+      const assignmentsByKind = sql`select m.kind, count(*)::int as count
+        from research_assignments a
+        join research_moment_versions v on v.id = a.research_moment_version_id
+        join research_moments m on m.id = v.research_moment_id
+        group by m.kind order by m.kind`;
+      // The angle keeps its one capped slot; the three it passed on are
+      // callable, so each reaches the queue as a general call.
+      expect((await isolated.db.execute(assignmentsByKind)).rows).toEqual([
+        { kind: "angle", count: 1 },
+        { kind: "general", count: 3 },
+      ]);
     });
 
     it("evaluates but never queues a customer without a usable phone", async () => {
@@ -418,6 +429,54 @@ describe.skipIf(databaseUrl === undefined)(
           sql`select count(*) from research_assignments where commerce_event_id = ${result.commerceEventId}`,
         ),
       ).toBe(0);
+    });
+
+    it("stops general calls while paused and never double-queues a replay", async () => {
+      const service = new PostgresOperationsApplicationService(
+        isolated.db,
+        new EnvelopePhoneDecryptor(cipher),
+        () => new Date("2026-09-28T18:00:00.000Z"),
+      );
+      const general = await service.getGeneralCalls(context);
+      expect(general).toMatchObject({ name: "General calls", status: "live" });
+      // Its fields are the merchant's defaults, not the angle's new field.
+      expect(general!.fieldCount).toBeGreaterThan(0);
+      const generalAssignments = (commerceEventId: string) =>
+        count(sql`select count(*) from research_assignments a
+          join research_moment_versions v on v.id = a.research_moment_version_id
+          join research_moments m on m.id = v.research_moment_id
+          where m.kind = 'general' and a.commerce_event_id = ${commerceEventId}`);
+      const repeatOrder = async (order: number, createdAt: string) => {
+        const result = await ingestShopifyOrder(
+          isolated.db,
+          orderWebhook({ order, customer: 2001, createdAt }),
+          "d".repeat(64),
+          new Date(),
+          cipher,
+        );
+        if (result.outcome !== "ingested") throw new Error("not ingested");
+        return result.commerceEventId;
+      };
+
+      const manager = { ...context, roles: ["research_manager" as const] };
+      await service.setMomentStatus(manager, general!.id, "paused");
+      const whilePaused = await repeatOrder(1006, "2026-09-28T18:00:00.000Z");
+      await qualifyCommerceEvent(
+        isolated.db,
+        { merchantId, commerceEventId: whilePaused },
+        new Date("2026-09-28T18:01:00.000Z"),
+      );
+      expect(await generalAssignments(whilePaused)).toBe(0);
+
+      await service.setMomentStatus(manager, general!.id, "live");
+      const afterResume = await repeatOrder(1007, "2026-09-28T18:10:00.000Z");
+      for (let attempt = 0; attempt < 2; attempt += 1)
+        await qualifyCommerceEvent(
+          isolated.db,
+          { merchantId, commerceEventId: afterResume },
+          new Date("2026-09-28T18:11:00.000Z"),
+        );
+      expect(await generalAssignments(afterResume)).toBe(1);
     });
 
     it("keeps a customer suppressed after they ask not to be contacted", async () => {

@@ -36,7 +36,8 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Evaluates one commerce event against the latest published version of every
- * active research moment. Evaluations and assignments are unique per
+ * active research angle. A callable order no angle queued falls back to the
+ * merchant's general moment. Evaluations and assignments are unique per
  * (event, moment version), so Graphile retries are replay-safe.
  */
 export async function qualifyCommerceEvent(
@@ -76,6 +77,12 @@ export async function qualifyCommerceEvent(
       researchMomentVersions.researchMomentId,
       desc(researchMomentVersions.version),
     );
+  const angles = moments.filter(
+    ({ research_moments: moment }) => moment.kind === "angle",
+  );
+  const general = moments.find(
+    ({ research_moments: moment }) => moment.kind === "general",
+  )?.research_moment_versions;
 
   // Only customers with a stored, encrypted phone who have not opted out can
   // be called; everyone else is evaluated and audited but never queued.
@@ -97,7 +104,42 @@ export async function qualifyCommerceEvent(
     createInitialCohortPredicateRegistry(new PostgresCohortQueryRepository(db)),
   );
 
-  for (const { research_moment_versions: moment } of moments) {
+  const queueAssignment = (
+    tx: Parameters<Parameters<HollerDatabase["transaction"]>[0]>[0],
+    moment: typeof researchMomentVersions.$inferSelect,
+    qualificationEvaluationId: string,
+  ) => {
+    const expiresAt = new Date(event.occurredAt.getTime() + ASSIGNMENT_TTL_MS);
+    return tx
+      .insert(researchAssignments)
+      .values({
+        id: randomUUID(),
+        merchantId: event.merchantId,
+        researchMomentVersionId: moment.id,
+        qualificationEvaluationId,
+        commerceEventId: event.id,
+        customerId: event.customerId,
+        orderId: event.orderId,
+        scriptVersionId: moment.scriptVersionId,
+        researchFieldSetVersionId: moment.researchFieldSetVersionId,
+        priority: moment.priority,
+        // Past the queue window the moment has passed; record, don't queue.
+        status:
+          expiresAt <= now ||
+          event.occurredAt.getTime() + QUEUE_WINDOW_MS <= now.getTime()
+            ? "expired"
+            : "queued",
+        expiresAt,
+      })
+      .onConflictDoNothing({
+        target: [
+          researchAssignments.commerceEventId,
+          researchAssignments.researchMomentVersionId,
+        ],
+      });
+  };
+
+  for (const { research_moment_versions: moment } of angles) {
     const active =
       moment.eventType === event.eventType &&
       (moment.activeFrom === null || event.occurredAt >= moment.activeFrom) &&
@@ -199,39 +241,55 @@ export async function qualifyCommerceEvent(
         .returning({ id: qualificationEvaluations.id });
       // An existing evaluation means a prior attempt already committed.
       if (!inserted || !allocated) return;
-
-      const expiresAt = new Date(
-        event.occurredAt.getTime() + ASSIGNMENT_TTL_MS,
-      );
-      await tx
-        .insert(researchAssignments)
-        .values({
-          id: randomUUID(),
-          merchantId: event.merchantId,
-          researchMomentVersionId: moment.id,
-          qualificationEvaluationId: inserted.id,
-          commerceEventId: event.id,
-          customerId: event.customerId,
-          orderId: event.orderId,
-          scriptVersionId: moment.scriptVersionId,
-          researchFieldSetVersionId: moment.researchFieldSetVersionId,
-          priority: moment.priority,
-          // Past the queue window the moment has passed; record, don't queue.
-          status:
-            expiresAt <= now ||
-            event.occurredAt.getTime() + QUEUE_WINDOW_MS <= now.getTime()
-              ? "expired"
-              : "queued",
-          expiresAt,
-        })
-        .onConflictDoNothing({
-          target: [
-            researchAssignments.commerceEventId,
-            researchAssignments.researchMomentVersionId,
-          ],
-        });
+      await queueAssignment(tx, moment, inserted.id);
     });
   }
+
+  // General calls take every callable order that no angle queued. Counting
+  // stored assignments (not this run's) keeps a replay from double-queuing.
+  if (!general || !contactable || general.eventType !== event.eventType) return;
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${general.researchMomentId}))`,
+    );
+    const [queued] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(researchAssignments)
+      .where(
+        and(
+          eq(researchAssignments.merchantId, event.merchantId),
+          eq(researchAssignments.commerceEventId, event.id),
+        ),
+      );
+    if ((queued?.count ?? 0) > 0) return;
+    const [inserted] = await tx
+      .insert(qualificationEvaluations)
+      .values({
+        id: randomUUID(),
+        merchantId: event.merchantId,
+        commerceEventId: event.id,
+        researchMomentVersionId: general.id,
+        engineVersion: ENGINE_VERSION,
+        outcome: "match",
+        reasonCodes: ["general.no_angle_queued"],
+        inputSnapshot: {
+          schemaVersion: 1,
+          attributes: event.attributes,
+          unknownReasons: [],
+          allocated: true,
+        },
+        evaluatedAt: now,
+      })
+      .onConflictDoNothing({
+        target: [
+          qualificationEvaluations.commerceEventId,
+          qualificationEvaluations.researchMomentVersionId,
+          qualificationEvaluations.engineVersion,
+        ],
+      })
+      .returning({ id: qualificationEvaluations.id });
+    if (inserted) await queueAssignment(tx, general, inserted.id);
+  });
 }
 
 function weeklyCapOf(policy: unknown): number | null {

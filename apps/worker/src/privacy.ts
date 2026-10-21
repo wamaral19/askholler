@@ -116,6 +116,10 @@ export function erasureSteps(
           where merchant_id = ${merchantId} and note is not null and note <> '[redacted]'
             and interview_id in (${interviewIds})`);
         await db.execute(sql`
+          update transcript_segments set text = '[redacted]', updated_at = ${dependencies.now()}
+          where merchant_id = ${merchantId} and text <> '[redacted]'
+            and interview_id in (${interviewIds})`);
+        await db.execute(sql`
           update response_evidence e set excerpt_snapshot = null
           from interview_responses r
           where e.merchant_id = ${merchantId} and e.response_id = r.id

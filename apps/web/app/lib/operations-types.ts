@@ -31,7 +31,9 @@ export interface QueueItem {
   readonly maskedPhone: string;
   readonly merchant: string;
   readonly momentId: string;
+  /** Angle name; empty for general calls (orders no angle matched). */
   readonly moment: string;
+  readonly general: boolean;
   readonly eventAgeMinutes: number;
   /** When the customer placed the order (ISO 8601). */
   readonly orderedAt: string;
@@ -137,6 +139,40 @@ export interface InterviewWorkspace {
   readonly pastOrders: readonly CallSheetOrder[];
   readonly currentOrder: CallSheetOrder | null;
   readonly prompts: readonly CallSheetPrompt[];
+}
+
+/** A finished call in the Completed calls list. */
+export interface CompletedCall {
+  readonly interviewId: string;
+  readonly outcome: InterviewOutcome;
+  readonly endedAt: string | null;
+  /** Angle name; empty for general calls. */
+  readonly angle: string;
+  readonly orderNumber: string | null;
+  /** Answered to hang-up; null when the call never connected. */
+  readonly durationSeconds: number | null;
+  readonly transcriptLines: number;
+  readonly hasRecording: boolean;
+  readonly promptsCovered: number;
+  readonly mine: boolean;
+}
+
+export interface TranscriptLine {
+  readonly sequence: number;
+  readonly speaker: "researcher" | "customer" | "unknown";
+  /** Milliseconds into the transcription when the line was finalised. */
+  readonly atMs: number | null;
+  readonly text: string;
+}
+
+/** A finished call's call sheet plus what the call produced. */
+export interface CallReview extends InterviewWorkspace {
+  readonly outcome: InterviewOutcome;
+  readonly endedAt: string | null;
+  readonly durationSeconds: number | null;
+  readonly transcriptStatus: "none" | "processing" | "completed" | "failed";
+  readonly transcript: readonly TranscriptLine[];
+  readonly hasRecording: boolean;
 }
 
 export interface MerchantOption {
@@ -286,6 +322,10 @@ export interface OperationsApplicationService {
     prompts: readonly ScriptPrompt[],
   ): Promise<MomentScript>;
   listMerchants(context: TenantContext): Promise<readonly MerchantOption[]>;
+  /** Null when the merchant has no script to run general calls with. */
+  getGeneralCalls(
+    context: TenantContext,
+  ): Promise<ResearchMomentSummary | null>;
   listMoments(
     context: TenantContext,
   ): Promise<readonly ResearchMomentSummary[]>;
@@ -347,6 +387,25 @@ export interface OperationsApplicationService {
     interviewId: string,
     outcome: InterviewOutcome,
   ): Promise<void>;
+  /** Finished calls, newest first: a researcher's own, or all for managers. */
+  listCompletedCalls(context: TenantContext): Promise<readonly CompletedCall[]>;
+  /** For the researcher who made the call, or a manager. */
+  getCallReview(
+    context: TenantContext,
+    interviewId: string,
+  ): Promise<CallReview>;
+  /** Corrects a finished call's prompt row; recorded as human_reviewed. */
+  reviewPromptProgress(
+    context: TenantContext,
+    interviewId: string,
+    promptKey: string,
+    input: PromptProgressInput,
+  ): Promise<void>;
+  /** The stored recording's private object key, audited; null if none. */
+  getRecordingObjectKey(
+    context: TenantContext,
+    interviewId: string,
+  ): Promise<string | null>;
   generateReport(
     context: TenantContext,
     period: string,

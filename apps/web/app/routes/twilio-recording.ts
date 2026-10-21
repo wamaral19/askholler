@@ -45,6 +45,34 @@ export async function action({ request }: { request: Request }) {
       recordingSid: result.providerRecordingReference,
       status: result.status,
     });
+    // Live transcription shares the recording's consent gate. A failure here
+    // must not stop a recording that is already running.
+    if (deps.transcription) {
+      const { store, dialer } = deps.transcription;
+      try {
+        const transcriptId = await store.beginTranscript(
+          context.merchantId,
+          body.interviewId,
+        );
+        if (transcriptId) {
+          const started = await dialer.startTranscription({
+            providerCallReference: callSid,
+            statusCallbackUrl: `${deps.appBaseUrl}/api/twilio/transcription-status`,
+          });
+          await store.setTranscriptReference(
+            transcriptId,
+            started.providerTranscriptionReference,
+          );
+        }
+      } catch {
+        console.error(
+          JSON.stringify({
+            event: "twilio.transcription_start_failed",
+            interviewId: body.interviewId,
+          }),
+        );
+      }
+    }
     return Response.json(
       { status: result.status },
       { headers: { "Cache-Control": "no-store" } },
@@ -64,6 +92,18 @@ export async function action({ request }: { request: Request }) {
     recording.recordingSid,
   );
   await deps.store.updateRecording(recording.recordingSid, result.status);
+  if (deps.transcription) {
+    // Consent covers the recorded portion only, so transcription stops too.
+    const active = await deps.transcription.store.getActiveTranscription(
+      context,
+      body.interviewId,
+    );
+    if (active)
+      await deps.transcription.dialer.stopTranscription(
+        active.callSid,
+        active.transcriptionSid,
+      );
+  }
   return Response.json(
     { status: result.status },
     { headers: { "Cache-Control": "no-store" } },

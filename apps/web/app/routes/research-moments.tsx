@@ -25,8 +25,13 @@ const statusOrder: readonly MomentStatus[] = [
 export async function loader({ request }: { request: Request }) {
   return executeOperationsRequest(async () => {
     const context = await getTenantContext(request);
-    const moments = await getOperationsService().listMoments(context);
+    const service = getOperationsService();
+    const [moments, general] = await Promise.all([
+      service.listMoments(context),
+      service.getGeneralCalls(context),
+    ]);
     return {
+      general,
       moments: [...moments].sort(
         (a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
       ),
@@ -72,7 +77,7 @@ export function meta() {
 }
 
 export default function ResearchMomentsRoute() {
-  const { moments, canManage } = useLoaderData<typeof loader>();
+  const { moments, general, canManage } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const generatedReport =
     actionData && "reportId" in actionData ? actionData : undefined;
@@ -151,6 +156,69 @@ export default function ResearchMomentsRoute() {
           </label>
         </div>
         <div className="moment-list">
+          {general ? (
+            <article className="moment-card">
+              <div className="moment-card-main">
+                <div className="moment-card-title">
+                  <h3>{general.name}</h3>
+                  <span className={`status-pill status-${general.status}`}>
+                    {momentStatusLabels[general.status]}
+                  </span>
+                </div>
+                <p>
+                  Every callable order that no live angle matches still reaches
+                  the queue, with a blank research angle.
+                </p>
+              </div>
+              <div className="cohort-summary">
+                <span>Fields</span>
+                <p>
+                  Your {general.fieldCount} default research{" "}
+                  {general.fieldCount === 1 ? "field" : "fields"}.{" "}
+                  <Link to="/admin/research-fields">Change defaults</Link>
+                </p>
+              </div>
+              <div className="moment-card-action">
+                {canManage
+                  ? momentTransitionsFrom(general.status)
+                      // General calls pause and resume; they never complete.
+                      .filter((status) => status !== "completed")
+                      .map((status) => (
+                        <Form method="post" key={status}>
+                          <input
+                            name="intent"
+                            type="hidden"
+                            value="set_status"
+                          />
+                          <input
+                            name="momentId"
+                            type="hidden"
+                            value={general.id}
+                          />
+                          <button
+                            className={
+                              status === "live"
+                                ? "button button-primary button-small"
+                                : "button button-small"
+                            }
+                            name="status"
+                            type="submit"
+                            value={status}
+                          >
+                            {momentTransitionLabel(general.status, status)}
+                          </button>
+                        </Form>
+                      ))
+                  : null}
+                <Link
+                  className="button button-quiet button-small"
+                  to={`/moments/${encodeURIComponent(general.id)}/script`}
+                >
+                  {canManage ? "Edit script" : "View script"}
+                </Link>
+              </div>
+            </article>
+          ) : null}
           {moments.map((moment) => (
             <article className="moment-card" key={moment.id}>
               <div className="moment-card-main">
