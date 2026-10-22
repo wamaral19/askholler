@@ -4819,16 +4819,24 @@ p {
 
 /* Ways to work together */
 .preview-engagements {
-  padding: 0 var(--preview-gutter) 128px;
+  margin-top: 0;
+  padding: 48px var(--preview-gutter) 56px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1px;
-  background: var(--preview-ink);
+  gap: 24px;
+  position: relative;
+  z-index: 2;
+  background: transparent;
 }
 
 .preview-engagements article {
-  padding: 66px clamp(30px, 5vw, 68px) 74px;
+  padding: 58px clamp(30px, 5vw, 68px) 62px;
+  border: 1px solid var(--preview-line);
+  border-radius: 18px;
   background: var(--preview-paper);
+  box-shadow:
+    0 3px 8px rgb(13 35 64 / 6%),
+    0 24px 56px rgb(13 35 64 / 11%);
 }
 
 .preview-engagements article > .preview-kicker {
@@ -4860,7 +4868,7 @@ p {
 }
 
 .preview-comparison {
-  padding: 118px var(--preview-gutter) 128px;
+  padding: 72px var(--preview-gutter);
 }
 
 .preview-comparison > div:first-child {
@@ -4885,8 +4893,14 @@ p {
 }
 
 .preview-comparison-table {
-  margin-top: 58px;
-  border-top: 1px solid var(--preview-line);
+  margin-top: 44px;
+  overflow: hidden;
+  border: 1px solid var(--preview-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow:
+    0 3px 8px rgb(13 35 64 / 5%),
+    0 22px 52px rgb(13 35 64 / 9%);
 }
 
 .preview-comparison-row {
@@ -4923,6 +4937,24 @@ p {
 
 .preview-comparison-row.is-heading span {
   color: inherit;
+}
+
+.preview-comparison-row.is-heading span:first-child {
+  color: rgb(255 253 247 / 62%);
+}
+
+.preview-comparison-row.is-heading span:not(:first-child) {
+  padding-top: 24px;
+  padding-bottom: 24px;
+  box-shadow: inset 0 4px 0 var(--preview-blue);
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 21px;
+  font-weight: 470;
+  letter-spacing: -0.02em;
+}
+
+.preview-comparison-row:not(.is-heading):nth-child(odd) {
+  background: rgb(237 233 223 / 42%);
 }
 
 .preview-onboarding {
@@ -5058,11 +5090,8 @@ p {
   line-height: 1.6;
 }
 
-.preview-about-story-copy > div {
+.preview-about-story-copy > article {
   margin-top: 46px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 28px;
 }
 
 .preview-about-story-copy article {
@@ -5114,11 +5143,11 @@ p {
 .preview-contact-page {
   min-height: 100vh;
   display: grid;
-  grid-template-rows: 1fr auto auto;
+  grid-template-rows: 1fr auto;
 }
 
 .preview-contact-hero {
-  min-height: 65svh;
+  min-height: 72svh;
   padding: 158px var(--preview-gutter) 78px;
   display: flex;
   flex-direction: column;
@@ -5131,15 +5160,8 @@ p {
   color: var(--preview-blue-dark);
 }
 
-.preview-contact-actions {
+.preview-contact-email {
   margin-top: 44px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 14px;
-}
-
-.preview-contact-actions > a {
   width: fit-content;
   padding: 15px 23px;
   display: inline-flex;
@@ -5151,57 +5173,6 @@ p {
   font-size: 19px;
   font-weight: 650;
   text-decoration: none;
-}
-
-.preview-contact-actions button {
-  padding: 14px 20px;
-  border: 1px solid var(--preview-ink);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--preview-ink);
-  font: inherit;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.preview-copy-status {
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  position: absolute;
-  clip: rect(0 0 0 0);
-}
-
-.preview-contact-prompt {
-  padding: 42px var(--preview-gutter) 50px;
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 60px;
-  background: var(--preview-blue);
-}
-
-.preview-contact-prompt > p {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.preview-contact-prompt ul {
-  display: grid;
-  gap: 10px;
-}
-
-.preview-contact-prompt li {
-  padding-left: 20px;
-  position: relative;
-  font-size: 16px;
-}
-
-.preview-contact-prompt li::before {
-  content: "•";
-  position: absolute;
-  left: 0;
 }
 
 .preview-work-evidence {
@@ -5475,11 +5446,19 @@ p {
   }
 
   .preview-engagements {
-    padding-bottom: 84px;
+    margin-top: 0;
+    padding-top: 32px;
+    padding-bottom: 64px;
+    gap: 20px;
   }
 
   .preview-engagements article {
-    padding: 52px 24px 58px;
+    padding: 48px 24px 52px;
+  }
+
+  .preview-comparison {
+    padding-top: 72px;
+    padding-bottom: 76px;
   }
 
   .preview-principles li {
@@ -5488,11 +5467,6 @@ p {
 
   .preview-principles li p {
     grid-column: 2;
-  }
-
-  .preview-contact-prompt {
-    grid-template-columns: 1fr;
-    gap: 24px;
   }
 
   .preview-comparison-table {
@@ -5511,9 +5485,6 @@ p {
     grid-column: 2;
   }
 
-  .preview-about-story-copy > div {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 480px) {
@@ -5577,13 +5548,8 @@ p {
     font-size: 16px;
   }
 
-  .preview-contact-actions {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .preview-contact-actions > a,
-  .preview-contact-actions button {
+  .preview-contact-email {
+    width: 100%;
     justify-content: center;
     text-align: center;
   }

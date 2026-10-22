@@ -7,7 +7,7 @@ import {
 export function meta() {
   return marketingMeta(
     "About Holler | Human customer research",
-    "Holler gives DTC ecommerce brands high-quality first-party customer research without requiring them to build an internal research function.",
+    "Holler brings human customer research to DTC brands and finds the why behind customer actions.",
   );
 }
 
@@ -37,24 +37,14 @@ export default function About() {
 
       <section className="preview-subpage-hero preview-about-hero">
         <p className="preview-kicker">About Holler</p>
-        <h1>Customer research should feel human because it is.</h1>
+        <h1>
+          Your customers are human.
+          <br />
+          Your research should be human too.
+        </h1>
         <p>
-          Holler gives DTC ecommerce brands high-quality first-party customer
-          research without requiring them to build a research function from
-          scratch.
-        </p>
-      </section>
-
-      <section className="preview-about-thesis">
-        <p className="preview-kicker">What we believe</p>
-        <blockquote>
-          The people behind the order can explain what no attribution model,
-          survey box, or conversion chart can see.
-        </blockquote>
-        <p>
-          Holler connects observed commerce behavior with open human
-          conversation. That combination helps brands understand not only what
-          customers did, but what motivated the decision and what to do next.
+          Holler talks to your customers and gets the why behind the action, all
+          while making customers even bigger fans of your brand.
         </p>
       </section>
 
@@ -68,32 +58,18 @@ export default function About() {
         </div>
         <div className="preview-about-story-copy">
           <p>
-            Commerce tools are excellent at showing what customers did. The
-            missing layer is often a direct, thoughtful conversation with the
-            people behind the order. Building that research capability inside
-            every brand is slow and expensive, so Holler makes it available as a
-            service.
+            There are a million tools that tell you what happened. The numbers
+            do not tell you why, and you cannot always trust the numbers. We
+            build your research capability to get you the answers you need.
           </p>
-          <div>
-            <article>
-              <p className="preview-kicker">Who conducts the interviews</p>
-              <h3>Trained human researchers</h3>
-              <p>
-                Holler researchers listen, follow useful threads, and protect
-                the customer relationship throughout every conversation.
-              </p>
-            </article>
-            <article>
-              <p className="preview-kicker">Experience behind the work</p>
-              <h3>Thousands of customer conversations</h3>
-              <p>
-                Our research experience spans thousands of customer
-                conversations across software startups, including work that
-                informed products and features responsible for millions in
-                incremental gross margin.
-              </p>
-            </article>
-          </div>
+          <article>
+            <p className="preview-kicker">Who conducts the interviews</p>
+            <h3>Trained human researchers</h3>
+            <p>
+              Holler&apos;s team has conducted thousands of interviews, yielding
+              insights leading to millions in incremental gross margin.
+            </p>
+          </article>
         </div>
       </section>
 
@@ -115,9 +91,9 @@ export default function About() {
 
       <section className="preview-subpage-cta">
         <p className="preview-kicker">Built for DTC teams</p>
-        <h2>Get closer to the people building your brand with you.</h2>
+        <h2>Chat with the team that wants to chat with your customers.</h2>
         <a href="/contact">
-          Talk with Holler <span aria-hidden="true">→</span>
+          Chat with Holler <span aria-hidden="true">→</span>
         </a>
       </section>
 
