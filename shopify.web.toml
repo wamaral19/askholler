@@ -2,6 +2,9 @@ name = "Holler React Router"
 roles = [ "frontend", "backend" ]
 auth_callback_path = [ "/auth/callback" ]
 webhooks_path = "/webhooks"
+# Fixed so the CLI proxy and the dev.withholler.com tunnel reach the same
+# Vite server; must match server.port in apps/web/vite.config.ts.
+port = 5173
 
 [commands]
 dev = "npm run dev"

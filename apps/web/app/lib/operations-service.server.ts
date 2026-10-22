@@ -54,6 +54,11 @@ export async function executeOperationsRequest<T>(
         { error: { code: error.code } },
         { status: error.status },
       );
+    // Name and message only: the full error can carry query values (PII).
+    console.error(
+      "Unexpected operations error:",
+      error instanceof Error ? `${error.name}: ${error.message}` : typeof error,
+    );
     throw Response.json(
       { error: { code: "OPERATIONS_INTERNAL_ERROR" } },
       { status: 500 },
