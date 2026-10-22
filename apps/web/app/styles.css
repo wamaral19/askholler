@@ -4061,7 +4061,7 @@ p {
 }
 
 .preview-section-intro > .preview-kicker {
-  margin-bottom: 22px;
+  margin-bottom: 26px;
   color: var(--preview-blue-dark);
 }
 
@@ -4071,7 +4071,7 @@ p {
   font-size: clamp(44px, 5.6vw, 78px);
   font-weight: 500;
   letter-spacing: -0.035em;
-  line-height: 0.98;
+  line-height: 1.04;
   text-wrap: balance;
 }
 
@@ -4178,15 +4178,15 @@ p {
 }
 
 .preview-methodology-intro > .preview-kicker {
-  margin-bottom: 22px;
+  margin-bottom: 30px;
   color: var(--preview-blue);
 }
 
 .preview-methodology-intro h2 {
   font-size: clamp(40px, 4.8vw, 66px);
   font-weight: 500;
-  letter-spacing: -0.04em;
-  line-height: 1;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
 }
 
 .preview-methodology-intro > p:last-child {
@@ -4332,7 +4332,7 @@ p {
 }
 
 .preview-evidence-copy > .preview-kicker {
-  margin-bottom: 22px;
+  margin-bottom: 26px;
   color: var(--preview-blue-dark);
 }
 
@@ -4723,7 +4723,7 @@ p {
 }
 
 .preview-subpage-cta > .preview-kicker {
-  margin-bottom: 22px;
+  margin-bottom: 26px;
 }
 
 .preview-subpage-cta h2 {
@@ -4731,7 +4731,7 @@ p {
   font-size: clamp(42px, 5.8vw, 76px);
   font-weight: 500;
   letter-spacing: -0.035em;
-  line-height: 0.98;
+  line-height: 1.04;
   text-wrap: balance;
 }
 
@@ -4878,7 +4878,7 @@ p {
 .preview-comparison .preview-kicker,
 .preview-onboarding .preview-kicker,
 .preview-about-story .preview-kicker {
-  margin-bottom: 20px;
+  margin-bottom: 26px;
   color: var(--preview-blue-dark);
 }
 
@@ -4887,8 +4887,8 @@ p {
 .preview-about-story h2 {
   font-size: clamp(38px, 4.8vw, 66px);
   font-weight: 500;
-  letter-spacing: -0.04em;
-  line-height: 1;
+  letter-spacing: -0.03em;
+  line-height: 1.06;
   text-wrap: balance;
 }
 
@@ -5012,7 +5012,7 @@ p {
 
 .preview-included > div > .preview-kicker,
 .preview-principles > div > .preview-kicker {
-  margin-bottom: 22px;
+  margin-bottom: 26px;
   color: var(--preview-blue-dark);
 }
 
@@ -5021,7 +5021,7 @@ p {
   font-size: clamp(38px, 4.6vw, 64px);
   font-weight: 500;
   letter-spacing: -0.035em;
-  line-height: 1;
+  line-height: 1.06;
 }
 
 .preview-included ol,
