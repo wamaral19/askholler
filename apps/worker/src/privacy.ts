@@ -12,8 +12,8 @@ import {
 } from "@holler/providers";
 import { and, eq, inArray, lte, sql } from "drizzle-orm";
 
-/** Raw recordings are deleted 30 days after they are made (signoff schedule). */
-export const RECORDING_RETENTION_DAYS = 30;
+/** Raw recordings are deleted 180 days after they are made (signoff schedule). */
+export const RECORDING_RETENTION_DAYS = 180;
 
 export interface PrivacyDependencies {
   /** Private recording storage; required once any recording exists. */
@@ -405,7 +405,7 @@ export async function runPrivacySweep(
     )
     select count(*)::int as count from erased`);
 
-  // Retention: raw recordings older than 30 days.
+  // Retention: raw recordings older than RECORDING_RETENTION_DAYS.
   const recordingRows = await db.execute<{
     id: string;
     merchant_id: string;

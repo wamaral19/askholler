@@ -158,7 +158,7 @@ describe.skipIf(databaseUrl === undefined)("privacy sweep", () => {
       set status = 'stored_pending_source_delete', provider_ref = ${`RE${"b".repeat(32)}`},
           object_key = 'recordings/old.mp3', deleted_at = null
       where id = ${recording}`);
-    now = new Date("2026-12-02T00:00:00.000Z");
+    now = new Date("2027-04-01T00:00:00.000Z");
     const objectStore = { delete: vi.fn(async () => undefined) };
     const deleteProviderRecording = vi.fn(async () => undefined);
     const result = await sweep({ objectStore, deleteProviderRecording });

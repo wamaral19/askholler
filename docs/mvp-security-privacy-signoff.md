@@ -89,7 +89,7 @@ signoff until the applicable provider or workflow is approved.
 | Data class                                |                                              Maximum normal retention |
 | ----------------------------------------- | --------------------------------------------------------------------: |
 | Customer PII used for recruitment         |                                                               90 days |
-| Raw recordings                            |                                    30 days after interview completion |
+| Raw recordings                            |                                   180 days after interview completion |
 | Raw transcripts                           |                                    90 days after interview completion |
 | PII-bearing exports                       |                                                                7 days |
 | Unused or unopened temporary exports      |                                                              24 hours |
