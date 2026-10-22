@@ -36,7 +36,7 @@ offer, discount, or product pitch is made on the call.
    record this call for customer research. Is that okay?" Recording starts
    only after a clear yes, which the app logs with a timestamp. Silence or an
    ambiguous answer is treated as no, and the call can continue unrecorded.
-6. **Retention.** Recordings are kept 30 days and research notes are kept
+6. **Retention.** Recordings are kept 180 days and research notes are kept
    with direct identifiers removed. Customers' deletion requests arriving
    through Shopify are carried out automatically.
 7. **Not in the pilot.** No text messages, no calls to non-customers, and no

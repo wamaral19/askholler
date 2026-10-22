@@ -2,6 +2,7 @@ import { createDatabase } from "@holler/db";
 import { R2PrivateObjectStore } from "@holler/providers";
 import { loadWorkerEnvironment } from "@holler/domain";
 import { pathToFileURL } from "node:url";
+import { ZodError } from "zod";
 import { unavailableWorkerServices } from "./jobs";
 import { renderReportRevision } from "./render-report";
 import { qualifyCommerceEvent } from "./qualify-commerce-event";
@@ -70,7 +71,19 @@ export async function main(): Promise<void> {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href)
-  void main().catch(() => {
-    console.error(JSON.stringify({ event: "worker.start_failed" }));
+  void main().catch((error: unknown) => {
+    // Issue paths and messages only; never echo environment values.
+    const detail =
+      error instanceof ZodError
+        ? {
+            issues: error.issues.map((issue) => ({
+              path: issue.path.join("."),
+              message: issue.message,
+            })),
+          }
+        : error instanceof Error
+          ? { error: error.name, message: error.message }
+          : {};
+    console.error(JSON.stringify({ event: "worker.start_failed", ...detail }));
     process.exitCode = 1;
   });

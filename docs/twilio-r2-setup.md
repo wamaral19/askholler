@@ -28,7 +28,7 @@ files.
 2. Leave `r2.dev` and public custom-domain access disabled.
 3. Create an R2 S3 API token restricted to object read/write for this bucket.
 4. Configure lifecycle expiry as a backstop:
-   - `recordings/`: 30 days
+   - `recordings/`: 180 days
    - `exports/`: 7 days
    - `exports/temporary/`: 1 day
 5. Enable account audit logs and R2 data-access logs where available.

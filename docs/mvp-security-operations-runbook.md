@@ -84,7 +84,7 @@ session changes; no more than 15 minutes for upstream identity-provider changes.
 - Use separate buckets or strictly separated prefixes for recordings, temporary
   exports, and published artifacts. Production credentials must be scoped to
   only the required bucket and operations.
-- Configure automatic expiry for recordings after 30 days and PII-bearing
+- Configure automatic expiry for recordings after 180 days and PII-bearing
   exports after 7 days; temporary unused exports expire after 24 hours.
 - Deliver downloads through an authenticated application route or short-lived
   signed URL after tenant and permission checks.

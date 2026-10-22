@@ -68,6 +68,7 @@ import type {
   CallSheetProfile,
   CallSheetPrompt,
   CompletedCall,
+  CompletedRun,
   OperationsApplicationService,
   PhoneRevealPurpose,
   PromptProgressInput,
@@ -93,8 +94,14 @@ import {
   humanizeKey,
 } from "./cohort-description";
 import {
+  buildCohorts,
+  buildOrderSeries,
+  buildReorderTiming,
   canViewCommerceDashboard,
   dashboardFiltersToCohort,
+  rankProducts,
+  repeatLeader,
+  splitSources,
   type DashboardFilters,
 } from "./analytics";
 
@@ -176,6 +183,20 @@ const safeJson = (value: unknown): Record<string, unknown> =>
 
 const textValue = (value: unknown, fallback: string): string =>
   typeof value === "string" && value.trim() ? value : fallback;
+
+/** Reports are linked, never embedded: an absolute https URL. */
+export function isReportUrl(value: string): boolean {
+  if (value.length > 2000) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Managers and the merchant viewer see every finished call, not just their own. */
+const seesAllCalls = (context: TenantContext): boolean =>
+  canManageMoments(context.roles) || context.viewer === "merchant";
 
 const closedOutcome = (outcome: string | null): InterviewOutcome =>
   outcome === "no_answer" || outcome === "declined" ? outcome : "completed";
@@ -334,6 +355,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         sequence: orders.customerOrderSequence,
         financialStatus: orders.financialStatus,
         observed: orders.observedAttribution,
+        orderedAt: orders.orderedAt,
       })
       .from(orders)
       .where(
@@ -381,8 +403,141 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       attribution.set(source, (attribution.get(source) ?? 0) + 1);
     }
     const repeats = scoped.filter((row) => (row.sequence ?? 0) >= 2).length;
+    // Customers acquired in the period, grouped by what their first order
+    // contained; a repeat is any later order, even after the period ends.
+    const repeatRows = await this.db.execute(sql`
+      select coalesce(p.title, oli.title, 'Untitled item') as product,
+        min(oli.sku) as sku,
+        count(distinct o.customer_id)::int as customers,
+        (count(distinct o.customer_id) filter (where c.order_count >= 2))::int as repeat_customers
+      from orders o
+      join customers c on c.merchant_id = o.merchant_id and c.id = o.customer_id
+      join order_line_items oli on oli.merchant_id = o.merchant_id and oli.order_id = o.id
+      left join products p on p.merchant_id = oli.merchant_id and p.id = oli.product_id
+      where o.merchant_id = ${context.merchantId}
+        and o.customer_order_sequence = 1
+        and o.ordered_at >= ${start} and o.ordered_at <= ${end}
+      group by coalesce(oli.product_id::text, oli.title), coalesce(p.title, oli.title, 'Untitled item')
+      order by customers desc
+      limit 15
+    `);
+    const sourceOf = (row: (typeof scoped)[number]) =>
+      textValue(safeJson(row.observed).source, "unknown").toLowerCase();
+    const repeatByProduct = (
+      repeatRows.rows as {
+        product: string;
+        sku: string | null;
+        customers: number;
+        repeat_customers: number;
+      }[]
+    ).map((row) => ({
+      product: row.product,
+      sku: row.sku,
+      customers: row.customers,
+      repeatCustomers: row.repeat_customers,
+    }));
+
+    const scopedIds = new Set(scoped.map((row) => row.id));
+    const lineRows = await this.db.execute(sql`
+      select oli.order_id, coalesce(p.title, oli.title, 'Untitled item') as product,
+        oli.quantity, (oli.unit_price_minor * oli.quantity - oli.discount_minor)::bigint as line_minor
+      from order_line_items oli
+      join orders o on o.merchant_id = oli.merchant_id and o.id = oli.order_id
+      left join products p on p.merchant_id = oli.merchant_id and p.id = oli.product_id
+      where o.merchant_id = ${context.merchantId}
+        and o.ordered_at >= ${start} and o.ordered_at <= ${end}
+    `);
+    const topProducts = rankProducts(
+      (
+        lineRows.rows as {
+          order_id: string;
+          product: string;
+          quantity: number;
+          line_minor: string | number;
+        }[]
+      )
+        .filter((line) => scopedIds.has(line.order_id))
+        .map((line) => ({
+          product: line.product,
+          orderId: line.order_id,
+          quantity: line.quantity,
+          lineMinor: Number(line.line_minor),
+        })),
+    );
+
+    // Second orders of customers acquired in the period, at any time since.
+    const gapRows = await this.db.execute(sql`
+      select extract(epoch from (second_order.ordered_at - first_order.ordered_at)) / 86400 as gap_days,
+        array(
+          select distinct coalesce(p.title, oli.title, 'Untitled item')
+          from order_line_items oli
+          left join products p on p.merchant_id = oli.merchant_id and p.id = oli.product_id
+          where oli.merchant_id = first_order.merchant_id and oli.order_id = first_order.id
+        ) as first_products
+      from orders first_order
+      join orders second_order on second_order.merchant_id = first_order.merchant_id
+        and second_order.customer_id = first_order.customer_id
+        and second_order.customer_order_sequence = 2
+      where first_order.merchant_id = ${context.merchantId}
+        and first_order.customer_order_sequence = 1
+        and first_order.ordered_at >= ${start} and first_order.ordered_at <= ${end}
+    `);
+    const reorderTiming = buildReorderTiming(
+      (
+        gapRows.rows as {
+          gap_days: string | number;
+          first_products: string[];
+        }[]
+      ).map((row) => ({
+        gapDays: Number(row.gap_days),
+        firstProducts: row.first_products,
+      })),
+      repeatLeader(repeatByProduct)?.product ?? null,
+    );
+
+    const cohortRows = await this.db.execute(sql`
+      with firsts as (
+        select customer_id, date_trunc('month', ordered_at) as cohort_month
+        from orders
+        where merchant_id = ${context.merchantId}
+          and customer_order_sequence = 1
+          and ordered_at >= ${start} and ordered_at <= ${end}
+      )
+      select to_char(f.cohort_month, 'YYYY-MM') as cohort,
+        ((extract(year from date_trunc('month', o.ordered_at)) - extract(year from f.cohort_month)) * 12
+          + extract(month from date_trunc('month', o.ordered_at)) - extract(month from f.cohort_month))::int as month_offset,
+        count(distinct o.customer_id)::int as customers
+      from firsts f
+      join orders o on o.merchant_id = ${context.merchantId} and o.customer_id = f.customer_id
+      group by 1, 2
+    `);
+    const cohorts = buildCohorts(
+      (
+        cohortRows.rows as {
+          cohort: string;
+          month_offset: number;
+          customers: number;
+        }[]
+      ).map((row) => ({
+        cohort: row.cohort,
+        offset: row.month_offset,
+        customers: row.customers,
+      })),
+      this.now(),
+    );
+
     return {
       filters,
+      series: buildOrderSeries(scoped, filters),
+      sources: splitSources(
+        scoped.map((row) => ({
+          source: sourceOf(row),
+          sequence: row.sequence,
+        })),
+      ),
+      topProducts,
+      reorderTiming,
+      cohorts,
       metrics: {
         orders: scoped.length,
         revenueMinor: scoped.reduce((sum, row) => sum + row.totalMinor, 0),
@@ -401,6 +556,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         .sort(
           (a, b) => b.orders - a.orders || a.source.localeCompare(b.source),
         ),
+      repeatByProduct,
       cohortExpression: dashboardFiltersToCohort(filters),
       limitations: [
         "Discount metrics require normalized discount data and are not shown.",
@@ -435,6 +591,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         id: researchMoments.id,
         name: researchMoments.name,
         momentStatus: researchMoments.status,
+        requestedBy: researchMoments.requestedBy,
+        reportUrl: researchMoments.reportUrl,
         objective: researchMomentVersions.objective,
         eventType: researchMomentVersions.eventType,
         priority: researchMomentVersions.priority,
@@ -515,6 +673,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         fieldCount: row.fieldCount,
         scriptVersion: `${row.scriptName} v${row.scriptVersion}`,
         completedThisWeek: completed.get(row.id) ?? 0,
+        ...(row.requestedBy ? { requestedByMerchant: true } : {}),
+        ...(row.reportUrl ? { reportUrl: row.reportUrl } : {}),
       };
     });
   }
@@ -656,7 +816,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     context: TenantContext,
     options: { readonly includeArchived?: boolean } = {},
   ): Promise<readonly LibraryResearchField[]> {
-    await this.requireMerchant(context);
+    await this.requireMerchant(context, { allowMerchantViewer: true });
     return this.fieldLibrary(
       this.db,
       context,
@@ -833,7 +993,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   }
 
   async listScripts(context: TenantContext): Promise<readonly LibraryScript[]> {
-    await this.requireMerchant(context);
+    await this.requireMerchant(context, { allowMerchantViewer: true });
     return this.scriptLibrary(this.db, context);
   }
 
@@ -974,6 +1134,111 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       });
     });
     return this.getMomentScript(context, momentId);
+  }
+
+  async listCompletedRuns(
+    context: TenantContext,
+  ): Promise<readonly CompletedRun[]> {
+    await this.requireMerchant(context, { allowMerchantViewer: true });
+    const rows = await this.db
+      .select({
+        id: researchMoments.id,
+        name: researchMoments.name,
+        reportUrl: researchMoments.reportUrl,
+        updatedAt: researchMoments.updatedAt,
+      })
+      .from(researchMoments)
+      .where(
+        and(
+          eq(researchMoments.merchantId, context.merchantId),
+          eq(researchMoments.kind, "angle"),
+          eq(researchMoments.status, "completed"),
+        ),
+      )
+      .orderBy(desc(researchMoments.updatedAt));
+    if (!rows.length) return [];
+    const momentIds = rows.map((row) => row.id);
+    const [versions, counts] = await Promise.all([
+      this.db
+        .select({
+          momentId: researchMomentVersions.researchMomentId,
+          objective: researchMomentVersions.objective,
+        })
+        .from(researchMomentVersions)
+        .where(
+          and(
+            eq(researchMomentVersions.merchantId, context.merchantId),
+            inArray(researchMomentVersions.researchMomentId, momentIds),
+          ),
+        )
+        .orderBy(desc(researchMomentVersions.version)),
+      this.db
+        .select({
+          momentId: researchMomentVersions.researchMomentId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(interviews)
+        .innerJoin(
+          researchAssignments,
+          and(
+            eq(researchAssignments.id, interviews.researchAssignmentId),
+            eq(researchAssignments.merchantId, interviews.merchantId),
+          ),
+        )
+        .innerJoin(
+          researchMomentVersions,
+          eq(
+            researchMomentVersions.id,
+            researchAssignments.researchMomentVersionId,
+          ),
+        )
+        .where(
+          and(
+            eq(interviews.merchantId, context.merchantId),
+            inArray(researchMomentVersions.researchMomentId, momentIds),
+            eq(interviews.status, "completed"),
+            eq(interviews.outcome, "completed"),
+          ),
+        )
+        .groupBy(researchMomentVersions.researchMomentId),
+    ]);
+    const objectives = new Map<string, string>();
+    for (const version of versions)
+      if (!objectives.has(version.momentId))
+        objectives.set(version.momentId, version.objective);
+    const completed = new Map(counts.map((row) => [row.momentId, row.count]));
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      objective: objectives.get(row.id) ?? "",
+      completedAt: row.updatedAt.toISOString(),
+      completedInterviews: completed.get(row.id) ?? 0,
+      reportUrl: row.reportUrl,
+    }));
+  }
+
+  async setMomentReportUrl(
+    context: TenantContext,
+    momentId: string,
+    reportUrl: string | null,
+  ) {
+    await this.requireManager(context);
+    if (reportUrl !== null && !isReportUrl(reportUrl))
+      throw new OperationsError("INVALID_REPORT_URL", 400);
+    // updatedAt is left alone: on a completed run it dates the completion.
+    const updated = await this.db
+      .update(researchMoments)
+      .set({ reportUrl })
+      .where(
+        and(
+          eq(researchMoments.id, momentId),
+          eq(researchMoments.merchantId, context.merchantId),
+          eq(researchMoments.kind, "angle"),
+        ),
+      )
+      .returning({ id: researchMoments.id });
+    if (!updated.length)
+      throw new OperationsError("RESEARCH_MOMENT_NOT_FOUND", 404);
   }
 
   private async requireManager(context: TenantContext) {
@@ -1433,7 +1698,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   }
 
   async saveMoment(context: TenantContext, input: SaveMomentInput) {
-    await this.requireMerchant(context);
+    await this.requireMerchant(context, { allowMerchantViewer: true });
+    // A merchant's angle is a request: saved as a draft for staff to launch.
+    const requestedBy = context.viewer === "merchant" ? "shopify_admin" : null;
+    if (requestedBy) input = { ...input, publish: false };
     const cohort = cohortExpressionSchema.safeParse(input.cohortExpression);
     if (
       !cohort.success ||
@@ -1512,6 +1780,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           merchantId: context.merchantId,
           name: input.name,
           status: input.publish ? "active" : "draft",
+          requestedBy,
         })
         .onConflictDoNothing();
 
@@ -2119,7 +2388,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   async listCompletedCalls(
     context: TenantContext,
   ): Promise<readonly CompletedCall[]> {
-    await this.requireMerchant(context);
+    await this.requireMerchant(context, { allowMerchantViewer: true });
     const rows = await this.db
       .select({
         interviewId: interviews.id,
@@ -2180,7 +2449,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         and(
           eq(interviews.merchantId, context.merchantId),
           inArray(interviews.status, ["completed", "aborted"]),
-          ...(canManageMoments(context.roles)
+          ...(seesAllCalls(context)
             ? []
             : [eq(interviews.researcherId, context.researcherId)]),
         ),
@@ -2308,7 +2577,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       action: "recording.playback_authorized",
       subjectType: "interview",
       subjectId: interviewId,
-      metadata: { correlationId: context.correlationId },
+      metadata: {
+        correlationId: context.correlationId,
+        ...(context.viewer ? { viewer: context.viewer } : {}),
+      },
       occurredAt: this.now(),
     });
     return recording.objectKey;
@@ -2450,6 +2722,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     const interview = await this.requireReviewableInterview(
       context,
       interviewId,
+      "correct",
     );
     await this.applyPromptProgress(context, interview, promptKey, input, {
       provenance: "human_reviewed",
@@ -2770,7 +3043,16 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     return { reportId };
   }
 
-  private async requireMerchant(context: TenantContext) {
+  /**
+   * The merchant viewer (Shopify admin session) is refused unless the caller
+   * opts in; only read paths and angle requests do.
+   */
+  private async requireMerchant(
+    context: TenantContext,
+    options: { readonly allowMerchantViewer?: boolean } = {},
+  ) {
+    if (context.viewer === "merchant" && !options.allowMerchantViewer)
+      throw new OperationsError("WORKFORCE_ACCESS_REQUIRED", 403);
     const [merchant] = await this.db
       .select({ id: merchants.id })
       .from(merchants)
@@ -3043,8 +3325,11 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   private async requireReviewableInterview(
     context: TenantContext,
     interviewId: string,
+    access: "read" | "correct" = "read",
   ) {
-    await this.requireMerchant(context);
+    await this.requireMerchant(context, {
+      allowMerchantViewer: access === "read",
+    });
     const [row] = await this.db
       .select()
       .from(interviews)
@@ -3053,7 +3338,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           eq(interviews.id, interviewId),
           eq(interviews.merchantId, context.merchantId),
           inArray(interviews.status, ["completed", "aborted"]),
-          ...(canManageMoments(context.roles)
+          ...(seesAllCalls(context)
             ? []
             : [eq(interviews.researcherId, context.researcherId)]),
         ),
@@ -3067,6 +3352,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     context: TenantContext,
     interviewId: string,
   ) {
+    if (context.viewer === "merchant")
+      throw new OperationsError("WORKFORCE_ACCESS_REQUIRED", 403);
     const [row] = await this.db
       .select()
       .from(interviews)

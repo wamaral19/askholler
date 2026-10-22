@@ -1,41 +1,51 @@
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
+  NavLink,
   Outlet,
   useLoaderData,
   useRouteError,
   type HeadersFunction,
   type LoaderFunctionArgs,
 } from "react-router";
-import { shopifyMerchantId } from "../lib/shopify-ingestion.server";
 import { getShopifyApp } from "../shopify.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await getShopifyApp().authenticate.admin(request);
-
-  return {
-    apiKey: process.env.SHOPIFY_API_KEY!,
-    shop: session.shop,
-    merchantId: shopifyMerchantId(session.shop),
-  };
+  await getShopifyApp().authenticate.admin(request);
+  return { apiKey: process.env.SHOPIFY_API_KEY! };
 }
 
+const sections = [
+  { to: "/app", label: "Research runs", end: true },
+  { to: "/app/calls", label: "Raw research", end: false },
+  { to: "/app/angles/new", label: "Request an angle", end: false },
+  { to: "/app/billing", label: "Billing", end: false },
+] as const;
+
 export default function ShopifyAppLayout() {
-  const { apiKey, shop, merchantId } = useLoaderData<typeof loader>();
+  const { apiKey } = useLoaderData<typeof loader>();
 
   return (
     <AppProvider apiKey={apiKey}>
-      <main className="shopify-app">
-        <header className="shopify-app__header">
-          <p className="eyebrow">Holler for Shopify</p>
-          <h1>Merchant connection</h1>
-          <p>
-            Authenticated as <strong>{shop}</strong>
-          </p>
-          <p>
-            Holler merchant ID <code>{merchantId}</code>
-          </p>
-        </header>
+      {/* Shopify admin's sidebar navigation for the app. */}
+      <s-app-nav>
+        <s-link href="/app" rel="home">
+          Research runs
+        </s-link>
+        {sections.slice(1).map((section) => (
+          <s-link href={section.to} key={section.to}>
+            {section.label}
+          </s-link>
+        ))}
+      </s-app-nav>
+      <main className="shopify-app shopify-app--wide app-shell--console">
+        <nav aria-label="Holler" className="shopify-app__tabs">
+          {sections.map((section) => (
+            <NavLink end={section.end} key={section.to} to={section.to}>
+              {section.label}
+            </NavLink>
+          ))}
+        </nav>
         <Outlet />
       </main>
     </AppProvider>

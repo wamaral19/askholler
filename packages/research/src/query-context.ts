@@ -49,4 +49,10 @@ export interface CohortQueryRepository {
     context: ResearchCohortQueryContext,
     category: CurrentCategoryReference,
   ): Promise<CohortQueryFact<boolean>>;
+
+  /** Any of the customer's orders before the current one. */
+  priorOrdersContainCurrentCategory(
+    context: ResearchCohortQueryContext,
+    category: CurrentCategoryReference,
+  ): Promise<CohortQueryFact<boolean>>;
 }

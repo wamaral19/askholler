@@ -456,6 +456,13 @@ export const researchMoments = pgTable(
      * merchant's default fields and its own editable script.
      */
     kind: text("kind").notNull().default("angle"),
+    /**
+     * "shopify_admin" on drafts the merchant requested from the Shopify app;
+     * staff review and launch them.
+     */
+    requestedBy: text("requested_by"),
+    /** Where the run's hand-assembled report lives; shown to the merchant. */
+    reportUrl: text("report_url"),
     ...timestamps,
   },
   (table) => [
@@ -1280,5 +1287,64 @@ export const outboxEvents = pgTable(
   },
   (table) => [
     uniqueIndex("outbox_events_idempotency_uidx").on(table.idempotencyKey),
+  ],
+);
+
+/**
+ * Development-only sales demos. A demo seeds a dedicated synthetic merchant
+ * from a prospect's public storefront; `config` holds the company and catalog
+ * shown, `sample` the illustrative interview findings for the sample report.
+ * The prospect's phone is stored only encrypted in customer_private.
+ */
+export const demoSessions = pgTable(
+  "demo_sessions",
+  {
+    id: uuid("id").primaryKey(),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    website: text("website").notNull(),
+    companyName: text("company_name").notNull(),
+    config: jsonb("config").notNull(),
+    sample: jsonb("sample").notNull(),
+    researchMomentId: uuid("research_moment_id"),
+    status: text("status").notNull(),
+    liveUntil: timestamp("live_until", { withTimezone: true }),
+    liveOrdersSent: integer("live_orders_sent").notNull().default(0),
+    prospectCustomerId: uuid("prospect_customer_id"),
+    prospectOrderNumber: text("prospect_order_number"),
+    createdBy: text("created_by").notNull(),
+    ...timestamps,
+  },
+  (table) => [index("demo_sessions_merchant_idx").on(table.merchantId)],
+);
+
+/**
+ * A custom bill staff raise for a merchant, approved by the merchant through
+ * Shopify Billing: "one_time" for a project, "monthly" for a recurring period.
+ * Status: pending (awaiting approval), active (approved monthly), paid
+ * (approved one-time), declined, or cancelled.
+ */
+export const merchantCharges = pgTable(
+  "merchant_charges",
+  {
+    id: uuid("id").primaryKey(),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    kind: text("kind").notNull(),
+    description: text("description").notNull(),
+    amountMinor: integer("amount_minor").notNull(),
+    currency: text("currency").notNull(),
+    status: text("status").notNull(),
+    /** The Shopify AppPurchaseOneTime or AppSubscription GID, once created. */
+    shopifyChargeId: text("shopify_charge_id"),
+    createdBy: text("created_by").notNull(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index("merchant_charges_merchant_idx").on(table.merchantId),
+    uniqueIndex("merchant_charges_shopify_uidx").on(table.shopifyChargeId),
   ],
 );

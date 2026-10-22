@@ -57,18 +57,19 @@ Run the prototype UI:
 npm run dev
 ```
 
-Run the embedded Shopify surface against the linked development app/store:
+Run the embedded Shopify surface against the development app (`Holler Dev`,
+`shopify.app.dev.toml`) and store. `shopify.app.toml` is the production app;
+never run `shopify app dev` against it.
 
 ```bash
-npx shopify app dev --store hollers-test-store-version-zero.myshopify.com
+npx shopify app dev --config dev --store hollers-test-store-version-zero.myshopify.com
 ```
 
 Shopify CLI supplies the app credentials and tunnel URL to the React Router
 process. `DATABASE_URL` must point to a running PostgreSQL database. Shopify
 sessions are stored durably in that database by the official PostgreSQL session
 adapter. The app must have development access to protected customer data before
-Shopify will activate the `orders/create` subscription and the `read_orders` /
-`read_customers` scopes.
+Shopify will include customer name and phone in `orders/create` payloads.
 
 Credential-free readiness checks are part of the normal suite:
 
@@ -80,8 +81,8 @@ npm run typecheck
 For a real development-store check, use only synthetic customers and orders:
 
 1. Run migrations and start the worker in a second terminal with `npm run dev:worker`.
-2. Start `shopify app dev` and approve only the scopes in `shopify.app.toml`.
-3. Confirm the embedded `/app` page displays the expected shop domain.
+2. Start `shopify app dev --config dev` and approve only the scopes in `shopify.app.dev.toml`.
+3. Confirm the embedded `/app` page opens on Research runs.
 4. Create one synthetic test order, then replay its `orders/create` delivery from Shopify's developer tools.
 5. Confirm the invalid-signature case is rejected, the replay is deduplicated, and neither process logs the webhook body or customer contact fields.
 6. Uninstall the app and confirm its stored Shopify sessions are removed.

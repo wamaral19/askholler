@@ -226,6 +226,41 @@ class FirstOrderContainsCurrentCategoryPredicate extends CurrentCategoryPredicat
   }
 }
 
+class PriorOrdersContainCurrentCategoryPredicate extends CurrentCategoryPredicate {
+  readonly key = "customer.prior_orders_contain_current_category";
+
+  async evaluate(
+    context: QualificationContext,
+    config: CurrentCategoryConfig,
+  ): Promise<PredicateEvaluation> {
+    return this.result(
+      await this.repository.priorOrdersContainCurrentCategory(
+        asResearchContext(context),
+        categoryReference(config),
+      ),
+    );
+  }
+
+  compileQuery(
+    scope: PredicateQueryScope,
+    config: CurrentCategoryConfig,
+  ): ParameterizedPredicateQuery {
+    return {
+      text: `SELECT EXISTS (SELECT 1 FROM commerce_events ce JOIN orders current_order ON current_order.merchant_id = ce.merchant_id AND current_order.id = ce.order_id JOIN orders prior_order ON prior_order.merchant_id = current_order.merchant_id AND prior_order.customer_id = current_order.customer_id AND prior_order.id <> current_order.id AND prior_order.ordered_at < current_order.ordered_at JOIN order_line_items oli ON oli.merchant_id = prior_order.merchant_id AND oli.order_id = prior_order.id JOIN product_category_assignments pca ON pca.merchant_id = oli.merchant_id AND pca.product_id = oli.product_id JOIN product_categories pc ON pc.merchant_id = pca.merchant_id AND pc.id = pca.category_id WHERE ce.merchant_id = $1 AND ce.id = $2 AND pc.source = $3 AND pc.key = $4) AS matched`,
+      parameters: [
+        scope.merchantId,
+        scope.commerceEventId,
+        config.namespace,
+        config.categoryKey,
+      ],
+    };
+  }
+
+  describe(config: CurrentCategoryConfig): string {
+    return `Customer previously ordered current category ${config.namespace}:${config.categoryKey}`;
+  }
+}
+
 export function createInitialCohortPredicateRegistry(
   repository: CohortQueryRepository,
 ): CohortPredicateRegistry {
@@ -233,5 +268,6 @@ export function createInitialCohortPredicateRegistry(
   registry.register(new CustomerOrderSequencePredicate(repository));
   registry.register(new OrderContainsCurrentCategoryPredicate(repository));
   registry.register(new FirstOrderContainsCurrentCategoryPredicate(repository));
+  registry.register(new PriorOrdersContainCurrentCategoryPredicate(repository));
   return registry;
 }

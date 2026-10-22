@@ -70,6 +70,12 @@ class FakeCohortQueryRepository implements CohortQueryRepository {
       }
     );
   }
+  async priorOrdersContainCurrentCategory(
+    context: ResearchCohortQueryContext,
+    category: CurrentCategoryReference,
+  ): Promise<CohortQueryFact<boolean>> {
+    return this.firstOrderContainsCurrentCategory(context, category);
+  }
 }
 
 const cohort: CohortExpression = {

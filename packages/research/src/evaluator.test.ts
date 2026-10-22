@@ -48,6 +48,12 @@ class FakeCohortRepository implements CohortQueryRepository {
       )
     );
   }
+  async priorOrdersContainCurrentCategory(
+    context: ResearchCohortQueryContext,
+    category: CurrentCategoryReference,
+  ): Promise<CohortQueryFact<boolean>> {
+    return this.firstOrderContainsCurrentCategory(context, category);
+  }
 }
 
 function setup(repository = new FakeCohortRepository()): {

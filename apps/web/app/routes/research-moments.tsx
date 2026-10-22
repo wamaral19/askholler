@@ -56,6 +56,17 @@ export async function action({ request }: { request: Request }) {
       );
       return { intent, momentId: moment.id, status: moment.status };
     }
+    if (intent === "set_report_url") {
+      const momentId = String(form.get("momentId") ?? "");
+      const reportUrl = String(form.get("reportUrl") ?? "").trim();
+      if (!momentId) throw new Response("Invalid moment", { status: 400 });
+      await getOperationsService().setMomentReportUrl(
+        await getTenantContext(request),
+        momentId,
+        reportUrl || null,
+      );
+      return { intent, momentId };
+    }
     if (intent !== "generate_report") {
       throw new Response("Unsupported action", { status: 400 });
     }
@@ -227,8 +238,29 @@ export default function ResearchMomentsRoute() {
                   <span className={`status-pill status-${moment.status}`}>
                     {momentStatusLabels[moment.status]}
                   </span>
+                  {moment.requestedByMerchant ? (
+                    <span className="status-pill">Requested by merchant</span>
+                  ) : null}
                 </div>
                 <p>{moment.objective}</p>
+                {moment.status === "completed" && canManage ? (
+                  <Form className="report-link-form" method="post">
+                    <input name="intent" type="hidden" value="set_report_url" />
+                    <input name="momentId" type="hidden" value={moment.id} />
+                    <label>
+                      <span>Report link (shown to the merchant)</span>
+                      <input
+                        defaultValue={moment.reportUrl ?? ""}
+                        name="reportUrl"
+                        placeholder="https://"
+                        type="url"
+                      />
+                    </label>
+                    <button className="button button-small" type="submit">
+                      Save link
+                    </button>
+                  </Form>
+                ) : null}
               </div>
               <MomentProgress
                 completed={moment.completedThisWeek}

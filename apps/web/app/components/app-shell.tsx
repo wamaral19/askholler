@@ -85,6 +85,9 @@ export function AppShell({
               <NavLink to="/admin/dashboard">Dashboard</NavLink>
               <NavLink to="/admin/research-fields">Research fields</NavLink>
               <NavLink to="/admin/scripts">Scripts</NavLink>
+              {layout?.showBilling ? (
+                <NavLink to="/admin/billing">Billing</NavLink>
+              ) : null}
             </NavGroup>
             <NavGroup label="Angle setup">
               <NavLink to="/moments" end>
@@ -96,6 +99,11 @@ export function AppShell({
               <NavLink to="/queue">Live queue</NavLink>
               <NavLink to="/calls">Completed calls</NavLink>
             </NavGroup>
+            {layout?.showDemo ? (
+              <NavGroup label="Sales">
+                <NavLink to="/demo">Demo console</NavLink>
+              </NavGroup>
+            ) : null}
           </nav>
           <div className="sidebar-note">
             <span className="status-dot" />

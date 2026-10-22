@@ -278,3 +278,40 @@ export function PromptRow({
     </article>
   );
 }
+
+/** A finished prompt row, read-only: what the researcher tagged and noted. */
+export function PromptAnswer({
+  prompt,
+  category,
+}: {
+  prompt: CallSheetPrompt;
+  category: string;
+}) {
+  return (
+    <article
+      className={`sheet-prompt ${prompt.covered ? "is-covered" : "is-open"}`}
+    >
+      <header className="sheet-prompt__head">
+        <span className="sheet-prompt__label">
+          {category} · {prompt.title}
+        </span>
+        <span className="sheet-prompt__status">
+          {prompt.covered ? "Covered" : "Not covered"}
+        </span>
+      </header>
+      <p className="sheet-prompt__text">{prompt.prompt}</p>
+      {prompt.selected.length ? (
+        <div className="sheet-prompt__options">
+          {prompt.selected.map((option) => (
+            <span className="option-chip is-on" key={option}>
+              {option}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {prompt.note ? (
+        <p className="sheet-prompt__answer">{prompt.note}</p>
+      ) : null}
+    </article>
+  );
+}

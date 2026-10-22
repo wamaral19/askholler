@@ -18,6 +18,9 @@ export interface ResearchMomentSummary {
   readonly scriptVersion: string;
   /** Interviews completed since the start of the merchant's week. */
   readonly completedThisWeek: number;
+  /** A draft the merchant requested from the Shopify app. */
+  readonly requestedByMerchant?: boolean;
+  readonly reportUrl?: string;
 }
 
 export const researchMoments: readonly ResearchMomentSummary[] = [

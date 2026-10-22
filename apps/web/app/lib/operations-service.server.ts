@@ -248,6 +248,17 @@ function createSyntheticService(): OperationsApplicationService {
           { source: "direct", orders: 8 },
           { source: "unknown", orders: 5 },
         ],
+        repeatByProduct: [],
+        series: [],
+        sources: [],
+        topProducts: [],
+        reorderTiming: {
+          leaderProduct: null,
+          leaderCustomers: 0,
+          otherCustomers: 0,
+          buckets: [],
+        },
+        cohorts: [],
         cohortExpression: dashboardFiltersToCohort(filters),
         limitations: [
           "Discount metrics require normalized discount data and are not shown.",
@@ -420,8 +431,24 @@ function createSyntheticService(): OperationsApplicationService {
       momentStatuses.set(momentId, status);
       return { ...moment, status };
     },
-    async saveMoment(_context, input) {
-      return { id: `moment-${input.publish ? "published" : "draft"}` };
+    async saveMoment(context, input) {
+      const publish = input.publish && context.viewer !== "merchant";
+      return { id: `moment-${publish ? "published" : "draft"}` };
+    },
+    async listCompletedRuns() {
+      return moments()
+        .filter((moment) => moment.status === "completed")
+        .map((moment) => ({
+          id: moment.id,
+          name: moment.name,
+          objective: moment.objective,
+          completedAt: new Date(startedAt).toISOString(),
+          completedInterviews: moment.completedThisWeek,
+          reportUrl: moment.reportUrl ?? null,
+        }));
+    },
+    async setMomentReportUrl(context) {
+      requireManager(context);
     },
     async listQueue() {
       // Completed moments stop feeding the queue; work already claimed stays.

@@ -33,9 +33,7 @@ function createShopifyApp() {
   const apiKey = requireEnvironment("SHOPIFY_API_KEY");
   const apiSecretKey = requireEnvironment("SHOPIFY_API_SECRET");
   const appUrl = requireEnvironment("SHOPIFY_APP_URL");
-  const scopes = (
-    process.env.SHOPIFY_SCOPES ?? "read_orders,read_products,read_customers"
-  )
+  const scopes = (process.env.SHOPIFY_SCOPES ?? "read_orders")
     .split(",")
     .map((scope) => scope.trim())
     .filter(Boolean);
