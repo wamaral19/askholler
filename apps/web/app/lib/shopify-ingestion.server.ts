@@ -51,7 +51,8 @@ export function getShopifyIngestionDatabase(): HollerDatabase {
   return database;
 }
 
-function stableUuid(value: string): string {
+/** Record IDs derive from Shopify identities so replays converge. */
+export function stableUuid(value: string): string {
   const hex = createHash("sha256").update(value).digest("hex");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
@@ -145,7 +146,7 @@ export async function ingestShopifyOrder(
   ingress: ShopifyOrderIngressV1,
   bodySha256: string,
   now = new Date(),
-  cipher?: CustomerPrivateCipher,
+  cipher?: Pick<CustomerPrivateCipher, "encrypt">,
 ): Promise<ShopifyOrderIngestionResult> {
   const merchantId = shopifyMerchantId(ingress.shopDomain);
   // KMS calls happen before the transaction so it never waits on the network.
@@ -442,7 +443,10 @@ async function ensureMerchant(
  * complete it stays complete; older customers remain partial until a
  * historical import exists.
  */
-function customerIdFor(merchantId: string, shopifyCustomerId: string): string {
+export function customerIdFor(
+  merchantId: string,
+  shopifyCustomerId: string,
+): string {
   return stableUuid(`shopify-customer:${merchantId}:${shopifyCustomerId}`);
 }
 
@@ -539,7 +543,7 @@ export function normalizePhoneE164(raw: string | null): string | null {
 }
 
 async function encryptContact(
-  cipher: CustomerPrivateCipher,
+  cipher: Pick<CustomerPrivateCipher, "encrypt">,
   merchantId: string,
   customerId: string,
   source: {

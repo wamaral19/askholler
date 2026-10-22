@@ -21,6 +21,23 @@ export interface TenantContext {
   readonly researcherId: string;
   readonly correlationId: string;
   readonly roles: readonly WorkforceRole[];
+  /**
+   * "merchant": the merchant's own Shopify admin session (no workforce
+   * roles). It reads the merchant's finished research and may save angle
+   * requests as drafts; it never edits research or reveals phone numbers.
+   */
+  readonly viewer?: "merchant";
+}
+
+/** A finished research run as the merchant sees it. */
+export interface CompletedRun {
+  readonly id: string;
+  readonly name: string;
+  readonly objective: string;
+  /** When the run was last changed; a completed run's completion time. */
+  readonly completedAt: string;
+  readonly completedInterviews: number;
+  readonly reportUrl: string | null;
 }
 
 export interface QueueItem {
@@ -334,10 +351,22 @@ export interface OperationsApplicationService {
     momentId: string,
     status: MomentRunStatus,
   ): Promise<ResearchMomentSummary>;
+  /**
+   * Saves or launches an angle. A merchant viewer's save is always a draft,
+   * recorded as the merchant's request.
+   */
   saveMoment(
     context: TenantContext,
     input: SaveMomentInput,
   ): Promise<{ id: string }>;
+  /** Completed angles, newest first, with their report links. */
+  listCompletedRuns(context: TenantContext): Promise<readonly CompletedRun[]>;
+  /** Sets (or with null clears) the link to a run's report. */
+  setMomentReportUrl(
+    context: TenantContext,
+    momentId: string,
+    reportUrl: string | null,
+  ): Promise<void>;
   listQueue(context: TenantContext): Promise<readonly QueueItem[]>;
   claimAssignment(
     context: TenantContext,
@@ -387,9 +416,12 @@ export interface OperationsApplicationService {
     interviewId: string,
     outcome: InterviewOutcome,
   ): Promise<void>;
-  /** Finished calls, newest first: a researcher's own, or all for managers. */
+  /**
+   * Finished calls, newest first: a researcher's own, or all for managers and
+   * the merchant viewer.
+   */
   listCompletedCalls(context: TenantContext): Promise<readonly CompletedCall[]>;
-  /** For the researcher who made the call, or a manager. */
+  /** For the researcher who made the call, a manager, or the merchant viewer. */
   getCallReview(
     context: TenantContext,
     interviewId: string,

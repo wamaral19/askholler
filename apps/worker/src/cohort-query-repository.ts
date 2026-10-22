@@ -66,6 +66,41 @@ export class PostgresCohortQueryRepository implements CohortQueryRepository {
     return this.orderContainsCategory(context, first.id, category);
   }
 
+  async priorOrdersContainCurrentCategory(
+    context: ResearchCohortQueryContext,
+    category: CurrentCategoryReference,
+  ): Promise<CohortQueryFact<boolean>> {
+    const row = await this.eventOrder(context);
+    if (!row?.order_id) return unknown("order_unavailable");
+    if (!row.customer_id) return unknown("customer_unavailable");
+    if (row.history_state !== "complete") return unknown("history_incomplete");
+    const result = await this.db.execute(sql`
+      select prior.id from orders prior
+      join orders current_order
+        on current_order.merchant_id = prior.merchant_id
+        and current_order.id = ${row.order_id}
+      where prior.merchant_id = ${context.merchantId}
+        and prior.customer_id = ${row.customer_id}
+        and prior.id <> current_order.id
+        and prior.ordered_at < current_order.ordered_at
+    `);
+    const prior = result.rows as { id: string }[];
+    if (!prior.length) return { state: "known", value: false };
+    let incomplete = false;
+    for (const order of prior) {
+      const fact = await this.orderContainsCategory(
+        context,
+        order.id,
+        category,
+      );
+      if (fact.state === "known" && fact.value) return fact;
+      if (fact.state === "unknown") incomplete = true;
+    }
+    return incomplete
+      ? unknown("catalog_enrichment_incomplete")
+      : { state: "known", value: false };
+  }
+
   private async eventOrder(
     context: ResearchCohortQueryContext,
   ): Promise<EventOrderRow | undefined> {

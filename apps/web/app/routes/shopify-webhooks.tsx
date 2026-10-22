@@ -5,11 +5,16 @@ import type { ActionFunctionArgs } from "react-router";
 import { ZodError } from "zod";
 
 import {
+  applyShopifyChargeStatus,
+  resetChargesOnUninstall,
+} from "../lib/merchant-billing.server";
+import {
   applyShopifyOrderUpdate,
   getShopifyIngestionDatabase as getDatabase,
   ingestShopifyOrder,
   recordShopifyPrivacyRequest,
   recordShopifyUninstall,
+  shopifyMerchantId,
 } from "../lib/shopify-ingestion.server";
 import { getCustomerPrivateCipher } from "../lib/customer-private.server";
 import { getShopifyApp } from "../shopify.server";
@@ -31,6 +36,32 @@ export async function action({ request }: ActionFunctionArgs) {
       );
     }
     await recordShopifyUninstall(getDatabase(), shop);
+    await resetChargesOnUninstall(getDatabase(), shopifyMerchantId(shop));
+  }
+
+  if (
+    topic === "APP_SUBSCRIPTIONS_UPDATE" ||
+    topic === "APP_PURCHASES_ONE_TIME_UPDATE"
+  ) {
+    const payload = context.payload as Record<string, unknown>;
+    const charge = (payload.app_subscription ??
+      payload.app_purchase_one_time) as Record<string, unknown> | undefined;
+    const id = charge?.admin_graphql_api_id;
+    const status = charge?.status;
+    if (typeof id === "string" && typeof status === "string")
+      await applyShopifyChargeStatus(
+        getDatabase(),
+        shopifyMerchantId(shop),
+        id,
+        status,
+      );
+    console.info(
+      JSON.stringify({
+        event: "shopify.billing_webhook",
+        topic,
+        webhookId: context.webhookId,
+      }),
+    );
   }
 
   if (

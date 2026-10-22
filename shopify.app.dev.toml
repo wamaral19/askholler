@@ -1,0 +1,37 @@
+# Development app ("Holler Dev"), used by `shopify app dev`. Keep
+# [access_scopes] and [webhooks] identical to shopify.app.toml; the CLI
+# rewrites the URLs to a tunnel on every run.
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "c2d6b2da00c740d7ab76583b55b448a3"
+name = "Holler Dev"
+application_url = "https://example.com"
+embedded = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders"
+
+[auth]
+redirect_urls = [ "https://example.com/auth/callback" ]
+
+[webhooks]
+api_version = "2026-10"
+
+[[webhooks.subscriptions]]
+topics = [
+  "orders/create",
+  "orders/updated",
+  "app/uninstalled",
+  "app_subscriptions/update",
+  "app_purchases_one_time/update"
+]
+uri = "/webhooks"
+
+[[webhooks.subscriptions]]
+compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+uri = "/webhooks"
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

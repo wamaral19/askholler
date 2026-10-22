@@ -168,6 +168,12 @@ class CanonicalCohortRepository implements CohortQueryRepository {
     }
     return { state: "known", value: false };
   }
+  async priorOrdersContainCurrentCategory(
+    context: ResearchCohortQueryContext,
+    category: CurrentCategoryReference,
+  ): Promise<CohortQueryFact<boolean>> {
+    return this.firstOrderContainsCurrentCategory(context, category);
+  }
 }
 
 class FixedClock implements Clock {

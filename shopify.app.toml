@@ -1,22 +1,31 @@
-# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+# Production app (the one listed on the App Store). Publish changes with
+# `npx shopify app deploy --config shopify.app.toml`. Local development uses
+# shopify.app.dev.toml; never run `shopify app dev` against this file.
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "44aa3b7648ef2fd87327306c7035e3ae"
-application_url = "https://shopify.dev/apps/default-app-home"
+application_url = "https://app.withholler.com"
 embedded = true
 name = "Holler"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_orders,read_products,read_customers"
+scopes = "read_orders"
 
 [auth]
-redirect_urls = [ "https://shopify.dev/apps/default-app-home/auth/callback" ]
+redirect_urls = [ "https://app.withholler.com/auth/callback" ]
 
 [webhooks]
 api_version = "2026-10"
 
 [[webhooks.subscriptions]]
-topics = [ "orders/create", "orders/updated", "app/uninstalled" ]
+topics = [
+  "orders/create",
+  "orders/updated",
+  "app/uninstalled",
+  "app_subscriptions/update",
+  "app_purchases_one_time/update"
+]
 uri = "/webhooks"
 
 [[webhooks.subscriptions]]
@@ -25,4 +34,4 @@ uri = "/webhooks"
 
 [build]
 include_config_on_deploy = true
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false

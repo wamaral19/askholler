@@ -65,6 +65,13 @@ function describePredicate(
         ? `their first order had no ${label}`
         : `their first order included ${label}`;
   }
+  if (predicate === "customer.prior_orders_contain_current_category") {
+    const label = category(config, labeler);
+    if (label)
+      return negated
+        ? `they have never ordered ${label} before`
+        : `they previously ordered ${label}`;
+  }
   const fallback = humanizeKey(predicate).toLowerCase();
   return negated ? `not ${fallback}` : fallback;
 }
