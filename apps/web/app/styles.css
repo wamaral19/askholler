@@ -5484,7 +5484,6 @@ p {
   .preview-onboarding li p {
     grid-column: 2;
   }
-
 }
 
 @media (max-width: 480px) {
