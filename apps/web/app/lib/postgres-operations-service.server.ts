@@ -566,7 +566,9 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   }
 
   async listMoments(context: TenantContext) {
-    await this.requireMerchant(context);
+    // Merchant viewers need this read path so a submitted request remains
+    // visible after the form POST and its review/run status is transparent.
+    await this.requireMerchant(context, { allowMerchantViewer: true });
     return this.momentSummaries(context, "angle");
   }
 

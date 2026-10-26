@@ -343,6 +343,7 @@ export interface OperationsApplicationService {
   getGeneralCalls(
     context: TenantContext,
   ): Promise<ResearchMomentSummary | null>;
+  /** All merchant angles, including persistent draft requests and active runs. */
   listMoments(
     context: TenantContext,
   ): Promise<readonly ResearchMomentSummary[]>;

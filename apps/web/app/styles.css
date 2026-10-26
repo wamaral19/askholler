@@ -2255,6 +2255,18 @@ p {
   list-style: none;
 }
 
+.merchant-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.merchant-plan-grid h2,
+.merchant-plan-grid p:last-child {
+  margin-bottom: 0;
+}
+
 .merchant-run,
 .merchant-charge {
   display: flex;
@@ -2280,6 +2292,148 @@ p {
 .merchant-run__pending {
   color: var(--ink-muted);
   font-style: italic;
+}
+
+.merchant-setup {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-8);
+}
+
+.merchant-setup__item {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.merchant-setup__item > span {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.merchant-setup__item.is-complete > span {
+  border-color: var(--holler-blue);
+  background: var(--holler-blue);
+  color: white;
+}
+
+.merchant-setup__item p {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-muted);
+}
+
+.sample-report {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  padding: 128px 16px 48px;
+}
+
+.sample-report__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.sample-report__summary span {
+  display: block;
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  font-weight: 700;
+}
+
+.sample-report__summary p {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-muted);
+}
+
+.sample-findings {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sample-findings li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-4);
+}
+
+.sample-findings h3,
+.sample-findings p,
+.sample-report__method p {
+  margin-top: 0;
+}
+
+.sample-findings__number {
+  color: var(--blue-ink);
+  font-weight: 700;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 3vw, 2rem);
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto var(--space-12);
+}
+
+.pricing-card {
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.pricing-card.is-featured {
+  border-color: var(--holler-blue);
+  box-shadow: 0 18px 50px rgb(18 65 110 / 10%);
+}
+
+.pricing-card__price {
+  margin: var(--space-4) 0;
+  color: var(--ink);
+  font-size: clamp(2rem, 5vw, 3.75rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pricing-card__price span,
+.pricing-card__price small {
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.pricing-card ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-5) 0;
+  padding-left: 1.2rem;
+}
+
+.pricing-note {
+  width: min(760px, calc(100% - 32px));
+  margin: 0 auto var(--space-12);
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .merchant-setup,
+  .sample-report__summary,
+  .pricing-grid,
+  .merchant-plan-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .sheet-prompt__status {

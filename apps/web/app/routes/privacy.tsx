@@ -50,7 +50,9 @@ export default function Privacy() {
             <li>
               <strong>Where we got your details.</strong> The brand shared
               information from your order, such as your first name, phone
-              number, city and state, and what you bought.
+              number, city and state, and what you bought. We use city and state
+              to understand your local time and avoid calling outside permitted
+              calling windows; we do not keep your street address.
             </li>
             <li>
               <strong>Recording.</strong> We ask for your permission before
@@ -74,7 +76,8 @@ export default function Privacy() {
           </p>
           <ul>
             <li>
-              contact details, such as name, phone number, and city and state;
+              contact details, such as first name, phone number, and city and
+              state (but not street address or postal code);
             </li>
             <li>
               order and purchase history, such as products, sizes, quantities,

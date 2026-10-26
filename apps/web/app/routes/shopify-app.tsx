@@ -19,7 +19,7 @@ const sections = [
   { to: "/app", label: "Research runs", end: true },
   { to: "/app/calls", label: "Raw research", end: false },
   { to: "/app/angles/new", label: "Request an angle", end: false },
-  { to: "/app/billing", label: "Billing", end: false },
+  { to: "/app/billing", label: "Pricing & billing", end: false },
 ] as const;
 
 export default function ShopifyAppLayout() {

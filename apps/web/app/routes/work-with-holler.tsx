@@ -224,10 +224,10 @@ export default function WorkWithHoller() {
       </section>
 
       <section className="preview-subpage-cta">
-        <p className="preview-kicker">No pricing page</p>
-        <h2>Tell us the question. We’ll recommend the right engagement.</h2>
-        <a href="/contact">
-          Talk with Holler <span aria-hidden="true">→</span>
+        <p className="preview-kicker">Choose an engagement</p>
+        <h2>Start recurring research or investigate one focused question.</h2>
+        <a href="/pricing">
+          See pricing <span aria-hidden="true">→</span>
         </a>
       </section>
 

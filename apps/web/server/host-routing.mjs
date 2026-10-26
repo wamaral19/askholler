@@ -7,7 +7,16 @@
  * Any other host (the platform's default hostname, health checks, localhost) is
  * left alone. When either origin is unconfigured, routing is disabled.
  */
-const MARKETING_PATHS = new Set(["/privacy"]);
+const MARKETING_PATHS = new Set([
+  "/about",
+  "/contact",
+  "/how-it-works",
+  "/pricing",
+  "/privacy",
+  "/sample-report",
+  "/use-cases",
+  "/work-with-holler",
+]);
 
 export function createHostRouting({ marketingUrl, appBaseUrl }) {
   if (!marketingUrl || !appBaseUrl) return null;
