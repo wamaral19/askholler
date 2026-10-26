@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
   Form,
   useActionData,
@@ -70,8 +71,7 @@ const actionErrors: Record<string, string> = {
 };
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { admin, context, redirect, session } =
-    await authenticateMerchant(request);
+  const { admin, context, session } = await authenticateMerchant(request);
   const db = getShopifyIngestionDatabase();
   const form = await request.formData();
   const intent = form.get("intent");
@@ -97,7 +97,10 @@ export async function action({ request }: ActionFunctionArgs) {
         charge.id,
         created.shopifyChargeId,
       );
-      return redirect(created.confirmationUrl, { target: "_top" });
+      // The page sends admin's top window to Shopify's approval page. The
+      // library's redirect() answers a fetch with a 401 that App Bridge must
+      // intercept, which surfaced to merchants as "401 Unauthorized".
+      return { confirmationUrl: created.confirmationUrl };
     }
     if (intent === "cancel") {
       if (charge.kind !== "monthly" || charge.status !== "active")
@@ -134,7 +137,13 @@ export default function Billing() {
   const { charges } = useLoaderData<typeof loader>();
   const result = useActionData<typeof action>();
   const navigation = useNavigation();
-  const busy = navigation.state !== "idle";
+  const confirmationUrl =
+    result && "confirmationUrl" in result ? result.confirmationUrl : null;
+  // App Bridge handles window.open with _top by navigating Shopify admin.
+  useEffect(() => {
+    if (confirmationUrl) window.open(confirmationUrl, "_top");
+  }, [confirmationUrl]);
+  const busy = navigation.state !== "idle" || Boolean(confirmationUrl);
   const pending = charges.filter((charge) => charge.status === "pending");
   const history = charges.filter((charge) => charge.status !== "pending");
 
