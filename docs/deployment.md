@@ -200,12 +200,11 @@ npm run zapier:fake-hook            # add -- --status 500 to simulate a rejectio
 
 ### Shopify dev vs production
 
-`shopify.app.toml` still points at Shopify's placeholder URL and has
-`automatically_update_urls_on_dev = true`. Running `shopify app dev` against
-this app rewrites its URLs to a temporary tunnel, which would break a
-production install. Before pointing the Shopify app at `app.withholler.com`,
-create a separate development app (or a `shopify.app.production.toml` for a
-separate production app) so dev and production never share URLs.
+`shopify.app.toml` is the production App Store configuration and points at
+`https://app.withholler.com`; automatic URL rewriting is disabled. Local work
+uses `shopify.app.dev.toml` and a separate development app. Never run
+`shopify app dev` against the production configuration, because a temporary
+tunnel must not replace production URLs.
 
 ## Operating
 

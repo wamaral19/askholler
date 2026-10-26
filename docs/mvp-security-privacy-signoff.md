@@ -50,7 +50,8 @@ pilot scope table in `docs/mvp-plan.md`.
   separate recent-MFA step-up for phone reveal is not built for the pilot.
 - **Transcription:** none. No transcription provider receives call audio.
   Researchers capture responses and observations directly.
-- **Shopify:** custom app distribution to the pilot merchant only.
+- **Shopify:** public App Store distribution after Shopify review; development
+  and production use separate Partner apps and configuration files.
 - **Reports:** the pilot Research Angle report is assembled manually from
   reviewed evidence and delivered privately. A manual export that contains direct identifiers
   follows the PII-bearing export retention rule below.

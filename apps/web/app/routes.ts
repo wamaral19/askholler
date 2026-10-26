@@ -9,10 +9,12 @@ export default [
   index("routes/home.tsx"),
   route("use-cases", "routes/use-cases.tsx"),
   route("how-it-works", "routes/how-it-works.tsx"),
+  route("pricing", "routes/pricing.tsx"),
   route("work-with-holler", "routes/work-with-holler.tsx"),
   route("about", "routes/about.tsx"),
   route("contact", "routes/contact.tsx"),
   route("privacy", "routes/privacy.tsx"),
+  route("sample-report", "routes/shopify-app-sample-report.tsx"),
   route("app", "routes/shopify-app.tsx", [
     index("routes/shopify-app-index.tsx"),
     route("calls", "routes/shopify-app-calls.tsx"),

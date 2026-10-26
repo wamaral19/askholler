@@ -168,6 +168,12 @@ describe.skipIf(databaseUrl === undefined)("merchant portal", () => {
       status: "draft",
       requestedByMerchant: true,
     });
+    expect(
+      (await service.listMoments(merchant)).find((item) => item.id === id),
+    ).toMatchObject({
+      status: "draft",
+      requestedByMerchant: true,
+    });
   });
 
   it("lists completed runs with the report link staff set", async () => {

@@ -26,8 +26,10 @@ two in step.
    `Holler Dev`. Copy its client ID into `client_id` in
    `shopify.app.dev.toml`.
 2. In `Holler Dev` → **API access → Protected customer data access**, select
-   **Name** and **Phone** (section 5). Development stores need no review, but
-   without this Shopify leaves name and phone out of order webhooks.
+   **Name**, **Phone**, and **Address** (section 5). Holler reads only city and
+   state/province from an address; street lines and postal codes are discarded.
+   Development stores need no review, but without this access Shopify can redact
+   the fields from order webhooks.
 3. `npx shopify app config use dev`, so a plain `shopify app dev` also uses
    the dev app.
 4. `npx shopify app dev --config dev --store <dev store>.myshopify.com`. The
@@ -131,23 +133,33 @@ Select **Protected customer data**, then only these fields:
 
 - **Name** (first name, used to greet the customer)
 - **Phone** (to place the research call)
+- **Address** (city and state/province only, used to avoid calling outside the
+  customer's permissible local calling window)
 
-Do not request email or address.
+Do not request email. Holler does not store street address lines, postal codes,
+or coordinates.
 
 Suggested answers for "why does your app need this data":
 
 > Holler conducts brand-commissioned customer research. After a customer
 > places an order, a Holler researcher may call them to ask how they
 > discovered the brand and why they purchased. The phone number is needed to
-> place that call and the first name to greet them. Only customers the
-> merchant targets are contacted, and customers without a phone or who opted
-> out are never called.
+> place that call and the first name to greet them. City and state/province are
+> used only to determine the customer's local time so a human researcher can
+> enforce applicable calling windows. Street address lines and postal codes are
+> discarded. Only customers the merchant targets are contacted, and customers
+> without a phone or who opted out are never called.
+
+City and state/province are safety inputs, not an automatic legal conclusion.
+The calling workflow must resolve the customer's time zone and apply a
+counsel-approved state/federal calling-window policy before dialing; locations
+near time-zone boundaries require manual verification.
 
 For the data protection questions, the implemented controls are:
 
 | Requirement                      | How Holler meets it                                                                                                                                                                                                                                                                    |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Process only the minimum data    | Only phone and first name are stored; other customer fields in the order payload are discarded.                                                                                                                                                                                        |
+| Process only the minimum data    | Phone, first name, and city/state are stored. City/state is used only for local-time calling-window safety. Street lines, postal codes, email, and other direct contact fields are discarded.                                                                                          |
 | Tell merchants what data is used | Stated in the app listing's privacy details and the client agreement.                                                                                                                                                                                                                  |
 | Respect consent and opt-out      | Opted-out customers are marked suppressed and never queued again.                                                                                                                                                                                                                      |
 | Encrypt data at rest             | Phone and name are envelope-encrypted with Google Cloud KMS (AES-256-GCM, per-record data keys bound to merchant and customer); the database and backups are also encrypted by Render.                                                                                                 |
@@ -184,7 +196,52 @@ not through `shopify app dev`, so you test exactly what reviewers will install.
 7. Uninstall and confirm the stored sessions are removed. Reinstall and
    confirm OAuth runs again before anything else.
 
-## 7. Listing and submission
+### Reviewer sample data
+
+Use a dedicated development/reviewer store only. After that store installs the
+production app, seed two clearly labeled synthetic records into its tenant:
+
+```bash
+HOLLER_REVIEWER_SEED_CONFIRM=synthetic-only \
+DATABASE_URL=<production-or-staging-database-url> \
+npm run shopify:seed-reviewer -- reviewer-store.myshopify.com
+```
+
+The idempotent command creates one completed sample run linked to the public
+synthetic sample report and one merchant-requested draft. Both persist in
+PostgreSQL and appear on **Your research**. The records contain no customer,
+order, phone, or recording data and must never be seeded into a real merchant's
+tenant.
+
+This is preferable to hidden reviewer-only UI: the reviewer sees the same
+database-backed state and status transitions a merchant sees, while every
+sample is plainly labeled.
+
+## 7. Historical analysis
+
+Holler needs historical orders to calculate repeat behavior, AOV, product mix,
+cohorts, and feasible Research Angles before the first live order arrives.
+Shopify's `read_orders` scope only permits the latest 60 days. Full history
+requires Shopify to approve the restricted `read_all_orders` scope first;
+declaring it before approval makes an app version fail validation.
+
+Submission sequence:
+
+1. Request **Read all orders** in Partner Dashboard → **API access requests**.
+2. Explain that historical order facts are used for merchant-level trend and
+   cohort analysis, Research Angle feasibility, and order-sequence context.
+3. After approval, add `read_all_orders` alongside `read_orders` in both TOML
+   files and deploy a new app version.
+4. Implement the initial import with Admin GraphQL bulk operations, storing
+   normalized order/customer/product facts rather than raw payloads.
+5. Show import state and coverage dates on the merchant home. Webhooks remain
+   the source for new orders while the import runs.
+
+Until those steps are complete, do not claim all-history analytics in the App
+Store listing. The app can monitor new orders, but existing customers' order
+sequence and historical trend analysis are incomplete.
+
+## 8. Listing and submission
 
 Partner dashboard → the app → **Distribution → Shopify App Store**, then
 create the listing:

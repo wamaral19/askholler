@@ -1,11 +1,13 @@
 type MarketingHeaderProps = {
-  current?: "use-cases" | "how-it-works" | "work-with-holler" | "about";
+  current?:
+    "use-cases" | "how-it-works" | "pricing" | "work-with-holler" | "about";
   scrolled?: boolean;
 };
 
 const navigation = [
   { label: "Use Cases", href: "/use-cases", key: "use-cases" },
   { label: "How We Work", href: "/how-it-works", key: "how-it-works" },
+  { label: "Pricing", href: "/pricing", key: "pricing" },
   {
     label: "Work With Holler",
     href: "/work-with-holler",

@@ -142,13 +142,34 @@ export default function Billing() {
     <>
       <header className="shopify-app__header">
         <p className="eyebrow">Billing</p>
-        <h1>Billing</h1>
+        <h1>Pricing & billing</h1>
         <p>
           Holler bills per project or monthly, as agreed with you. Each charge
           appears here for you to approve, and is then added to your Shopify
           bill. Nothing is charged until you approve it.
         </p>
       </header>
+      <section
+        aria-label="Available engagements"
+        className="merchant-plan-grid"
+      >
+        <article className="shopify-app__card">
+          <p className="eyebrow">Monthly subscription</p>
+          <h2>From $1,000 / month</h2>
+          <p>
+            25 completed interviews, up to two hours of consented recorded
+            research, a monthly report, and a quarterly long-form synthesis.
+          </p>
+        </article>
+        <article className="shopify-app__card">
+          <p className="eyebrow">Standalone Research Run</p>
+          <h2>From $3,500</h2>
+          <p>
+            At least 50 completed interviews, at least three hours of consented
+            recorded research, and one evidence-backed report.
+          </p>
+        </article>
+      </section>
       {result && "error" in result ? (
         <p className="save-notice save-notice--error" role="alert">
           {result.error}
