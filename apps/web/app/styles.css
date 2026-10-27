@@ -2362,6 +2362,112 @@ p {
   font-style: italic;
 }
 
+/* Merchant home: sections need clear separation between in-progress and
+   completed research. */
+.merchant-home {
+  display: grid;
+  gap: var(--space-12);
+}
+
+.merchant-home > .shopify-app__header {
+  margin-bottom: 0;
+}
+
+.merchant-collapsible > .merchant-collapsible__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  list-style: none;
+  cursor: pointer;
+}
+
+.merchant-collapsible > .merchant-collapsible__summary::-webkit-details-marker {
+  display: none;
+}
+
+.merchant-collapsible[open] > .merchant-collapsible__summary {
+  margin-bottom: var(--space-4);
+}
+
+.merchant-collapsible--setup > .merchant-collapsible__summary {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.merchant-collapsible--setup .merchant-setup {
+  margin-bottom: 0;
+}
+
+.merchant-collapsible__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--blue-ink);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.merchant-collapsible__toggle::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 150ms ease;
+}
+
+.merchant-collapsible[open] > summary .merchant-collapsible__toggle::after {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+.merchant-run__count {
+  display: inline-grid;
+  min-width: 1.5em;
+  margin-left: var(--space-1);
+  padding: 0 var(--space-2);
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--blue-tint);
+  color: var(--blue-ink);
+  font-size: 0.85em;
+}
+
+.merchant-run--active > div:first-child {
+  flex: 1 1 320px;
+}
+
+.merchant-run__progress {
+  display: grid;
+  flex: 0 1 240px;
+  gap: var(--space-2);
+}
+
+.merchant-run__progress p {
+  margin: 0;
+}
+
+.merchant-run__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.merchant-run__date {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .merchant-setup {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
