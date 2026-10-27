@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useLoaderData, type LoaderFunctionArgs } from "react-router";
 
 import { authenticateMerchant } from "../lib/merchant-context.server";
@@ -24,8 +25,58 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
+// Per-browser display preferences; the page must render correctly without them.
+const SETUP_SEEN_KEY = "holler.merchantHome.setupSeen";
+const ACTIVE_COLLAPSED_KEY = "holler.merchantHome.activeCollapsed";
+
+function readStorage(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Storage is blocked (private window, partitioned iframe); keep defaults.
+  }
+}
+
+/** Open on a merchant's first visit, collapsed on every visit after. */
+function useFirstVisitOpen() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (readStorage(SETUP_SEEN_KEY)) return;
+    setOpen(true);
+    writeStorage(SETUP_SEEN_KEY, "1");
+  }, []);
+  return [open, setOpen] as const;
+}
+
+/** Open unless the merchant collapsed it last time. */
+function useRememberedOpen(key: string) {
+  const [open, setOpen] = useState(true);
+  useEffect(() => {
+    if (readStorage(key) === "1") setOpen(false);
+  }, [key]);
+  const update = (next: boolean) => {
+    // <details> also fires toggle when it first renders open; ignore no-ops so
+    // that doesn't overwrite a saved preference.
+    if (next === open) return;
+    setOpen(next);
+    writeStorage(key, next ? "0" : "1");
+  };
+  return [open, update] as const;
+}
+
 export default function CompletedResearchRuns() {
   const { runs, angles } = useLoaderData<typeof loader>();
+  const [setupOpen, setSetupOpen] = useFirstVisitOpen();
+  const [activeOpen, setActiveOpen] = useRememberedOpen(ACTIVE_COLLAPSED_KEY);
+  const setupDone = 1 + (angles.length ? 1 : 0) + (runs.length ? 1 : 0);
   const requested = angles.filter(
     (angle) => angle.status === "draft" && angle.requestedByMerchant,
   );
@@ -33,7 +84,7 @@ export default function CompletedResearchRuns() {
     (angle) => angle.status === "live" || angle.status === "paused",
   );
   return (
-    <>
+    <div className="merchant-home">
       <header className="shopify-app__header">
         <p className="eyebrow">Holler</p>
         <h1>Your research</h1>
@@ -43,41 +94,58 @@ export default function CompletedResearchRuns() {
         </p>
       </header>
 
-      <section aria-label="Setup status" className="merchant-setup">
-        <div className="shopify-app__card merchant-setup__item is-complete">
-          <span>1</span>
-          <div>
-            <strong>Shopify connected</strong>
-            <p>New orders are monitored for approved Research Angles.</p>
+      <details
+        className="merchant-collapsible merchant-collapsible--setup"
+        onToggle={(event) => setSetupOpen(event.currentTarget.open)}
+        open={setupOpen}
+      >
+        <summary className="merchant-collapsible__summary">
+          <span>
+            <strong>Getting started</strong>{" "}
+            <span className="merchant-run__meta">
+              {setupDone} of 3 steps complete
+            </span>
+          </span>
+          <span aria-hidden="true" className="merchant-collapsible__toggle">
+            {setupOpen ? "Hide" : "Show"}
+          </span>
+        </summary>
+        <section aria-label="Setup status" className="merchant-setup">
+          <div className="shopify-app__card merchant-setup__item is-complete">
+            <span>1</span>
+            <div>
+              <strong>Shopify connected</strong>
+              <p>New orders are monitored for approved Research Angles.</p>
+            </div>
           </div>
-        </div>
-        <div
-          className={`shopify-app__card merchant-setup__item${angles.length ? " is-complete" : ""}`}
-        >
-          <span>2</span>
-          <div>
-            <strong>Choose a question</strong>
-            <p>
-              {angles.length
-                ? `${angles.length} research ${angles.length === 1 ? "angle is" : "angles are"} on file.`
-                : "Request the first customer question you want Holler to investigate."}
-            </p>
+          <div
+            className={`shopify-app__card merchant-setup__item${angles.length ? " is-complete" : ""}`}
+          >
+            <span>2</span>
+            <div>
+              <strong>Choose a question</strong>
+              <p>
+                {angles.length
+                  ? `${angles.length} research ${angles.length === 1 ? "angle is" : "angles are"} on file.`
+                  : "Request the first customer question you want Holler to investigate."}
+              </p>
+            </div>
           </div>
-        </div>
-        <div
-          className={`shopify-app__card merchant-setup__item${runs.length ? " is-complete" : ""}`}
-        >
-          <span>3</span>
-          <div>
-            <strong>Receive the evidence</strong>
-            <p>
-              {runs.length
-                ? `${runs.length} completed ${runs.length === 1 ? "run is" : "runs are"} available.`
-                : "Reports and supporting calls appear here when a run finishes."}
-            </p>
+          <div
+            className={`shopify-app__card merchant-setup__item${runs.length ? " is-complete" : ""}`}
+          >
+            <span>3</span>
+            <div>
+              <strong>Receive the evidence</strong>
+              <p>
+                {runs.length
+                  ? `${runs.length} completed ${runs.length === 1 ? "run is" : "runs are"} available.`
+                  : "Reports and supporting calls appear here when a run finishes."}
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </details>
 
       {requested.length ? (
         <section className="sheet-section">
@@ -103,16 +171,29 @@ export default function CompletedResearchRuns() {
       ) : null}
 
       {underway.length ? (
-        <section className="sheet-section">
-          <header className="sheet-section__header">
+        <details
+          className="merchant-collapsible"
+          onToggle={(event) => setActiveOpen(event.currentTarget.open)}
+          open={activeOpen}
+        >
+          <summary className="sheet-section__header merchant-collapsible__summary">
             <div>
               <p className="eyebrow">In progress</p>
-              <h2>Active research</h2>
+              <h2>
+                Active research{" "}
+                <span className="merchant-run__count">{underway.length}</span>
+              </h2>
             </div>
-          </header>
+            <span aria-hidden="true" className="merchant-collapsible__toggle">
+              {activeOpen ? "Hide" : "Show"}
+            </span>
+          </summary>
           <ul className="merchant-runs">
             {underway.map((angle) => (
-              <li className="shopify-app__card merchant-run" key={angle.id}>
+              <li
+                className="shopify-app__card merchant-run merchant-run--active"
+                key={angle.id}
+              >
                 <div>
                   <h3>{angle.name}</h3>
                   <p>{angle.objective}</p>
@@ -120,15 +201,16 @@ export default function CompletedResearchRuns() {
                     {angle.status === "live"
                       ? "Research in progress"
                       : "Paused"}
-                    {angle.completedThisWeek
-                      ? ` · ${angle.completedThisWeek} completed this week`
-                      : ""}
                   </p>
                 </div>
+                <WeeklyProgress
+                  completed={angle.completedThisWeek}
+                  target={angle.weeklyTarget}
+                />
               </li>
             ))}
           </ul>
-        </section>
+        </details>
       ) : null}
 
       <section className="sheet-section">
@@ -146,28 +228,32 @@ export default function CompletedResearchRuns() {
                   <h2>{run.name}</h2>
                   {run.objective ? <p>{run.objective}</p> : null}
                   <p className="merchant-run__meta">
-                    Completed{" "}
-                    <time dateTime={run.completedAt}>
-                      {dateFormat.format(new Date(run.completedAt))}
-                    </time>{" "}
-                    · {run.completedInterviews}{" "}
+                    {run.completedInterviews}{" "}
                     {run.completedInterviews === 1 ? "interview" : "interviews"}
                   </p>
                 </div>
-                {run.reportUrl ? (
-                  <a
-                    className="button button-primary"
-                    href={run.reportUrl}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    View report
-                  </a>
-                ) : (
-                  <span className="merchant-run__pending">
-                    Report in progress
+                <div className="merchant-run__actions">
+                  <span className="merchant-run__date">
+                    Completed{" "}
+                    <time dateTime={run.completedAt}>
+                      {dateFormat.format(new Date(run.completedAt))}
+                    </time>
                   </span>
-                )}
+                  {run.reportUrl ? (
+                    <a
+                      className="button button-primary"
+                      href={run.reportUrl}
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    >
+                      View report
+                    </a>
+                  ) : (
+                    <span className="merchant-run__pending">
+                      Report in progress
+                    </span>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -193,6 +279,39 @@ export default function CompletedResearchRuns() {
           </section>
         )}
       </section>
-    </>
+    </div>
+  );
+}
+
+function WeeklyProgress({
+  completed,
+  target,
+}: {
+  readonly completed: number;
+  readonly target: number;
+}) {
+  const percent = target > 0 ? Math.min(100, (completed / target) * 100) : 0;
+  return (
+    <div className="merchant-run__progress">
+      <p className="merchant-run__meta">
+        <strong>{completed}</strong>
+        {target > 0 ? ` of ${target}` : ""}{" "}
+        {completed === 1 && !target ? "interview" : "interviews"} this week
+      </p>
+      <div
+        aria-label="Interviews completed toward this week's target"
+        aria-valuemax={target}
+        aria-valuemin={0}
+        aria-valuenow={Math.min(completed, target)}
+        aria-valuetext={`${completed} of ${target} interviews`}
+        className="progress-track"
+        role="progressbar"
+      >
+        <span
+          className={completed >= target && target > 0 ? "is-met" : undefined}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
   );
 }
