@@ -2363,14 +2363,25 @@ p {
 }
 
 /* Merchant home: sections need clear separation between in-progress and
-   completed research. */
-.merchant-home {
-  display: grid;
-  gap: var(--space-12);
+   completed research; the setup bar sits close to the page header. */
+.merchant-home > * + * {
+  margin-top: 36px;
 }
 
 .merchant-home > .shopify-app__header {
   margin-bottom: 0;
+}
+
+.merchant-home > .shopify-app__header > :last-child {
+  margin-bottom: 0;
+}
+
+.merchant-home > .merchant-collapsible--setup {
+  margin-top: var(--space-4);
+}
+
+.merchant-home > .merchant-collapsible--setup + * {
+  margin-top: var(--space-6);
 }
 
 .merchant-collapsible > .merchant-collapsible__summary {
