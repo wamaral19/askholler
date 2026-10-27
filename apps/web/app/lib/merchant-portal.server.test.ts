@@ -176,6 +176,86 @@ describe.skipIf(databaseUrl === undefined)("merchant portal", () => {
     });
   });
 
+  it("reopens a merchant's request for staff to revise and launch in place", async () => {
+    const [field] = await service.listResearchFields(merchant);
+    const request = {
+      name: "Why customers try a new category",
+      objective: "Hear why second orders cross into a new category.",
+      weeklyTarget: 4,
+      cohortExpression: {
+        all: [
+          {
+            predicate: "customer.order_sequence",
+            version: 1,
+            config: { operator: "equals", value: 2 },
+          },
+        ],
+      },
+      fields: [{ kind: "library", fieldVersionId: field!.id, required: true }],
+      publish: false,
+    } as const;
+    const { id } = await service.saveMoment(merchant, request);
+    await expect(
+      service.getMomentConfiguration(merchant, id),
+    ).rejects.toMatchObject({ code: "WORKFORCE_ACCESS_REQUIRED" });
+    const configuration = await service.getMomentConfiguration(manager, id);
+    expect(configuration).toMatchObject({
+      id,
+      name: request.name,
+      objective: request.objective,
+      status: "draft",
+      requestedByMerchant: true,
+      weeklyTarget: 4,
+      cohortExpression: request.cohortExpression,
+      fields: [{ fieldId: field!.fieldId, required: true }],
+    });
+
+    await expect(
+      service.saveMoment(merchant, { ...request, momentId: id }),
+    ).rejects.toMatchObject({ code: "WORKFORCE_ACCESS_REQUIRED" });
+    const launched = await service.saveMoment(manager, {
+      ...request,
+      momentId: id,
+      name: "New-category second orders",
+      weeklyTarget: 6,
+      publish: true,
+    });
+    expect(launched).toEqual({ id });
+    expect(
+      (await service.listMoments(manager)).filter(
+        (moment) => moment.id === id || moment.name === request.name,
+      ),
+    ).toMatchObject([
+      {
+        id,
+        name: "New-category second orders",
+        status: "live",
+        weeklyTarget: 6,
+        requestedByMerchant: true,
+      },
+    ]);
+    // A launched angle keeps running while its setup is revised.
+    await service.saveMoment(manager, {
+      ...request,
+      momentId: id,
+      name: "New-category second orders",
+      weeklyTarget: 8,
+    });
+    expect(await service.getMomentConfiguration(manager, id)).toMatchObject({
+      status: "live",
+      weeklyTarget: 8,
+    });
+    const versions = await isolated.db.execute(sql`
+      select version, published_at is not null as published
+      from research_moment_versions where research_moment_id = ${id}
+      order by version`);
+    expect(versions.rows).toEqual([
+      { version: 1, published: false },
+      { version: 2, published: true },
+      { version: 3, published: true },
+    ]);
+  });
+
   it("lists completed runs with the report link staff set", async () => {
     expect(await service.listCompletedRuns(merchant)).toEqual([]);
     await service.setMomentStatus(manager, ids.moment, "completed");

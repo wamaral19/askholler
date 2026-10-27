@@ -84,6 +84,10 @@ function service(): OperationsApplicationService {
     listMerchants: vi.fn(async () => []),
     listMoments: vi.fn(async () => []),
     getGeneralCalls: vi.fn(async () => null),
+    getMomentConfiguration: vi.fn(async () => {
+      throw new Error("unused");
+    }),
+    deleteMoment: vi.fn(async () => undefined),
     setMomentStatus: vi.fn(async () => {
       throw new Error("unused");
     }),

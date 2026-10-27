@@ -1,12 +1,11 @@
 import { Form, Link, useActionData, useLoaderData } from "react-router";
 
 import { AppShell, PrototypeBanner } from "../components/app-shell";
+import { MomentStatusMenu } from "../components/moment-status-menu";
 import {
   canManageMoments,
   isMomentRunStatus,
   momentStatusLabels,
-  momentTransitionLabel,
-  momentTransitionsFrom,
 } from "../lib/moment-status";
 import {
   executeOperationsRequest,
@@ -55,6 +54,15 @@ export async function action({ request }: { request: Request }) {
         status,
       );
       return { intent, momentId: moment.id, status: moment.status };
+    }
+    if (intent === "delete") {
+      const momentId = String(form.get("momentId") ?? "");
+      if (!momentId) throw new Response("Invalid moment", { status: 400 });
+      await getOperationsService().deleteMoment(
+        await getTenantContext(request),
+        momentId,
+      );
+      return { intent, momentId };
     }
     if (intent === "set_report_url") {
       const momentId = String(form.get("momentId") ?? "");
@@ -190,43 +198,16 @@ export default function ResearchMomentsRoute() {
                 </p>
               </div>
               <div className="moment-card-action">
-                {canManage
-                  ? momentTransitionsFrom(general.status)
-                      // General calls pause and resume; they never complete.
-                      .filter((status) => status !== "completed")
-                      .map((status) => (
-                        <Form method="post" key={status}>
-                          <input
-                            name="intent"
-                            type="hidden"
-                            value="set_status"
-                          />
-                          <input
-                            name="momentId"
-                            type="hidden"
-                            value={general.id}
-                          />
-                          <button
-                            className={
-                              status === "live"
-                                ? "button button-primary button-small"
-                                : "button button-small"
-                            }
-                            name="status"
-                            type="submit"
-                            value={status}
-                          >
-                            {momentTransitionLabel(general.status, status)}
-                          </button>
-                        </Form>
-                      ))
-                  : null}
+                {/* General calls have no angle setup; their setup is the script. */}
                 <Link
                   className="button button-quiet button-small"
                   to={`/moments/${encodeURIComponent(general.id)}/script`}
                 >
-                  {canManage ? "Edit script" : "View script"}
+                  {canManage ? "Edit setup" : "View setup"}
                 </Link>
+                {canManage ? (
+                  <MomentStatusMenu general moment={general} />
+                ) : null}
               </div>
             </article>
           ) : null}
@@ -271,44 +252,18 @@ export default function ResearchMomentsRoute() {
                 <p>{moment.cohortSummary}</p>
               </div>
               <div className="moment-card-action">
-                {canManage
-                  ? momentTransitionsFrom(moment.status).map((status) => (
-                      <Form method="post" key={status}>
-                        <input name="intent" type="hidden" value="set_status" />
-                        <input
-                          name="momentId"
-                          type="hidden"
-                          value={moment.id}
-                        />
-                        <button
-                          className={
-                            status === "live"
-                              ? "button button-primary button-small"
-                              : "button button-small"
-                          }
-                          name="status"
-                          type="submit"
-                          value={status}
-                        >
-                          {momentTransitionLabel(moment.status, status)}
-                        </button>
-                      </Form>
-                    ))
-                  : null}
                 <Link
                   className="button button-quiet button-small"
-                  to={`/moments/${encodeURIComponent(moment.id)}/script`}
+                  to={`/moments/${encodeURIComponent(moment.id)}/edit`}
                 >
-                  {canManage ? "Edit script" : "View script"}
+                  {canManage ? "Edit setup" : "View setup"}
                 </Link>
-                <Link
-                  className="button button-quiet button-small"
-                  to="/moments/new"
-                >
-                  {moment.status === "draft"
-                    ? "Continue setup"
-                    : "View configuration"}
-                </Link>
+                {canManage ? (
+                  <MomentStatusMenu
+                    launchHref={`/moments/${encodeURIComponent(moment.id)}/edit`}
+                    moment={moment}
+                  />
+                ) : null}
               </div>
             </article>
           ))}

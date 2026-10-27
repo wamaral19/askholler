@@ -17,6 +17,7 @@ import {
   outboxEvents,
   productCategories,
   productCategoryAssignments,
+  qualificationEvaluations,
   recordings,
   reportRevisions,
   reports,
@@ -61,6 +62,7 @@ import type {
   InterviewWorkspace,
   LibraryResearchField,
   LibraryScript,
+  MomentConfiguration,
   MomentRunStatus,
   MomentScript,
   CallReview,
@@ -319,6 +321,20 @@ function parseScriptPrompts(prompts: readonly ScriptPrompt[]): ScriptPrompt[] {
     throw new OperationsError("INVALID_SCRIPT", 400);
   return parsed.data.prompts;
 }
+
+/** research_moments.status of a deleted angle that has call history. */
+const ARCHIVED_MOMENT_STATUS = "archived";
+
+/** A research field as one moment version pins it. */
+interface MomentFieldItem {
+  readonly fieldVersionId: string;
+  readonly required: boolean;
+  readonly source: string;
+}
+
+type CurrentMomentVersion = Awaited<
+  ReturnType<PostgresOperationsApplicationService["currentMomentVersion"]>
+>;
 
 function samePrompts(
   a: readonly ScriptPrompt[],
@@ -630,6 +646,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         and(
           eq(researchMoments.merchantId, context.merchantId),
           eq(researchMoments.kind, kind),
+          ne(researchMoments.status, ARCHIVED_MOMENT_STATUS),
         ),
       )
       .groupBy(
@@ -758,6 +775,162 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         ),
       )
       .orderBy(asc(merchants.name));
+  }
+
+  async deleteMoment(context: TenantContext, momentId: string) {
+    await this.requireManager(context);
+    const now = this.now();
+    await this.db.transaction(async (tx) => {
+      const [moment] = await tx
+        .select({ kind: researchMoments.kind, status: researchMoments.status })
+        .from(researchMoments)
+        .where(
+          and(
+            eq(researchMoments.id, momentId),
+            eq(researchMoments.merchantId, context.merchantId),
+          ),
+        )
+        .for("update");
+      // General calls are the merchant's fallback, not a deletable angle.
+      if (
+        !moment ||
+        moment.kind !== "angle" ||
+        moment.status === ARCHIVED_MOMENT_STATUS
+      )
+        throw new OperationsError("RESEARCH_MOMENT_NOT_FOUND", 404);
+      const versions = await tx
+        .select({
+          id: researchMomentVersions.id,
+          fieldSetVersionId: researchMomentVersions.researchFieldSetVersionId,
+        })
+        .from(researchMomentVersions)
+        .where(
+          and(
+            eq(researchMomentVersions.researchMomentId, momentId),
+            eq(researchMomentVersions.merchantId, context.merchantId),
+          ),
+        );
+      const versionIds = versions.map((version) => version.id);
+      const [queued] = versionIds.length
+        ? await tx
+            .select({ id: researchAssignments.id })
+            .from(researchAssignments)
+            .where(
+              inArray(researchAssignments.researchMomentVersionId, versionIds),
+            )
+            .limit(1)
+        : [];
+      // Calls keep pointing at the versions they ran on, so an angle with
+      // history is archived; the worker only qualifies "active" moments.
+      if (queued) {
+        await tx
+          .update(researchMoments)
+          .set({ status: ARCHIVED_MOMENT_STATUS, updatedAt: now })
+          .where(eq(researchMoments.id, momentId));
+      } else {
+        await this.purgeMoment(tx, momentId, versions);
+      }
+      await tx.insert(auditEvents).values({
+        id: randomUUID(),
+        merchantId: context.merchantId,
+        actorId: context.researcherId,
+        action: "research_moment.deleted",
+        subjectType: "research_moment",
+        subjectId: momentId,
+        metadata: {
+          archived: queued !== undefined,
+          correlationId: context.correlationId,
+        },
+        occurredAt: now,
+      });
+    });
+  }
+
+  /** Deletes an angle that never queued a call, with what was made for it. */
+  private async purgeMoment(
+    tx: DbTransaction,
+    momentId: string,
+    versions: readonly { id: string; fieldSetVersionId: string }[],
+  ) {
+    const versionIds = versions.map((version) => version.id);
+    const fieldSetVersionIds = [
+      ...new Set(versions.map((version) => version.fieldSetVersionId)),
+    ];
+    if (versionIds.length) {
+      await tx
+        .delete(qualificationEvaluations)
+        .where(
+          inArray(qualificationEvaluations.researchMomentVersionId, versionIds),
+        );
+      await tx
+        .delete(researchMomentVersions)
+        .where(inArray(researchMomentVersions.id, versionIds));
+    }
+    // Each angle gets its own field set; keep any another moment still pins.
+    const fieldSetIds = fieldSetVersionIds.length
+      ? (
+          await tx
+            .selectDistinct({
+              id: researchFieldSetVersions.researchFieldSetId,
+            })
+            .from(researchFieldSetVersions)
+            .where(inArray(researchFieldSetVersions.id, fieldSetVersionIds))
+        ).map((row) => row.id)
+      : [];
+    const stillPinned = new Set(
+      fieldSetIds.length
+        ? (
+            await tx
+              .selectDistinct({
+                id: researchFieldSetVersions.researchFieldSetId,
+              })
+              .from(researchMomentVersions)
+              .innerJoin(
+                researchFieldSetVersions,
+                eq(
+                  researchFieldSetVersions.id,
+                  researchMomentVersions.researchFieldSetVersionId,
+                ),
+              )
+              .where(
+                inArray(
+                  researchFieldSetVersions.researchFieldSetId,
+                  fieldSetIds,
+                ),
+              )
+          ).map((row) => row.id)
+        : [],
+    );
+    const removable = fieldSetIds.filter((id) => !stillPinned.has(id));
+    if (removable.length) {
+      const setVersions = tx
+        .select({ id: researchFieldSetVersions.id })
+        .from(researchFieldSetVersions)
+        .where(inArray(researchFieldSetVersions.researchFieldSetId, removable));
+      await tx
+        .delete(researchFieldSetItems)
+        .where(inArray(researchFieldSetItems.fieldSetVersionId, setVersions));
+      await tx
+        .delete(researchFieldSetVersions)
+        .where(inArray(researchFieldSetVersions.researchFieldSetId, removable));
+      await tx
+        .delete(researchFieldSets)
+        .where(inArray(researchFieldSets.id, removable));
+    }
+    const runScripts = tx
+      .select({ id: scripts.id })
+      .from(scripts)
+      .where(
+        and(
+          eq(scripts.researchMomentId, momentId),
+          eq(scripts.kind, "research_run"),
+        ),
+      );
+    await tx
+      .delete(scriptVersions)
+      .where(inArray(scriptVersions.scriptId, runScripts));
+    await tx.delete(scripts).where(eq(scripts.researchMomentId, momentId));
+    await tx.delete(researchMoments).where(eq(researchMoments.id, momentId));
   }
 
   async setMomentStatus(
@@ -1072,6 +1245,67 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       scriptName: current.scriptName,
       scriptVersion: current.scriptVersion,
       runSpecific: current.scriptKind === "research_run",
+      prompts: readScriptPrompts(current.scriptContent),
+    };
+  }
+
+  async getMomentConfiguration(
+    context: TenantContext,
+    momentId: string,
+  ): Promise<MomentConfiguration> {
+    await this.requireMerchant(context);
+    const current = await this.currentMomentVersion(this.db, context, momentId);
+    if (current.momentKind !== "angle")
+      throw new OperationsError("RESEARCH_MOMENT_NOT_FOUND", 404);
+    const fields = await this.db
+      .select({
+        fieldId: researchFieldVersions.researchFieldId,
+        required: researchFieldSetItems.required,
+      })
+      .from(researchFieldSetItems)
+      .innerJoin(
+        researchFieldVersions,
+        eq(researchFieldVersions.id, researchFieldSetItems.fieldVersionId),
+      )
+      .where(
+        eq(
+          researchFieldSetItems.fieldSetVersionId,
+          current.version.researchFieldSetVersionId,
+        ),
+      )
+      .orderBy(asc(researchFieldSetItems.displayOrder));
+    const baseVersionId =
+      current.scriptKind === "research_run"
+        ? current.scriptBasedOn
+        : current.version.scriptVersionId;
+    const [base] = baseVersionId
+      ? await this.db
+          .select({ id: scripts.id })
+          .from(scriptVersions)
+          .innerJoin(scripts, eq(scripts.id, scriptVersions.scriptId))
+          .where(
+            and(
+              eq(scriptVersions.id, baseVersionId),
+              eq(scripts.kind, "library"),
+            ),
+          )
+          .limit(1)
+      : [];
+    const allocation = safeJson(current.version.allocationPolicy);
+    return {
+      id: momentId,
+      name: current.momentName,
+      objective: current.version.objective,
+      status: momentStatusFromPersisted(
+        current.momentStatus,
+        current.version.publishedAt !== null,
+      ),
+      requestedByMerchant: current.momentRequestedBy !== null,
+      weeklyTarget:
+        typeof allocation.weeklyCap === "number" ? allocation.weeklyCap : 0,
+      cohortExpression: current.version.cohortExpression,
+      fields,
+      baseScriptId: base?.id ?? null,
       prompts: readScriptPrompts(current.scriptContent),
     };
   }
@@ -1670,6 +1904,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         momentName: researchMoments.name,
         momentKind: researchMoments.kind,
         momentStatus: researchMoments.status,
+        momentRequestedBy: researchMoments.requestedBy,
         scriptName: scripts.name,
         scriptKind: scripts.kind,
         scriptVersion: scriptVersions.version,
@@ -1691,6 +1926,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           eq(researchMomentVersions.researchMomentId, momentId),
           eq(researchMomentVersions.merchantId, context.merchantId),
           eq(researchMoments.merchantId, context.merchantId),
+          ne(researchMoments.status, ARCHIVED_MOMENT_STATUS),
         ),
       )
       .orderBy(desc(researchMomentVersions.version))
@@ -1700,7 +1936,9 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   }
 
   async saveMoment(context: TenantContext, input: SaveMomentInput) {
-    await this.requireMerchant(context, { allowMerchantViewer: true });
+    // Reopening an existing angle is staff work; merchants send new requests.
+    if (input.momentId) await this.requireManager(context);
+    else await this.requireMerchant(context, { allowMerchantViewer: true });
     // A merchant's angle is a request: saved as a draft for staff to launch.
     const requestedBy = context.viewer === "merchant" ? "shopify_admin" : null;
     if (requestedBy) input = { ...input, publish: false };
@@ -1734,6 +1972,9 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       ? parseScriptPrompts(input.script.prompts)
       : undefined;
     return this.db.transaction(async (tx) => {
+      const existing = input.momentId
+        ? await this.lockMomentForRevision(tx, context, input.momentId)
+        : null;
       const library = await this.scriptLibrary(tx, context);
       const [base] = input.script
         ? await tx
@@ -1759,9 +2000,34 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           ? [{ id: library[0]!.versionId, content: null }]
           : [];
       if (!base) throw new OperationsError("PINNED_SCRIPT_UNAVAILABLE", 400);
+      const items = await this.momentFieldItems(tx, context, input.fields);
+      const scriptChanged =
+        runPrompts !== undefined &&
+        !samePrompts(readScriptPrompts(base.content), runPrompts);
+      if (existing)
+        return this.reviseMoment(tx, context, existing, {
+          input,
+          cohortExpression: cohort.data,
+          items,
+          // An unchanged script pins the library version; edits get a run
+          // copy, reused while the edits match the copy the angle has.
+          scriptVersionId: !scriptChanged
+            ? base.id
+            : existing.scriptKind === "research_run" &&
+                existing.scriptBasedOn === base.id &&
+                samePrompts(
+                  readScriptPrompts(existing.scriptContent),
+                  runPrompts,
+                )
+              ? existing.version.scriptVersionId
+              : await this.saveRunScript(tx, context, {
+                  momentId: existing.version.researchMomentId,
+                  name: `${input.name} script`,
+                  basedOnScriptVersionId: base.id,
+                  prompts: runPrompts,
+                }),
+        });
 
-      const fieldLibrary = await this.fieldLibrary(tx, context, true);
-      const byVersion = new Map(fieldLibrary.map((field) => [field.id, field]));
       const identity = createHash("sha256")
         .update(
           JSON.stringify({
@@ -1786,73 +2052,16 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         })
         .onConflictDoNothing();
 
-      const items: {
-        fieldVersionId: string;
-        required: boolean;
-        source: string;
-      }[] = [];
-      for (const selection of input.fields) {
-        let field: LibraryResearchField | undefined;
-        if (selection.kind === "library") {
-          field = byVersion.get(selection.fieldVersionId);
-          if (!field || field.archived)
-            throw new OperationsError("INVALID_FIELD_SET", 400);
-        } else {
-          // Fields persist in the library; reuse one with the same label so a
-          // repeated question keeps one history instead of forking.
-          const label = selection.label.trim();
-          field = fieldLibrary.find(
-            (candidate) =>
-              candidate.editable &&
-              !candidate.archived &&
-              candidate.label.toLowerCase() === label.toLowerCase(),
-          );
-          if (!field) {
-            const created = await this.createMerchantField(
-              tx,
-              context,
-              {
-                label,
-                prompt: selection.prompt.trim() || label,
-                valueType: "long_text",
-                options: [],
-                scope: selection.scope ?? "order",
-              },
-              { includedByDefault: false, requiredByDefault: false },
-            );
-            items.push({
-              fieldVersionId: created.versionId,
-              required: selection.required,
-              source: "research_run",
-            });
-            continue;
-          }
-        }
-        if (items.some((item) => item.fieldVersionId === field.id))
-          throw new OperationsError("INVALID_FIELD_SET", 400);
-        items.push({
-          fieldVersionId: field.id,
-          required: selection.required,
-          source:
-            field.source === "platform_default"
-              ? "platform_default"
-              : field.includedByDefault
-                ? "merchant_default"
-                : "research_run",
-        });
-      }
-
       // An unchanged script pins the library version; edits get a run copy.
-      const scriptVersionId =
-        runPrompts && !samePrompts(readScriptPrompts(base.content), runPrompts)
-          ? await this.saveRunScript(tx, context, {
-              momentId,
-              name: `${input.name} script`,
-              basedOnScriptVersionId: base.id,
-              prompts: runPrompts,
-              stableKey: identity,
-            })
-          : base.id;
+      const scriptVersionId = scriptChanged
+        ? await this.saveRunScript(tx, context, {
+            momentId,
+            name: `${input.name} script`,
+            basedOnScriptVersionId: base.id,
+            prompts: runPrompts,
+            stableKey: identity,
+          })
+        : base.id;
 
       await tx
         .insert(researchFieldSets)
@@ -1904,6 +2113,198 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         .onConflictDoNothing();
       return { id: momentId };
     });
+  }
+
+  /** Resolves the builder's field picks, saving new fields to the library. */
+  private async momentFieldItems(
+    tx: DbTransaction,
+    context: TenantContext,
+    selections: SaveMomentInput["fields"],
+  ): Promise<MomentFieldItem[]> {
+    const fieldLibrary = await this.fieldLibrary(tx, context, true);
+    const byVersion = new Map(fieldLibrary.map((field) => [field.id, field]));
+    const items: MomentFieldItem[] = [];
+    for (const selection of selections) {
+      let field: LibraryResearchField | undefined;
+      if (selection.kind === "library") {
+        field = byVersion.get(selection.fieldVersionId);
+        if (!field || field.archived)
+          throw new OperationsError("INVALID_FIELD_SET", 400);
+      } else {
+        // Fields persist in the library; reuse one with the same label so a
+        // repeated question keeps one history instead of forking.
+        const label = selection.label.trim();
+        field = fieldLibrary.find(
+          (candidate) =>
+            candidate.editable &&
+            !candidate.archived &&
+            candidate.label.toLowerCase() === label.toLowerCase(),
+        );
+        if (!field) {
+          const created = await this.createMerchantField(
+            tx,
+            context,
+            {
+              label,
+              prompt: selection.prompt.trim() || label,
+              valueType: "long_text",
+              options: [],
+              scope: selection.scope ?? "order",
+            },
+            { includedByDefault: false, requiredByDefault: false },
+          );
+          items.push({
+            fieldVersionId: created.versionId,
+            required: selection.required,
+            source: "research_run",
+          });
+          continue;
+        }
+      }
+      if (items.some((item) => item.fieldVersionId === field.id))
+        throw new OperationsError("INVALID_FIELD_SET", 400);
+      items.push({
+        fieldVersionId: field.id,
+        required: selection.required,
+        source:
+          field.source === "platform_default"
+            ? "platform_default"
+            : field.includedByDefault
+              ? "merchant_default"
+              : "research_run",
+      });
+    }
+    return items;
+  }
+
+  /** The newest version of an angle, locked for revision. */
+  private async lockMomentForRevision(
+    tx: DbTransaction,
+    context: TenantContext,
+    momentId: string,
+  ): Promise<CurrentMomentVersion> {
+    await tx
+      .select({ id: researchMoments.id })
+      .from(researchMoments)
+      .where(
+        and(
+          eq(researchMoments.id, momentId),
+          eq(researchMoments.merchantId, context.merchantId),
+        ),
+      )
+      .for("update");
+    const current = await this.currentMomentVersion(tx, context, momentId);
+    if (current.momentKind !== "angle")
+      throw new OperationsError("RESEARCH_MOMENT_NOT_FOUND", 404);
+    return current;
+  }
+
+  /**
+   * Adds a version to an angle. A draft stays a draft unless launched; a
+   * launched angle keeps its status, and orders queued from now on use the
+   * new version while queued calls keep the one they were queued with.
+   */
+  private async reviseMoment(
+    tx: DbTransaction,
+    context: TenantContext,
+    current: CurrentMomentVersion,
+    revision: {
+      input: SaveMomentInput;
+      cohortExpression: unknown;
+      items: readonly MomentFieldItem[];
+      scriptVersionId: string;
+    },
+  ) {
+    const { input } = revision;
+    const momentId = current.version.researchMomentId;
+    const launched = current.version.publishedAt !== null;
+    const publish = launched || input.publish;
+    const now = this.now();
+    const [fieldSet] = await tx
+      .select({ id: researchFieldSetVersions.researchFieldSetId })
+      .from(researchFieldSetVersions)
+      .where(
+        eq(
+          researchFieldSetVersions.id,
+          current.version.researchFieldSetVersionId,
+        ),
+      );
+    const [latest] = await tx
+      .select({
+        version: sql<number>`coalesce(max(${researchFieldSetVersions.version}), 0)::int`,
+      })
+      .from(researchFieldSetVersions)
+      .where(eq(researchFieldSetVersions.researchFieldSetId, fieldSet!.id));
+    const fieldSetVersionId = randomUUID();
+    await tx.insert(researchFieldSetVersions).values({
+      id: fieldSetVersionId,
+      researchFieldSetId: fieldSet!.id,
+      version: (latest?.version ?? 0) + 1,
+      status: publish ? "published" : "draft",
+      publishedAt: publish ? now : null,
+    });
+    await tx.insert(researchFieldSetItems).values(
+      revision.items.map((item, index) => ({
+        fieldSetVersionId,
+        fieldVersionId: item.fieldVersionId,
+        source: item.source,
+        required: item.required,
+        displayOrder: index,
+      })),
+    );
+    await tx
+      .update(researchMoments)
+      .set({
+        name: input.name,
+        ...(launched ? {} : { status: input.publish ? "active" : "draft" }),
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(researchMoments.id, momentId),
+          eq(researchMoments.merchantId, context.merchantId),
+        ),
+      );
+    const versionId = randomUUID();
+    await tx.insert(researchMomentVersions).values({
+      id: versionId,
+      researchMomentId: momentId,
+      merchantId: context.merchantId,
+      version: current.version.version + 1,
+      eventType: current.version.eventType,
+      objective: input.objective,
+      cohortExpression: revision.cohortExpression,
+      priority: current.version.priority,
+      allocationPolicy: {
+        ...safeJson(current.version.allocationPolicy),
+        weeklyCap: input.weeklyTarget,
+      },
+      scriptVersionId: revision.scriptVersionId,
+      researchFieldSetVersionId: fieldSetVersionId,
+      activeFrom: publish ? now : null,
+      publishedAt: publish ? now : null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await tx.insert(auditEvents).values({
+      id: randomUUID(),
+      merchantId: context.merchantId,
+      actorId: context.researcherId,
+      action: launched
+        ? "research_moment.revised"
+        : input.publish
+          ? "research_moment.launched"
+          : "research_moment.draft_revised",
+      subjectType: "research_moment",
+      subjectId: momentId,
+      metadata: {
+        fromMomentVersionId: current.version.id,
+        toMomentVersionId: versionId,
+        correlationId: context.correlationId,
+      },
+      occurredAt: now,
+    });
+    return { id: momentId };
   }
 
   async listQueue(context: TenantContext): Promise<readonly QueueItem[]> {
@@ -2000,9 +2401,13 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         asc(researchAssignments.createdAt),
       )
       .then((all) =>
-        // Completed moments stop feeding the queue; work already claimed stays.
+        // Completed and deleted moments stop feeding the queue; work already
+        // claimed stays.
         all.filter(
-          (row) => row.status !== "queued" || row.momentStatus !== "completed",
+          (row) =>
+            row.status !== "queued" ||
+            (row.momentStatus !== "completed" &&
+              row.momentStatus !== ARCHIVED_MOMENT_STATUS),
         ),
       );
     const assignmentOrders = rows.length

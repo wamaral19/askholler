@@ -152,14 +152,17 @@ function createSyntheticService(): OperationsApplicationService {
   const progress = new Map<string, Map<string, CallSheetPrompt>>();
   const interviews = new Map<string, InterviewWorkspace>();
   const answers = new Map<string, Set<string>>();
+  const deletedMoments = new Set<string>();
   const momentStatuses = new Map<string, MomentStatus>(
     researchMoments.map((moment) => [moment.id, moment.status]),
   );
   const moments = () =>
-    researchMoments.map((moment) => ({
-      ...moment,
-      status: momentStatuses.get(moment.id) ?? moment.status,
-    }));
+    researchMoments
+      .filter((moment) => !deletedMoments.has(moment.id))
+      .map((moment) => ({
+        ...moment,
+        status: momentStatuses.get(moment.id) ?? moment.status,
+      }));
 
   let fieldLibrary: LibraryResearchField[] = researchFields.map(
     (field, index) => ({
@@ -426,6 +429,38 @@ function createSyntheticService(): OperationsApplicationService {
     async getGeneralCalls() {
       return null;
     },
+    async getMomentConfiguration(context, momentId) {
+      const moment = moments().find((candidate) => candidate.id === momentId);
+      if (!moment) throw new Response("Moment not found", { status: 404 });
+      const script = await this.getMomentScript(context, momentId);
+      return {
+        id: moment.id,
+        name: moment.name,
+        objective: moment.objective,
+        status: moment.status,
+        requestedByMerchant: moment.requestedByMerchant === true,
+        weeklyTarget: moment.weeklyTarget,
+        cohortExpression: {
+          predicate: "customer.order_sequence",
+          version: 1,
+          config: { operator: "equals", value: 2 },
+        },
+        fields: fieldLibrary
+          .filter((field) => field.includedByDefault && !field.archived)
+          .map((field) => ({
+            fieldId: field.fieldId,
+            required: field.required,
+          })),
+        baseScriptId: scriptLibrary[0]?.id ?? null,
+        prompts: script.prompts,
+      };
+    },
+    async deleteMoment(context, momentId) {
+      requireManager(context);
+      if (!moments().some((moment) => moment.id === momentId))
+        throw new Response("Moment not found", { status: 404 });
+      deletedMoments.add(momentId);
+    },
     async setMomentStatus(context, momentId, status) {
       if (!canManageMoments(context.roles))
         throw new Response("Moment manager role required", { status: 403 });
@@ -438,6 +473,16 @@ function createSyntheticService(): OperationsApplicationService {
     },
     async saveMoment(context, input) {
       const publish = input.publish && context.viewer !== "merchant";
+      if (input.momentId) {
+        requireManager(context);
+        const moment = moments().find(
+          (candidate) => candidate.id === input.momentId,
+        );
+        if (!moment) throw new Response("Moment not found", { status: 404 });
+        if (publish && moment.status === "draft")
+          momentStatuses.set(moment.id, "live");
+        return { id: moment.id };
+      }
       return { id: `moment-${publish ? "published" : "draft"}` };
     },
     async listCompletedRuns() {
@@ -456,13 +501,15 @@ function createSyntheticService(): OperationsApplicationService {
       requireManager(context);
     },
     async listQueue() {
-      // Completed moments stop feeding the queue; work already claimed stays.
+      // Completed and deleted moments stop feeding the queue; work already
+      // claimed stays.
       return queueAssignments
         .map((item) => queueItem(item.id))
         .filter(
           (item) =>
             item.status !== "queued" ||
-            momentStatuses.get(item.momentId) !== "completed",
+            (momentStatuses.get(item.momentId) !== "completed" &&
+              !deletedMoments.has(item.momentId)),
         );
     },
     async claimAssignment(context, id) {

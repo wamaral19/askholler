@@ -142,6 +142,10 @@ export default function MomentScriptRoute() {
               <p className="save-notice" role="status">
                 Saved as version {result.saved}.
               </p>
+            ) : !dirty ? (
+              <p className="helper-copy">
+                Edit a step above to save changes for this run.
+              </p>
             ) : null}
             <button
               className="button button-quiet"

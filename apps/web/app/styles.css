@@ -878,6 +878,65 @@ p {
   white-space: nowrap;
 }
 
+/* Change status: an angle's next statuses, plus removing it. */
+.status-menu {
+  position: relative;
+}
+
+.status-menu > summary {
+  list-style: none;
+  width: 100%;
+}
+
+.status-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.status-menu__panel {
+  position: absolute;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  margin-top: var(--space-1);
+  padding: var(--space-1);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgb(13 35 64 / 12%);
+}
+
+.status-menu__panel form {
+  width: 100%;
+}
+
+.status-menu__item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.status-menu__item:hover:not(:disabled) {
+  background: var(--blue-tint);
+}
+
+.status-menu__item--danger {
+  color: var(--danger);
+}
+
+.status-menu__item--danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+
 .moment-card-main p {
   margin: 0;
   color: var(--ink-muted);
@@ -1013,6 +1072,15 @@ p {
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: var(--space-6);
   align-items: start;
+}
+
+/* Disables the whole builder when it shows a launched angle's setup. */
+.builder-fieldset {
+  border: 0;
+  display: contents;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
 }
 
 .builder-main {
