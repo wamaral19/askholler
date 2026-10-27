@@ -36,6 +36,9 @@ export default [
     route("admin/billing", "routes/admin-billing.tsx"),
     route("moments", "routes/research-moments.tsx"),
     route("moments/new", "routes/cohort-builder.tsx"),
+    route("moments/:momentId/edit", "routes/cohort-builder.tsx", {
+      id: "routes/moment-edit",
+    }),
     route("moments/:momentId/script", "routes/moment-script.tsx"),
     route("queue", "routes/research-queue.tsx"),
     route("calls", "routes/completed-calls.tsx"),

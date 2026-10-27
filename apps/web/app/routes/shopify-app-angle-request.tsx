@@ -31,7 +31,10 @@ export async function action({ request }: ActionFunctionArgs) {
   const { context } = await authenticateMerchant(request);
   try {
     return await executeOperationsRequest(async () => {
-      const input = momentInputFromForm(await request.formData());
+      // Merchants only send new requests; staff revise existing angles.
+      const { momentId: _ignored, ...input } = momentInputFromForm(
+        await request.formData(),
+      );
       const result = await getOperationsService().saveMoment(context, {
         ...input,
         publish: false,

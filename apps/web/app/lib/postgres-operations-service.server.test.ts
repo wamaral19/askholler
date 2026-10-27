@@ -720,5 +720,52 @@ describe.skipIf(databaseUrl === undefined)(
         { scriptVersion: 1 },
       );
     });
+
+    // Runs last: it archives the seeded moment the other tests use.
+    it("deletes unused angles outright and archives ones with call history", async () => {
+      const [library] = await service.listScripts(managerA);
+      const unused = await service.saveMoment(managerA, {
+        ...repeatStudy,
+        name: "Throwaway test angle",
+        fields: [
+          { kind: "library", fieldVersionId: ids.fieldVersion, required: true },
+        ],
+        script: {
+          baseScriptVersionId: library!.versionId,
+          prompts: [{ id: "only", title: "Only", prompt: "Just testing." }],
+        },
+      });
+      await expect(
+        service.deleteMoment(contextA, unused.id),
+      ).rejects.toMatchObject({ code: "MOMENT_MANAGER_ROLE_REQUIRED" });
+      await service.deleteMoment(managerA, unused.id);
+      const leftovers = await isolated.db.execute(sql`
+        select
+          (select count(*) from research_moments where id = ${unused.id})::int as moments,
+          (select count(*) from research_moment_versions where research_moment_id = ${unused.id})::int as versions,
+          (select count(*) from scripts where research_moment_id = ${unused.id})::int as scripts`);
+      expect(leftovers.rows).toEqual([{ moments: 0, versions: 0, scripts: 0 }]);
+      await expect(
+        service.deleteMoment(managerA, unused.id),
+      ).rejects.toMatchObject({ code: "RESEARCH_MOMENT_NOT_FOUND" });
+
+      // The seeded moment queued a call, so it is archived instead.
+      await service.deleteMoment(managerA, ids.moment);
+      expect(
+        (await service.listMoments(managerA)).map((moment) => moment.id),
+      ).not.toContain(ids.moment);
+      await expect(
+        service.getMomentConfiguration(managerA, ids.moment),
+      ).rejects.toMatchObject({ code: "RESEARCH_MOMENT_NOT_FOUND" });
+      const [archived] = (
+        await isolated.db.execute(sql`
+          select m.status, (select count(*) from research_assignments a
+            where a.research_moment_version_id = ${ids.momentVersion})::int as assignments
+          from research_moments m where m.id = ${ids.moment}`)
+      ).rows;
+      // Its queued and completed calls are kept.
+      expect(archived).toMatchObject({ status: "archived" });
+      expect(archived!.assignments).toBeGreaterThan(0);
+    });
   },
 );

@@ -13,6 +13,7 @@ export const angleSaveErrors: Readonly<Record<string, string>> = {
     "Check the name, objective, weekly target (1–10,000), and rules.",
   INVALID_SCRIPT:
     "Every script step needs a title and text. Scripts hold 1–40 steps.",
+  RESEARCH_MOMENT_NOT_FOUND: "That angle no longer exists.",
   PINNED_SCRIPT_UNAVAILABLE:
     "No published interview script is available for this merchant. Add one under Admin → Scripts.",
 };
@@ -42,7 +43,9 @@ export function momentInputFromForm(form: FormData): SaveMomentInput {
   const script = form.get("script")
     ? (jsonFormValue(form, "script") as Record<string, unknown> | null)
     : null;
+  const momentId = String(form.get("momentId") ?? "");
   return {
+    ...(momentId ? { momentId } : {}),
     name: String(form.get("name") ?? "").trim(),
     objective: String(form.get("objective") ?? "").trim(),
     weeklyTarget: Number(form.get("weeklyTarget") ?? 0),

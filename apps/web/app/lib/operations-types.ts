@@ -279,7 +279,32 @@ export type MomentFieldSelection =
       readonly scope?: PromptScope;
     };
 
+/** An angle's newest configuration, for reopening it in the angle builder. */
+export interface MomentConfiguration {
+  readonly id: string;
+  readonly name: string;
+  readonly objective: string;
+  readonly status: MomentStatus;
+  readonly requestedByMerchant: boolean;
+  readonly weeklyTarget: number;
+  readonly cohortExpression: unknown;
+  /** In interview order; `fieldId` finds the field's newest library version. */
+  readonly fields: readonly {
+    readonly fieldId: string;
+    readonly required: boolean;
+  }[];
+  /** The library script the run started from; null when it left the library. */
+  readonly baseScriptId: string | null;
+  /** The steps the run pins, adapted or not. */
+  readonly prompts: readonly ScriptPrompt[];
+}
+
 export interface SaveMomentInput {
+  /**
+   * Revises this angle instead of creating one. A draft may launch; a
+   * launched angle keeps its status and `publish` is ignored.
+   */
+  readonly momentId?: string;
   readonly name: string;
   readonly objective: string;
   readonly weeklyTarget: number;
@@ -347,6 +372,17 @@ export interface OperationsApplicationService {
   listMoments(
     context: TenantContext,
   ): Promise<readonly ResearchMomentSummary[]>;
+  /** Workforce only; merchant viewers see their requests through listMoments. */
+  getMomentConfiguration(
+    context: TenantContext,
+    momentId: string,
+  ): Promise<MomentConfiguration>;
+  /**
+   * Removes an angle from the workforce's lists and stops it qualifying
+   * orders. An angle that never queued a call is deleted outright; one with
+   * call history is archived so its calls, recordings, and reports remain.
+   */
+  deleteMoment(context: TenantContext, momentId: string): Promise<void>;
   setMomentStatus(
     context: TenantContext,
     momentId: string,
