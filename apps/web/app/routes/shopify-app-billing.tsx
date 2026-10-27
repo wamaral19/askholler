@@ -139,11 +139,12 @@ export default function Billing() {
   const navigation = useNavigation();
   const confirmationUrl =
     result && "confirmationUrl" in result ? result.confirmationUrl : null;
-  // App Bridge handles window.open with _top by navigating Shopify admin.
+  // Admin's iframe may only navigate the top window on a user click, so
+  // this attempt can be blocked; the link below is the reliable path.
   useEffect(() => {
     if (confirmationUrl) window.open(confirmationUrl, "_top");
   }, [confirmationUrl]);
-  const busy = navigation.state !== "idle" || Boolean(confirmationUrl);
+  const busy = navigation.state !== "idle";
   const pending = charges.filter((charge) => charge.status === "pending");
   const history = charges.filter((charge) => charge.status !== "pending");
 
@@ -183,6 +184,18 @@ export default function Billing() {
         <p className="save-notice save-notice--error" role="alert">
           {result.error}
         </p>
+      ) : null}
+      {confirmationUrl ? (
+        <div className="shopify-app__card" role="status">
+          <p>Your charge is ready for approval in Shopify.</p>
+          <a
+            className="button button-primary"
+            href={confirmationUrl}
+            target="_top"
+          >
+            Continue to Shopify to approve
+          </a>
+        </div>
       ) : null}
 
       <section className="sheet-section">
