@@ -165,6 +165,7 @@ export interface CompletedCall {
   readonly endedAt: string | null;
   /** Angle name; empty for general calls. */
   readonly angle: string;
+  readonly angleId: string;
   readonly orderNumber: string | null;
   /** Answered to hang-up; null when the call never connected. */
   readonly durationSeconds: number | null;
@@ -457,7 +458,10 @@ export interface OperationsApplicationService {
    * Finished calls, newest first: a researcher's own, or all for managers and
    * the merchant viewer.
    */
-  listCompletedCalls(context: TenantContext): Promise<readonly CompletedCall[]>;
+  listCompletedCalls(
+    context: TenantContext,
+    filter?: { readonly angleId?: string },
+  ): Promise<readonly CompletedCall[]>;
   /** For the researcher who made the call, a manager, or the merchant viewer. */
   getCallReview(
     context: TenantContext,

@@ -1,4 +1,9 @@
-import { Link, useLoaderData, type LoaderFunctionArgs } from "react-router";
+import {
+  Link,
+  useLoaderData,
+  useLocation,
+  type LoaderFunctionArgs,
+} from "react-router";
 
 import { authenticateMerchant } from "../lib/merchant-context.server";
 import {
@@ -9,12 +14,25 @@ import type { CompletedCall } from "../lib/operations-types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { context } = await authenticateMerchant(request);
-  return executeOperationsRequest(async () => ({
-    calls: (await getOperationsService().listCompletedCalls(context)).map(
+  const angleId = new URL(request.url).searchParams.get("angle");
+  return executeOperationsRequest(async () => {
+    const service = getOperationsService();
+    // Only filter by one of this merchant's own angles; anything else shows all.
+    const angle = angleId
+      ? ((await service.listMoments(context)).find(
+          (moment) => moment.id === angleId,
+        ) ?? null)
+      : null;
+    const calls = await service.listCompletedCalls(
+      context,
+      angle ? { angleId: angle.id } : {},
+    );
+    return {
+      angle: angle ? { id: angle.id, name: angle.name } : null,
       // Which researcher made the call is internal.
-      ({ mine: _mine, ...call }) => call,
-    ),
-  }));
+      calls: calls.map(({ mine: _mine, ...call }) => call),
+    };
+  });
 }
 
 const easternTime = new Intl.DateTimeFormat("en-US", {
@@ -38,16 +56,23 @@ function durationLabel(seconds: number | null) {
 }
 
 export default function RawResearch() {
-  const { calls } = useLoaderData<typeof loader>();
+  const { angle, calls } = useLoaderData<typeof loader>();
+  const { search } = useLocation();
   return (
     <>
       <header className="shopify-app__header">
         <p className="eyebrow">Raw research</p>
-        <h1>Completed calls</h1>
+        <h1>{angle ? angle.name : "Completed calls"}</h1>
         <p>
-          Every finished call with your customers: listen to the recording, read
-          the transcript, and see what the researcher recorded.
+          {angle
+            ? "Finished calls for this research angle: listen to the recording, read the transcript, and see what the researcher recorded."
+            : "Every finished call with your customers: listen to the recording, read the transcript, and see what the researcher recorded."}
         </p>
+        {angle ? (
+          <p>
+            <Link to="/app/calls">Show calls from every angle</Link>
+          </p>
+        ) : null}
       </header>
       <section className="sheet-section">
         <header className="sheet-section__header">
@@ -86,6 +111,7 @@ export default function RawResearch() {
                     <td className="queue-table__open">
                       <Link
                         className="queue-open"
+                        state={{ backTo: `/app/calls${search}` }}
                         to={`/app/calls/${call.interviewId}`}
                       >
                         Open
@@ -121,7 +147,9 @@ export default function RawResearch() {
           </div>
         ) : (
           <p className="sheet-empty">
-            Calls appear here as researchers finish them.
+            {angle
+              ? "Calls for this angle appear here as researchers finish them."
+              : "Calls appear here as researchers finish them."}
           </p>
         )}
       </section>

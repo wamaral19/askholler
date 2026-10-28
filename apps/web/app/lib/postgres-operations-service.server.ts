@@ -2794,6 +2794,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
 
   async listCompletedCalls(
     context: TenantContext,
+    filter: { readonly angleId?: string } = {},
   ): Promise<readonly CompletedCall[]> {
     await this.requireMerchant(context, { allowMerchantViewer: true });
     const rows = await this.db
@@ -2802,6 +2803,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         outcome: interviews.outcome,
         endedAt: interviews.endedAt,
         researcherId: interviews.researcherId,
+        momentId: researchMoments.id,
         momentName: researchMoments.name,
         momentKind: researchMoments.kind,
         orderNumber: orders.sourceOrderNumber,
@@ -2856,6 +2858,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
         and(
           eq(interviews.merchantId, context.merchantId),
           inArray(interviews.status, ["completed", "aborted"]),
+          ...(filter.angleId ? [eq(researchMoments.id, filter.angleId)] : []),
           ...(seesAllCalls(context)
             ? []
             : [eq(interviews.researcherId, context.researcherId)]),
@@ -2868,6 +2871,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       outcome: closedOutcome(row.outcome),
       endedAt: row.endedAt?.toISOString() ?? null,
       angle: row.momentKind === "general" ? "" : row.momentName,
+      angleId: row.momentId,
       orderNumber: row.orderNumber,
       durationSeconds: callSeconds(row.answeredAt, row.callEndedAt),
       transcriptLines: row.transcriptLines,

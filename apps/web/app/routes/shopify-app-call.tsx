@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { Link, useLoaderData, type LoaderFunctionArgs } from "react-router";
+import {
+  Link,
+  useLoaderData,
+  useLocation,
+  type LoaderFunctionArgs,
+} from "react-router";
 
 import {
   dateLabel,
@@ -68,14 +73,17 @@ function clock(ms: number | null) {
 
 export default function MerchantCall() {
   const data = useLoaderData<typeof loader>();
+  // Return to the list the merchant came from, keeping its angle filter.
+  const { state } = useLocation();
+  const backTo =
+    typeof state?.backTo === "string" && state.backTo.startsWith("/app/calls")
+      ? state.backTo
+      : "/app/calls";
   return (
     <div className="call-sheet">
       <section className="call-bar" aria-label="Call summary">
         <div className="call-bar__dial">
-          <Link
-            className="console-button console-button--quiet"
-            to="/app/calls"
-          >
+          <Link className="console-button console-button--quiet" to={backTo}>
             ← Completed calls
           </Link>
           <span className="call-bar__phone">
