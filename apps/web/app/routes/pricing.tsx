@@ -21,7 +21,7 @@ const shared = [
 
 export default function Pricing() {
   return (
-    <main className="holler-preview preview-subpage">
+    <main className="holler-preview preview-subpage preview-pricing-page">
       <MarketingHeader current="pricing" />
 
       <section className="preview-subpage-hero pricing-hero">

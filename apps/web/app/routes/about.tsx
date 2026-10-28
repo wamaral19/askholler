@@ -32,7 +32,10 @@ const principles = [
 
 export default function About() {
   return (
-    <main className="holler-preview preview-subpage" id="top">
+    <main
+      className="holler-preview preview-subpage preview-about-page"
+      id="top"
+    >
       <MarketingHeader current="about" />
 
       <section className="preview-subpage-hero preview-about-hero">
