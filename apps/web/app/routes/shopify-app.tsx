@@ -18,7 +18,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 const sections = [
   { to: "/app", label: "Research runs", end: true },
   { to: "/app/calls", label: "Raw research", end: false },
-  { to: "/app/angles/new", label: "Request an angle", end: false },
+  { to: "/app/research/new", label: "Request research", end: false },
   { to: "/app/billing", label: "Pricing & billing", end: false },
 ] as const;
 

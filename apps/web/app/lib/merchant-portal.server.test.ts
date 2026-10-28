@@ -210,9 +210,11 @@ describe.skipIf(databaseUrl === undefined)("merchant portal", () => {
       publish: false,
     } as const;
     const { id } = await service.saveMoment(merchant, request);
-    await expect(
-      service.getMomentConfiguration(merchant, id),
-    ).rejects.toMatchObject({ code: "WORKFORCE_ACCESS_REQUIRED" });
+    // The merchant can read back what they sent, but not change it.
+    expect(await service.getMomentConfiguration(merchant, id)).toMatchObject({
+      id,
+      cohortExpression: request.cohortExpression,
+    });
     const configuration = await service.getMomentConfiguration(manager, id);
     expect(configuration).toMatchObject({
       id,

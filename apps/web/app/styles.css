@@ -2466,6 +2466,22 @@ p {
   font-weight: 600;
 }
 
+.merchant-run h3 a {
+  color: inherit;
+}
+
+.merchant-questions {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: var(--space-6);
+}
+
+.merchant-questions p {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-muted);
+}
+
 .merchant-run__actions {
   display: flex;
   flex-wrap: wrap;
