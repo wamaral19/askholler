@@ -73,7 +73,7 @@ function clock(ms: number | null) {
 
 export default function MerchantCall() {
   const data = useLoaderData<typeof loader>();
-  // Return to the list the merchant came from, keeping its angle filter.
+  // Return to the list the merchant came from, keeping its research filter.
   const { state } = useLocation();
   const backTo =
     typeof state?.backTo === "string" && state.backTo.startsWith("/app/calls")

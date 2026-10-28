@@ -31,7 +31,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const { context } = await authenticateMerchant(request);
   try {
     return await executeOperationsRequest(async () => {
-      // Merchants only send new requests; staff revise existing angles.
+      // Merchants only send new requests; staff revise existing research.
       const { momentId: _ignored, ...input } = momentInputFromForm(
         await request.formData(),
       );
@@ -54,12 +54,12 @@ export default function AngleRequest() {
   return (
     <>
       <header className="shopify-app__header">
-        <p className="eyebrow">Request an angle</p>
-        <h1>Request a new angle</h1>
+        <p className="eyebrow">Request research</p>
+        <h1>Request research</h1>
         <p>
-          An angle is one question you want answered by talking to a specific
-          group of customers. Describe it here and send it to Holler; we review
-          every request with you before any calls start.
+          Tell us what you want answered by talking to a specific group of
+          customers. Describe it here and send it to Holler; we review every
+          request with you before any calls start.
         </p>
       </header>
       <AngleBuilderForm

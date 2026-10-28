@@ -224,6 +224,16 @@ function rootRuleFromJson(value: unknown): GroupNode | null {
     : { id: "root", kind: "group", operator: "all", children: [rule] };
 }
 
+/** The saved rules as one plain-language sentence; null if unreadable. */
+export function describeCohortExpression(value: unknown): string | null {
+  const rule = rootRuleFromJson(value);
+  if (!rule) return null;
+  const description = describeRule(
+    rule.children.length === 1 ? (rule.children[0] ?? rule) : rule,
+  ).replace(/^\((.*)\)$/, "$1");
+  return description.charAt(0).toUpperCase() + description.slice(1);
+}
+
 function describeRule(node: RuleNode): string {
   if (node.kind === "condition") {
     if (node.predicate === "customer.order_sequence") {
@@ -595,7 +605,7 @@ export function AngleBuilderForm({
             <div className="panel-heading">
               <div>
                 <span className="step-number">1</span>
-                <h2>Angle basics</h2>
+                <h2>{request ? "Research basics" : "Angle basics"}</h2>
               </div>
               <span
                 className={`status-pill status-${initial?.status ?? "draft"}`}
@@ -691,7 +701,7 @@ export function AngleBuilderForm({
             {request ? (
               <p className="helper-copy">
                 Starts from your default questions. Add, remove, or reorder them
-                for this angle; researchers ask them in this order.
+                for this research; researchers ask them in this order.
               </p>
             ) : (
               <p className="helper-copy">
@@ -947,7 +957,7 @@ export function AngleBuilderForm({
             ) : (
               <p className="inline-notice">
                 {request ? (
-                  "Holler will choose the interview script for this angle."
+                  "Holler will choose the interview script for this research."
                 ) : (
                   <>
                     No library scripts yet.{" "}

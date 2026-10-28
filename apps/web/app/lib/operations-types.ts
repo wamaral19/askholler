@@ -373,7 +373,7 @@ export interface OperationsApplicationService {
   listMoments(
     context: TenantContext,
   ): Promise<readonly ResearchMomentSummary[]>;
-  /** Workforce only; merchant viewers see their requests through listMoments. */
+  /** Read-only for merchant viewers; only staff save changes. */
   getMomentConfiguration(
     context: TenantContext,
     momentId: string,

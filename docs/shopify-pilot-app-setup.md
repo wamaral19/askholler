@@ -113,11 +113,17 @@ are in Shopify admin's sidebar and in tabs at the top of each page:
    calls in the workforce tool, each with its recording, transcript, and the
    researcher's tags and notes. It is read-only. Phone numbers and customer
    names are never shown, and every recording playback is audited.
-3. **Request an angle** (`/app/angles/new`): the Angle Builder form. Sending
-   it saves a draft angle marked "Requested by merchant" under **Live
-   angles**; nothing goes live and no one is notified. New questions the
-   merchant adds are saved to that merchant's field library.
-4. **Billing** (`/app/billing`): section 3.
+3. **Request research** (`/app/research/new`): the Angle Builder form,
+   worded as "research" for merchants. Sending it saves a draft angle marked
+   "Requested by merchant" under **Live angles**; nothing goes live and no
+   one is notified. New questions the merchant adds are saved to that
+   merchant's field library.
+
+Each requested or in-progress angle on **Research runs** links to a
+read-only page (`/app/research/:researchId`) with its qualification rules,
+research fields, and interview script, and to **Raw research** filtered to
+that angle (`/app/calls?research=<id>`). The Shopify app says "research"
+wherever the workforce tool says "angle". 4. **Billing** (`/app/billing`): section 3.
 
 Every page has an empty state for a fresh install.
 

@@ -14,10 +14,10 @@ import type { CompletedCall } from "../lib/operations-types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { context } = await authenticateMerchant(request);
-  const angleId = new URL(request.url).searchParams.get("angle");
+  const angleId = new URL(request.url).searchParams.get("research");
   return executeOperationsRequest(async () => {
     const service = getOperationsService();
-    // Only filter by one of this merchant's own angles; anything else shows all.
+    // Only filter by this merchant's own research; anything else shows all.
     const angle = angleId
       ? ((await service.listMoments(context)).find(
           (moment) => moment.id === angleId,
@@ -65,12 +65,15 @@ export default function RawResearch() {
         <h1>{angle ? angle.name : "Completed calls"}</h1>
         <p>
           {angle
-            ? "Finished calls for this research angle: listen to the recording, read the transcript, and see what the researcher recorded."
+            ? "Finished calls for this research: listen to the recording, read the transcript, and see what the researcher recorded."
             : "Every finished call with your customers: listen to the recording, read the transcript, and see what the researcher recorded."}
         </p>
         {angle ? (
           <p>
-            <Link to="/app/calls">Show calls from every angle</Link>
+            <Link to={`/app/research/${encodeURIComponent(angle.id)}`}>
+              Who we call and what we ask
+            </Link>{" "}
+            · <Link to="/app/calls">Show calls from all research</Link>
           </p>
         ) : null}
       </header>
@@ -91,7 +94,7 @@ export default function RawResearch() {
                   <th className="queue-table__open" scope="col">
                     <span className="sr-only">Open</span>
                   </th>
-                  <th scope="col">Research angle</th>
+                  <th scope="col">Research</th>
                   <th scope="col">Ended (ET)</th>
                   <th scope="col">Order #</th>
                   <th scope="col">Outcome</th>
@@ -148,7 +151,7 @@ export default function RawResearch() {
         ) : (
           <p className="sheet-empty">
             {angle
-              ? "Calls for this angle appear here as researchers finish them."
+              ? "Calls for this research appear here as researchers finish them."
               : "Calls appear here as researchers finish them."}
           </p>
         )}

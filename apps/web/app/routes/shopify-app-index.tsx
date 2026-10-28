@@ -115,7 +115,7 @@ export default function CompletedResearchRuns() {
             <span>1</span>
             <div>
               <strong>Shopify connected</strong>
-              <p>New orders are monitored for approved Research Angles.</p>
+              <p>New orders are monitored for approved research.</p>
             </div>
           </div>
           <div
@@ -126,7 +126,7 @@ export default function CompletedResearchRuns() {
               <strong>Choose a question</strong>
               <p>
                 {angles.length
-                  ? `${angles.length} research ${angles.length === 1 ? "angle is" : "angles are"} on file.`
+                  ? `${angles.length} research ${angles.length === 1 ? "request is" : "requests are"} on file.`
                   : "Request the first customer question you want Holler to investigate."}
               </p>
             </div>
@@ -159,7 +159,11 @@ export default function CompletedResearchRuns() {
             {requested.map((angle) => (
               <li className="shopify-app__card merchant-run" key={angle.id}>
                 <div>
-                  <h3>{angle.name}</h3>
+                  <h3>
+                    <Link to={`/app/research/${encodeURIComponent(angle.id)}`}>
+                      {angle.name}
+                    </Link>
+                  </h3>
                   <p>{angle.objective}</p>
                   <p className="merchant-run__meta">Submitted · Draft</p>
                 </div>
@@ -195,7 +199,11 @@ export default function CompletedResearchRuns() {
                 key={angle.id}
               >
                 <div>
-                  <h3>{angle.name}</h3>
+                  <h3>
+                    <Link to={`/app/research/${encodeURIComponent(angle.id)}`}>
+                      {angle.name}
+                    </Link>
+                  </h3>
                   <p>{angle.objective}</p>
                   <p className="merchant-run__meta">
                     {angle.status === "live"
@@ -210,7 +218,13 @@ export default function CompletedResearchRuns() {
                   />
                   <Link
                     className="merchant-run__link"
-                    to={`/app/calls?angle=${encodeURIComponent(angle.id)}`}
+                    to={`/app/research/${encodeURIComponent(angle.id)}`}
+                  >
+                    Who we call and what we ask →
+                  </Link>
+                  <Link
+                    className="merchant-run__link"
+                    to={`/app/calls?research=${encodeURIComponent(angle.id)}`}
                   >
                     View completed calls →
                   </Link>
@@ -275,7 +289,7 @@ export default function CompletedResearchRuns() {
             </p>
             <p>
               Have a question you want answered? Use{" "}
-              <strong>Request an angle</strong> to tell us which customers to
+              <strong>Request research</strong> to tell us which customers to
               talk to and what to ask.
             </p>
             <p>

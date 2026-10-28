@@ -1253,7 +1253,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     context: TenantContext,
     momentId: string,
   ): Promise<MomentConfiguration> {
-    await this.requireMerchant(context);
+    // Merchants see their own research setup read-only; only staff save it.
+    await this.requireMerchant(context, { allowMerchantViewer: true });
     const current = await this.currentMomentVersion(this.db, context, momentId);
     if (current.momentKind !== "angle")
       throw new OperationsError("RESEARCH_MOMENT_NOT_FOUND", 404);
