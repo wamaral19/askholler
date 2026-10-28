@@ -18,6 +18,8 @@ type TokenResponse = {
 export function TwilioCallPanel({ interviewId }: { interviewId: string }) {
   const device = useRef<BrowserDevice | null>(null);
   const call = useRef<BrowserCall | null>(null);
+  // Set when End call is pressed before Twilio hands back the call.
+  const cancelled = useRef(false);
   const [callPhase, setCallPhase] = useState<CallPhase>("idle");
   const [recordingPhase, setRecordingPhase] =
     useState<RecordingPhase>("not_started");
@@ -34,6 +36,7 @@ export function TwilioCallPanel({ interviewId }: { interviewId: string }) {
 
   async function startCall() {
     setError(null);
+    cancelled.current = false;
     setConsentConfirmed(false);
     setRecordingPhase("not_started");
     setCallPhase("connecting");
@@ -44,6 +47,10 @@ export function TwilioCallPanel({ interviewId }: { interviewId: string }) {
       );
       if (!response.ok) throw new Error("Unable to authorize this call");
       const setup = (await response.json()) as TokenResponse;
+      if (cancelled.current) {
+        setCallPhase("ended");
+        return;
+      }
       const nextDevice = createTwilioBrowserDevice(setup.token);
       device.current = nextDevice;
       const nextCall = await nextDevice.connect({
@@ -57,6 +64,11 @@ export function TwilioCallPanel({ interviewId }: { interviewId: string }) {
           current === "recording" ? "stopped" : current,
         );
       };
+      if (cancelled.current) {
+        nextCall.disconnect();
+        ended();
+        return;
+      }
       nextCall.on("disconnect", ended);
       nextCall.on("cancel", ended);
       nextCall.on("reject", ended);
@@ -91,7 +103,8 @@ export function TwilioCallPanel({ interviewId }: { interviewId: string }) {
 
   function endCall() {
     setCallPhase("ending");
-    call.current?.disconnect();
+    if (call.current) call.current.disconnect();
+    else cancelled.current = true;
   }
 
   const active =
@@ -113,7 +126,7 @@ export function TwilioCallPanel({ interviewId }: { interviewId: string }) {
 
       {!active ? (
         <button
-          className="button button-primary button-full"
+          className="console-button console-button--go"
           onClick={startCall}
           type="button"
         >
@@ -121,7 +134,7 @@ export function TwilioCallPanel({ interviewId }: { interviewId: string }) {
         </button>
       ) : (
         <button
-          className="button button-quiet button-full"
+          className="console-button console-button--stop"
           disabled={callPhase === "ending"}
           onClick={endCall}
           type="button"
@@ -145,7 +158,7 @@ export function TwilioCallPanel({ interviewId }: { interviewId: string }) {
             Customer explicitly said yes
           </label>
           <button
-            className="button button-primary button-full"
+            className="console-button console-button--go"
             disabled={
               !mayStartRecording(callPhase, consentConfirmed) ||
               recordingPhase === "starting"
@@ -162,7 +175,7 @@ export function TwilioCallPanel({ interviewId }: { interviewId: string }) {
 
       {recordingPhase === "recording" ? (
         <button
-          className="button button-quiet button-full"
+          className="console-button console-button--stop"
           onClick={() => setRecording("stop")}
           type="button"
         >
