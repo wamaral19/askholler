@@ -116,6 +116,21 @@ describe.skipIf(databaseUrl === undefined)("merchant portal", () => {
     ).rejects.toMatchObject({ code: "WORKFORCE_ACCESS_REQUIRED" });
   });
 
+  it("narrows finished calls to one research angle", async () => {
+    const [call] = await service.listCompletedCalls(merchant, {
+      angleId: ids.moment,
+    });
+    expect(call).toMatchObject({
+      interviewId: ids.interview,
+      angleId: ids.moment,
+    });
+    expect(
+      await service.listCompletedCalls(merchant, {
+        angleId: "00000000-0000-7000-8000-000000000999",
+      }),
+    ).toEqual([]);
+  });
+
   it("keeps the merchant out of the queue, phone numbers, and live calls", async () => {
     await expect(service.listQueue(merchant)).rejects.toMatchObject({
       code: "WORKFORCE_ACCESS_REQUIRED",

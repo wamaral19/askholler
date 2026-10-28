@@ -2461,6 +2461,11 @@ p {
   margin: 0;
 }
 
+.merchant-run__link {
+  justify-self: start;
+  font-weight: 600;
+}
+
 .merchant-run__actions {
   display: flex;
   flex-wrap: wrap;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLoaderData, type LoaderFunctionArgs } from "react-router";
+import { Link, useLoaderData, type LoaderFunctionArgs } from "react-router";
 
 import { authenticateMerchant } from "../lib/merchant-context.server";
 import {
@@ -203,10 +203,18 @@ export default function CompletedResearchRuns() {
                       : "Paused"}
                   </p>
                 </div>
-                <WeeklyProgress
-                  completed={angle.completedThisWeek}
-                  target={angle.weeklyTarget}
-                />
+                <div className="merchant-run__progress">
+                  <WeeklyProgress
+                    completed={angle.completedThisWeek}
+                    target={angle.weeklyTarget}
+                  />
+                  <Link
+                    className="merchant-run__link"
+                    to={`/app/calls?angle=${encodeURIComponent(angle.id)}`}
+                  >
+                    View completed calls →
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>
@@ -292,7 +300,7 @@ function WeeklyProgress({
 }) {
   const percent = target > 0 ? Math.min(100, (completed / target) * 100) : 0;
   return (
-    <div className="merchant-run__progress">
+    <>
       <p className="merchant-run__meta">
         <strong>{completed}</strong>
         {target > 0 ? ` of ${target}` : ""}{" "}
@@ -312,6 +320,6 @@ function WeeklyProgress({
           style={{ width: `${percent}%` }}
         />
       </div>
-    </div>
+    </>
   );
 }
