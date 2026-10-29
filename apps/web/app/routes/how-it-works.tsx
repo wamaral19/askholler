@@ -1,6 +1,8 @@
 import {
-  MarketingFooter,
-  MarketingHeader,
+  SiteCta,
+  SiteHero,
+  SitePage,
+  SiteSection,
   marketingMeta,
 } from "../components/marketing-shell";
 
@@ -46,55 +48,51 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <main className="holler-preview preview-how-page" id="top">
-      <MarketingHeader current="how-it-works" />
+    <SitePage current="how-it-works">
+      <SiteHero
+        kicker="How We Work"
+        title="From an important question to evidence your team can use."
+        lede="Holler combines precise customer cohorts, timely human conversations, and careful analysis. The result is a clear answer tied directly to what your customers said and what they did."
+      />
 
-      <section className="preview-how-hero">
-        <p className="preview-kicker">How We Work</p>
-        <h1>From an important question to evidence your team can use.</h1>
-        <p>
-          Holler combines precise customer cohorts, timely human conversations,
-          and careful analysis. The result is a clear answer tied directly to
-          what your customers said and what they did.
-        </p>
-      </section>
-
-      <section
-        className="preview-how-steps"
-        aria-label="Holler research process"
-      >
-        <ol>
+      <SiteSection aria-label="Holler research process">
+        <ol className="site-steps">
           {steps.map((step, index) => (
             <li key={step.title}>
-              <span className="preview-how-number">0{index + 1}</span>
+              <span className="site-number">0{index + 1}</span>
               <div>
                 <h2>{step.title}</h2>
                 <p>{step.description}</p>
               </div>
-              <aside>{step.note}</aside>
+              <aside className="site-tile">{step.note}</aside>
             </li>
           ))}
         </ol>
-      </section>
+      </SiteSection>
 
-      <section className="preview-how-principle">
-        <p className="preview-kicker">One principle guides every interview</p>
-        <blockquote>
-          Every customer walks away from the conversation feeling better about
-          the brand than they did going in.
-        </blockquote>
-        <p>That is why Holler uses humans, not AI interviewers.</p>
-      </section>
+      <SiteSection>
+        <figure className="site-feature">
+          <p className="site-kicker">One principle guides every interview</p>
+          <blockquote>
+            Every customer walks away from the conversation feeling better about
+            the brand than they did going in.
+          </blockquote>
+          <figcaption>
+            That is why Holler uses humans, not AI interviewers.
+          </figcaption>
+        </figure>
+      </SiteSection>
 
-      <section className="preview-contact" id="contact">
-        <p className="preview-kicker">Bring us the question</p>
-        <h2>What do you want to understand about your customers?</h2>
-        <a href="/contact">
-          wyatt@withholler.com <span aria-hidden="true">↗</span>
-        </a>
-      </section>
-
-      <MarketingFooter />
-    </main>
+      <SiteCta
+        kicker="Bring us the question"
+        title="What do you want to understand about your customers?"
+        href="/contact"
+        label={
+          <>
+            wyatt@withholler.com <span aria-hidden="true">↗</span>
+          </>
+        }
+      />
+    </SitePage>
   );
 }

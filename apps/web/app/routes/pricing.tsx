@@ -1,6 +1,7 @@
 import {
-  MarketingFooter,
-  MarketingHeader,
+  SiteHero,
+  SitePage,
+  SiteSection,
   marketingContactHref,
   marketingMeta,
 } from "../components/marketing-shell";
@@ -12,6 +13,41 @@ export function meta() {
   );
 }
 
+const plans = [
+  {
+    kicker: "Ongoing research",
+    name: "Monthly subscription",
+    price: "$1,000",
+    period: "/ month",
+    summary:
+      "Continuous customer learning for teams with evolving marketing, attribution, positioning, and product questions.",
+    includes: [
+      "25 completed interviews each month",
+      "Up to two hours of consented recorded research",
+      "Monthly evidence-backed report",
+      "Quarterly long-form synthesis",
+    ],
+    cta: "Discuss a subscription",
+    featured: true,
+  },
+  {
+    kicker: "Focused engagement",
+    name: "Standalone Research Run",
+    price: "$3,500",
+    period: undefined,
+    summary:
+      "A one-time investigation built around a specific Research Angle, customer segment, or business decision.",
+    includes: [
+      "At least 50 completed interviews",
+      "At least three hours of consented recorded research",
+      "One focused Research Angle report",
+      "Larger samples receive custom volume pricing",
+    ],
+    cta: "Scope a Research Run",
+    featured: false,
+  },
+];
+
 const shared = [
   "Human-led customer interviews",
   "Executive summary and evidence-backed findings",
@@ -21,70 +57,55 @@ const shared = [
 
 export default function Pricing() {
   return (
-    <main className="holler-preview preview-subpage preview-pricing-page">
-      <MarketingHeader current="pricing" />
+    <SitePage current="pricing">
+      <SiteHero
+        kicker="Pricing"
+        title="Customer research sized to the question."
+        lede="Start with ongoing coverage or commission a focused Research Run. Final scope and timing depend on order volume and the customer cohort you want to investigate."
+      />
 
-      <section className="preview-subpage-hero pricing-hero">
-        <p className="preview-kicker">Pricing</p>
-        <h1>Customer research sized to the question.</h1>
-        <p>
-          Start with ongoing coverage or commission a focused Research Run.
-          Final scope and timing depend on order volume and the customer cohort
-          you want to investigate.
-        </p>
-      </section>
+      <SiteSection aria-label="Plans">
+        <div className="site-plans">
+          {plans.map((plan) => (
+            <article
+              className={`site-plan${plan.featured ? " is-featured" : ""}`}
+              key={plan.name}
+            >
+              <div className="site-plan__tile">
+                <p className="site-kicker">{plan.kicker}</p>
+                <h2>{plan.name}</h2>
+                <p className="site-plan__price">
+                  <span>From</span> <strong>{plan.price}</strong>
+                  {plan.period ? <span> {plan.period}</span> : null}
+                </p>
+              </div>
+              <a
+                className="site-btn site-btn--primary site-btn--block"
+                href={marketingContactHref}
+              >
+                {plan.cta}
+              </a>
+              <p className="site-plan__summary">{plan.summary}</p>
+              <ul className="site-list">
+                {plan.includes.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </article>
+          ))}
+        </div>
 
-      <section aria-label="Plans" className="pricing-grid">
-        <article className="pricing-card is-featured">
-          <p className="preview-kicker">Ongoing research</p>
-          <h2>Monthly subscription</h2>
-          <p className="pricing-card__price">
-            <span>From</span> $1,000 <small>/ month</small>
-          </p>
-          <p>
-            Continuous customer learning for teams with evolving marketing,
-            attribution, positioning, and product questions.
-          </p>
-          <ul>
-            <li>25 completed interviews each month</li>
-            <li>Up to two hours of consented recorded research</li>
-            <li>Monthly evidence-backed report</li>
-            <li>Quarterly long-form synthesis</li>
+        <div className="site-plans__shared">
+          <p className="site-list-label">Included in both plans</p>
+          <ul className="site-list site-list--grid">
             {shared.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
-          <a className="button button-primary" href={marketingContactHref}>
-            Discuss a subscription
-          </a>
-        </article>
+        </div>
+      </SiteSection>
 
-        <article className="pricing-card">
-          <p className="preview-kicker">Focused engagement</p>
-          <h2>Standalone Research Run</h2>
-          <p className="pricing-card__price">
-            <span>From</span> $3,500
-          </p>
-          <p>
-            A one-time investigation built around a specific Research Angle,
-            customer segment, or business decision.
-          </p>
-          <ul>
-            <li>At least 50 completed interviews</li>
-            <li>At least three hours of consented recorded research</li>
-            <li>One focused Research Angle report</li>
-            <li>Larger samples receive custom volume pricing</li>
-            {shared.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-          <a className="button" href={marketingContactHref}>
-            Scope a Research Run
-          </a>
-        </article>
-      </section>
-
-      <section className="pricing-note">
+      <SiteSection className="site-split">
         <h2>How billing works</h2>
         <p>
           Shopify merchants review and approve every charge through Shopify.
@@ -92,9 +113,7 @@ export default function Pricing() {
           be cancelled from Holler’s Billing page. Prices above are starting
           prices; any custom scope and charge are shown before approval.
         </p>
-      </section>
-
-      <MarketingFooter />
-    </main>
+      </SiteSection>
+    </SitePage>
   );
 }
