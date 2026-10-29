@@ -1,6 +1,8 @@
 import {
-  MarketingFooter,
-  MarketingHeader,
+  SiteCta,
+  SiteHero,
+  SitePage,
+  SiteSection,
   marketingMeta,
 } from "../components/marketing-shell";
 
@@ -32,41 +34,35 @@ const principles = [
 
 export default function About() {
   return (
-    <main
-      className="holler-preview preview-subpage preview-about-page"
-      id="top"
-    >
-      <MarketingHeader current="about" />
+    <SitePage current="about">
+      <SiteHero
+        kicker="About Holler"
+        title={
+          <>
+            Your customers are human.
+            <br />
+            Your research should be human too.
+          </>
+        }
+        lede="Holler talks to your customers and gets the why behind the action, all while making customers even bigger fans of your brand."
+      />
 
-      <section className="preview-subpage-hero preview-about-hero">
-        <p className="preview-kicker">About Holler</p>
-        <h1>
-          Your customers are human.
-          <br />
-          Your research should be human too.
-        </h1>
-        <p>
-          Holler talks to your customers and gets the why behind the action, all
-          while making customers even bigger fans of your brand.
-        </p>
-      </section>
-
-      <section className="preview-about-story">
+      <SiteSection className="site-split">
         <div>
-          <p className="preview-kicker">Why Holler exists</p>
+          <p className="site-kicker">Why Holler exists</p>
           <h2>
             DTC teams have more customer data than ever and too few chances to
             ask why.
           </h2>
         </div>
-        <div className="preview-about-story-copy">
+        <div className="site-split__body">
           <p>
             There are a million tools that tell you what happened. The numbers
             do not tell you why, and you cannot always trust the numbers. We
             build your research capability to get you the answers you need.
           </p>
-          <article>
-            <p className="preview-kicker">Who conducts the interviews</p>
+          <article className="site-tile site-tile--padded">
+            <p className="site-kicker">Who conducts the interviews</p>
             <h3>Trained human researchers</h3>
             <p>
               Holler&apos;s team has conducted thousands of interviews, yielding
@@ -74,33 +70,34 @@ export default function About() {
             </p>
           </article>
         </div>
-      </section>
+      </SiteSection>
 
-      <section className="preview-principles">
-        <div>
-          <p className="preview-kicker">Our principles</p>
+      <SiteSection>
+        <div className="site-head">
+          <p className="site-kicker">Our principles</p>
           <h2>How we approach the work.</h2>
         </div>
-        <ol>
+        <ol className="site-columns site-columns--4">
           {principles.map((principle, index) => (
             <li key={principle.title}>
-              <span>0{index + 1}</span>
+              <span className="site-number">0{index + 1}</span>
               <h3>{principle.title}</h3>
               <p>{principle.copy}</p>
             </li>
           ))}
         </ol>
-      </section>
+      </SiteSection>
 
-      <section className="preview-subpage-cta">
-        <p className="preview-kicker">Built for DTC teams</p>
-        <h2>Chat with the team that wants to chat with your customers.</h2>
-        <a href="/contact">
-          Chat with Holler <span aria-hidden="true">→</span>
-        </a>
-      </section>
-
-      <MarketingFooter />
-    </main>
+      <SiteCta
+        kicker="Built for DTC teams"
+        title="Chat with the team that wants to chat with your customers."
+        href="/contact"
+        label={
+          <>
+            Chat with Holler <span aria-hidden="true">→</span>
+          </>
+        }
+      />
+    </SitePage>
   );
 }
