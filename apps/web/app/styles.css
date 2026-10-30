@@ -81,8 +81,8 @@
 .shopify-app,
 .shopify-login {
   font-family: var(--font-text);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--type-12, 12px);
+  line-height: var(--lead-18, 18px);
   color: var(--ink);
 }
 
@@ -227,8 +227,8 @@ a {
 
 .brand-lockup span {
   color: var(--night-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-style: italic;
 }
 
@@ -242,8 +242,8 @@ a {
   text-decoration: none;
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-3);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
 }
 
 .sidebar nav a:hover {
@@ -278,8 +278,8 @@ a {
 .merchant-selection label,
 .merchant-selection__label {
   color: var(--night-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -314,8 +314,8 @@ a {
   color: var(--night-muted);
   cursor: pointer;
   padding: var(--space-2) var(--space-3);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   text-align: left;
 }
 
@@ -360,8 +360,8 @@ a {
   align-items: center;
   gap: var(--space-1) var(--space-2);
   color: var(--night-ink);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
 }
 
 .sidebar-note small {
@@ -417,7 +417,7 @@ a {
   border-radius: var(--radius-sm);
   background: var(--danger-soft);
   color: var(--danger);
-  font-size: 11px;
+  font-size: var(--type-11, 11px);
 }
 
 /* The ring — the colon's hollow dot — is the status motif */
@@ -468,8 +468,8 @@ a {
 .eyebrow {
   color: var(--blue-ink);
   font-family: var(--font-text);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   margin: 0 0 var(--space-2);
@@ -494,16 +494,16 @@ p {
 :where(.app-shell, .workforce-login, .shopify-app, .shopify-login) h2 {
   margin-bottom: var(--space-2);
   font-family: var(--font-display);
-  font-size: 16px;
-  line-height: 23px;
+  font-size: var(--type-16, 16px);
+  line-height: var(--lead-23, 23px);
   font-weight: 400;
 }
 
 :where(.app-shell, .workforce-login, .shopify-app, .shopify-login) h3 {
   margin-bottom: var(--space-2);
   font-family: var(--font-display);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--type-12, 12px);
+  line-height: var(--lead-18, 18px);
   font-weight: 700;
 }
 
@@ -511,8 +511,8 @@ p {
   color: var(--ink-muted);
   margin-bottom: 0;
   max-width: 740px;
-  font-size: 11px;
-  line-height: 20px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-20, 20px);
 }
 
 .page-actions {
@@ -527,15 +527,15 @@ p {
   border: 1px solid var(--line-strong);
   background: var(--surface-raised);
   color: var(--ink);
-  border-radius: var(--radius-md);
+  border-radius: var(--button-radius, var(--radius-md));
   cursor: pointer;
   display: inline-flex;
   justify-content: center;
   align-items: center;
   padding: 9px 15px;
   text-decoration: none;
-  font-size: 11px;
-  line-height: 15px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-15, 15px);
   font-weight: 600;
   letter-spacing: 0.02em;
   transition:
@@ -554,14 +554,14 @@ p {
 }
 
 .button-primary {
-  background: var(--holler-blue);
-  border-color: var(--holler-blue);
-  color: var(--on-holler-blue);
+  background: var(--button-primary, var(--holler-blue));
+  border-color: var(--button-primary, var(--holler-blue));
+  color: var(--on-button-primary, var(--on-holler-blue));
 }
 
 .button-primary:hover:not(:disabled) {
-  background: #7aabff;
-  border-color: #7aabff;
+  background: var(--button-primary-hover, #7aabff);
+  border-color: var(--button-primary-hover, #7aabff);
 }
 
 .button-quiet {
@@ -570,8 +570,8 @@ p {
 
 .button-small {
   padding: 6px 9px;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
 }
 
 .button-full {
@@ -585,8 +585,8 @@ p {
   color: var(--link);
   cursor: pointer;
   padding: 6px;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -614,14 +614,14 @@ p {
   align-items: baseline;
   padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-6);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
 }
 
 .prototype-banner strong {
   flex: none;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -656,8 +656,8 @@ p {
 
 .metric-card span {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -667,16 +667,16 @@ p {
   grid-row: 1 / span 2;
   grid-column: 2;
   font-family: var(--font-display);
-  font-size: 23px;
-  line-height: 30px;
+  font-size: var(--type-23, 23px);
+  line-height: var(--lead-30, 30px);
   font-weight: 400;
   font-variant-numeric: lining-nums tabular-nums;
 }
 
 .metric-card small {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-style: italic;
 }
 
@@ -703,8 +703,8 @@ p {
 .dashboard-panel pre {
   white-space: pre-wrap;
   font-family: var(--font-mono);
-  font-size: 8px;
-  line-height: 14px;
+  font-size: var(--type-8, 8px);
+  line-height: var(--lead-14, 14px);
   overflow-wrap: anywhere;
 }
 
@@ -748,8 +748,8 @@ p {
   background: var(--surface-raised);
   color: var(--ink);
   padding: var(--space-2) var(--space-3);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
 }
 
 :where(.app-shell, .workforce-login, .shopify-app, .shopify-login)
@@ -767,8 +767,8 @@ p {
   > span:first-child {
   color: var(--ink-muted);
   display: block;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   margin-bottom: var(--space-1);
   letter-spacing: 0.04em;
@@ -944,15 +944,15 @@ p {
 
 .helper-copy {
   color: var(--ink-muted);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   margin-bottom: var(--space-3);
 }
 
 .subtle {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-style: italic;
 }
 
@@ -963,8 +963,8 @@ p {
   display: inline-block;
   border-radius: var(--radius-full);
   padding: 2px var(--space-3);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1018,16 +1018,16 @@ p {
 
 .cohort-summary span {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .cohort-summary strong {
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   font-weight: 600;
 }
 
@@ -1052,8 +1052,8 @@ p {
 
 :where(.app-shell, .workforce-login, .shopify-app, .shopify-login) dt {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1061,8 +1061,8 @@ p {
 
 :where(.app-shell, .workforce-login, .shopify-app, .shopify-login) dd {
   margin: 0;
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   font-weight: 600;
 }
 
@@ -1108,7 +1108,7 @@ p {
   border: 2px solid var(--holler-blue);
   color: var(--ink);
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: var(--type-11, 11px);
   font-variant-numeric: lining-nums;
 }
 
@@ -1150,8 +1150,8 @@ p {
 .rule-group legend select {
   width: auto;
   color: var(--blue-ink);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1199,8 +1199,8 @@ p {
 
 .logic-summary span {
   color: var(--blue-ink);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1208,15 +1208,15 @@ p {
 
 .logic-summary strong {
   color: var(--ink);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   font-weight: 600;
 }
 
 .json-preview {
   margin-top: var(--space-3);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
 }
 
 .json-preview summary {
@@ -1233,8 +1233,8 @@ p {
   overflow: auto;
   padding: var(--space-4);
   font-family: var(--font-mono);
-  font-size: 8px;
-  line-height: 14px;
+  font-size: var(--type-8, 8px);
+  line-height: var(--lead-14, 14px);
 }
 
 .field-group + .field-group {
@@ -1244,8 +1244,8 @@ p {
 .field-group h3 {
   color: var(--ink-muted);
   font-family: var(--font-text);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1277,21 +1277,21 @@ p {
 }
 
 .field-option strong {
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   font-weight: 600;
 }
 
 .field-option small {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
 }
 
 .field-source {
   color: var(--ink-muted);
-  font-size: 8px;
-  line-height: 12px;
+  font-size: var(--type-8, 8px);
+  line-height: var(--lead-12, 12px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1334,8 +1334,8 @@ p {
 .prompt-row__number {
   color: var(--ink-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   text-align: center;
 }
 
@@ -1353,15 +1353,15 @@ p {
 }
 
 .field-summary strong {
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   font-weight: 600;
 }
 
 .field-summary small {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
 }
 
 .field-summary__meta {
@@ -1386,8 +1386,8 @@ p {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1465,8 +1465,8 @@ p {
 
 .script-index small {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
 }
 
 .script-name {
@@ -1554,8 +1554,8 @@ p {
 
 .check-list li {
   color: var(--ink-muted);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   padding-left: var(--space-6);
   position: relative;
 }
@@ -1577,8 +1577,8 @@ p {
 
 .save-notice {
   color: var(--blue-ink);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   margin: var(--space-3) 0 0;
 }
 
@@ -1593,8 +1593,8 @@ p {
   gap: var(--space-2);
   align-items: center;
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
 }
 
 .twilio-call-panel,
@@ -1611,8 +1611,8 @@ p {
   align-items: center;
   gap: var(--space-2);
   color: var(--blue-ink);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   text-transform: capitalize;
 }
 
@@ -1622,8 +1622,8 @@ p {
   border-radius: var(--radius-full);
   background: var(--danger-soft);
   color: var(--danger);
-  font-size: 8px;
-  line-height: 12px;
+  font-size: var(--type-8, 8px);
+  line-height: var(--lead-12, 12px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1642,8 +1642,8 @@ p {
 .consent-controls label,
 .call-error {
   margin: 0;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
 }
 
 .consent-controls label {
@@ -1691,8 +1691,8 @@ p {
   color: var(--ink-muted);
   cursor: pointer;
   padding: var(--space-1) var(--space-3);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
 }
 
 .filter:hover {
@@ -1715,7 +1715,7 @@ p {
   border: 1px solid var(--line);
   border-radius: var(--radius-full);
   margin-left: var(--space-1);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   line-height: 1;
   font-variant-numeric: lining-nums;
 }
@@ -1747,16 +1747,16 @@ p {
 
 .assignment-age strong {
   font-family: var(--font-display);
-  font-size: 20px;
-  line-height: 27px;
+  font-size: var(--type-20, 20px);
+  line-height: var(--lead-27, 27px);
   font-weight: 400;
   font-variant-numeric: lining-nums;
 }
 
 .assignment-age span {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-style: italic;
 }
 
@@ -1765,15 +1765,15 @@ p {
 }
 
 .assignment-main h2 {
-  font-size: 14px;
-  line-height: 21px;
+  font-size: var(--type-14, 14px);
+  line-height: var(--lead-21, 21px);
   margin: var(--space-2) 0 var(--space-1);
 }
 
 .assignment-moment {
   color: var(--blue-ink);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   font-weight: 600;
   margin-bottom: var(--space-3);
 }
@@ -1804,8 +1804,8 @@ p {
 
 .phone-row > span {
   color: var(--ink-muted);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1813,7 +1813,7 @@ p {
 
 .phone-row strong {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
   font-weight: 500;
 }
 
@@ -1878,8 +1878,8 @@ p {
 .privacy-callout span,
 .privacy-callout small {
   color: var(--ink-muted);
-  font-size: 8px;
-  line-height: 12px;
+  font-size: var(--type-8, 8px);
+  line-height: var(--lead-12, 12px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1887,7 +1887,7 @@ p {
 
 .privacy-callout strong {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
   font-weight: 500;
 }
 
@@ -1920,8 +1920,8 @@ p {
 }
 
 .script-question > span {
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1930,8 +1930,8 @@ p {
 :where(.app-shell, .workforce-login, .shopify-app, .shopify-login) blockquote {
   margin: var(--space-2) 0 0;
   font-family: var(--font-display);
-  font-size: 16px;
-  line-height: 24px;
+  font-size: var(--type-16, 16px);
+  line-height: var(--lead-24, 24px);
   font-weight: 400;
 }
 
@@ -1972,22 +1972,22 @@ p {
 
 .research-field strong {
   color: var(--ink);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
 }
 
 .research-field small {
   color: var(--ink-muted);
-  font-size: 8px;
-  line-height: 12px;
+  font-size: var(--type-8, 8px);
+  line-height: var(--lead-12, 12px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .observation-panel h2 {
-  font-size: 14px;
-  line-height: 21px;
+  font-size: var(--type-14, 14px);
+  line-height: var(--lead-21, 21px);
 }
 
 .observation-chips {
@@ -2005,8 +2005,8 @@ p {
   border-radius: var(--radius-full);
   cursor: pointer;
   padding: 3px 9px;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
 }
 
 .observation-chips button.selected {
@@ -2044,7 +2044,7 @@ p {
   border-radius: 50%;
   background: var(--holler-blue);
   color: var(--on-holler-blue);
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2053,7 +2053,7 @@ p {
 .completion-panel p:last-child {
   margin: 0;
   color: var(--ink-muted);
-  font-size: 11px;
+  font-size: var(--type-11, 11px);
 }
 
 @media (max-width: 1150px) {
@@ -3104,13 +3104,13 @@ p {
 }
 
 .call-bar__phone {
-  font-size: 11px;
+  font-size: var(--type-11, 11px);
   letter-spacing: 0.02em;
 }
 
 .call-bar__error {
   color: #f6a39b;
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
 }
 
 .call-bar__progress {
@@ -3124,7 +3124,7 @@ p {
 }
 
 .call-bar__progress strong {
-  font-size: 14px;
+  font-size: var(--type-14, 14px);
   color: var(--cream);
 }
 
@@ -3161,14 +3161,14 @@ p {
 .sheet-section__header h2 {
   margin: 0;
   font-family: var(--font-text);
-  font-size: 14px;
+  font-size: var(--type-14, 14px);
   font-weight: 600;
   color: var(--sheet-ink);
 }
 
 .sheet-section__index {
   color: var(--state-current);
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
   letter-spacing: 0.12em;
 }
 
@@ -3176,7 +3176,7 @@ p {
 .sheet-note,
 .sheet-empty {
   color: var(--sheet-muted);
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
 }
 
 .sheet-note,
@@ -3203,16 +3203,16 @@ p {
 
 .profile-cell dt {
   color: var(--sheet-muted);
-  font-size: 8px;
-  line-height: 12px;
+  font-size: var(--type-8, 8px);
+  line-height: var(--lead-12, 12px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .profile-cell dd {
   margin: 2px 0 0;
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
   font-weight: 400;
   color: var(--sheet-ink);
 }
@@ -3245,7 +3245,7 @@ p {
 }
 
 .order-block__header strong {
-  font-size: 11px;
+  font-size: var(--type-11, 11px);
   font-weight: 600;
   color: var(--sheet-ink);
 }
@@ -3268,14 +3268,14 @@ p {
 
 .order-block__source-label {
   color: var(--sheet-muted);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .order-block__source strong {
   color: var(--sheet-ink);
-  font-size: 11px;
+  font-size: var(--type-11, 11px);
 }
 
 .order-lines {
@@ -3292,7 +3292,7 @@ p {
 
 .order-line--head {
   color: var(--sheet-muted);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -3305,7 +3305,7 @@ p {
   display: inline-block;
   padding: 0 var(--space-2);
   border-radius: var(--radius-full);
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
 }
 
 .return-pill--kept {
@@ -3338,14 +3338,14 @@ p {
 .prompt-group__header h3 {
   margin: 0;
   font-family: var(--font-text);
-  font-size: 12px;
+  font-size: var(--type-12, 12px);
   font-weight: 600;
   color: var(--sheet-ink);
 }
 
 .prompt-group__kind {
   color: var(--state-current);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -3395,20 +3395,20 @@ p {
 
 .sheet-prompt__label {
   color: var(--sheet-muted);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .sheet-prompt__text {
   margin: 0;
-  font-size: 11px;
-  line-height: 19px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-19, 19px);
 }
 
 .sheet-prompt.is-covered .sheet-prompt__text {
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
 }
 
 .sheet-prompt__done {
@@ -3422,7 +3422,7 @@ p {
   border-radius: var(--radius-control);
   background: var(--sheet-card);
   color: var(--state-done);
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -3441,7 +3441,7 @@ p {
   height: 16px;
   border: 1.5px solid currentColor;
   border-radius: 3px;
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   line-height: 1;
 }
 
@@ -3468,7 +3468,7 @@ p {
   border-radius: var(--radius-control);
   background: var(--sheet-card);
   color: var(--sheet-ink);
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
   cursor: pointer;
 }
 
@@ -3533,7 +3533,7 @@ p {
 
 .sheet-prompt__error {
   color: var(--state-danger);
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
 }
 
 .observation-form {
@@ -3544,7 +3544,7 @@ p {
 
 .observation-form__saved {
   color: var(--state-done);
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
 }
 
 .observation-form .console-button {
@@ -3615,7 +3615,7 @@ p {
 
 .queue-bar__title strong {
   flex: none;
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
   font-weight: 500;
 }
 
@@ -3624,7 +3624,7 @@ p {
   min-width: 0;
   overflow: hidden;
   color: var(--bar-muted);
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
   text-overflow: ellipsis;
 }
 
@@ -3657,7 +3657,7 @@ p {
 .queue-filter > span {
   flex: none;
   color: var(--bar-muted);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -3671,7 +3671,7 @@ p {
   border-radius: var(--radius-control);
   background: rgb(255 255 255 / 6%);
   color: var(--cream);
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
   font-weight: 400;
   text-overflow: ellipsis;
 }
@@ -3722,7 +3722,7 @@ p {
   height: 26px;
   background: var(--sheet-header);
   color: var(--sheet-muted);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3756,8 +3756,8 @@ p {
 }
 
 .queue-table td {
-  font-size: 10px;
-  line-height: 14px;
+  font-size: var(--type-10, 10px);
+  line-height: var(--lead-14, 14px);
 }
 
 .queue-table .is-numeric {
@@ -3868,20 +3868,20 @@ p {
   border-radius: var(--radius-sm);
   background: rgb(13 35 64 / 6%);
   color: var(--sheet-ink);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   text-align: center;
 }
 
 .queue-row__zone {
   margin-left: 5px;
   color: var(--sheet-muted);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
   letter-spacing: 0.08em;
 }
 
 .queue-row__taken {
   color: var(--sheet-muted);
-  font-size: 8px;
+  font-size: var(--type-8, 8px);
 }
 
 .queue-open {
@@ -3891,7 +3891,7 @@ p {
   min-width: 40px;
   min-height: 18px;
   padding: 0 6px;
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
   line-height: 1;
   border: 1px solid var(--state-done);
   border-radius: var(--radius-control);
@@ -3952,7 +3952,7 @@ p {
   gap: var(--space-3);
   padding-block: 3px;
   overflow-x: auto;
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
   font-weight: 400;
   white-space: nowrap;
   scrollbar-width: none;
@@ -3975,21 +3975,21 @@ p {
 .call-bar .console-button {
   min-height: 20px;
   padding: 0 var(--space-2);
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
   font-weight: 500;
 }
 
 .call-bar__phone {
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
 }
 
 .call-bar__progress {
   padding: 1px var(--space-2);
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
 }
 
 .call-bar__progress strong {
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
   font-weight: 500;
 }
 
@@ -4004,7 +4004,7 @@ p {
 .call-bar .call-status {
   gap: var(--space-1);
   color: var(--bar-muted);
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
   line-height: 1;
 }
 
@@ -4035,7 +4035,7 @@ p {
 .call-bar .consent-controls p,
 .call-bar .consent-controls label,
 .call-bar .call-error {
-  font-size: 9px;
+  font-size: var(--type-9, 9px);
   line-height: 1;
 }
 
@@ -4081,8 +4081,8 @@ p {
   gap: var(--space-2);
   align-items: baseline;
   color: var(--sheet-muted);
-  font-size: 9px;
-  line-height: 17px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-17, 17px);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -4095,8 +4095,8 @@ p {
 .review-transcript__line p {
   margin: 0;
   color: var(--sheet-ink);
-  font-size: 12px;
-  line-height: 17px;
+  font-size: var(--type-12, 12px);
+  line-height: var(--lead-17, 17px);
 }
 
 @media (max-width: 640px) {
@@ -4124,8 +4124,8 @@ p {
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);
   margin: var(--space-3) 0 var(--space-4);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
 }
 
 .repeat-callout p {
@@ -4133,8 +4133,8 @@ p {
 }
 
 .repeat-callout-headline {
-  font-size: 15px;
-  line-height: 21px;
+  font-size: var(--type-15, 15px);
+  line-height: var(--lead-21, 21px);
   font-weight: 600;
 }
 
@@ -4164,8 +4164,8 @@ p {
 }
 
 .repeat-label {
-  font-size: 11px;
-  line-height: 15px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-15, 15px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4198,8 +4198,8 @@ p {
   position: absolute;
   top: 0;
   padding-left: 6px;
-  font-size: 10px;
-  line-height: 18px;
+  font-size: var(--type-10, 10px);
+  line-height: var(--lead-18, 18px);
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -4228,8 +4228,8 @@ p {
   position: absolute;
   top: 0;
   left: 4px;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   color: var(--ink-muted);
   white-space: nowrap;
 }
@@ -4246,16 +4246,16 @@ p {
   background: var(--night);
   color: var(--night-ink);
   border-radius: var(--radius-sm);
-  font-size: 10px;
-  line-height: 14px;
+  font-size: var(--type-10, 10px);
+  line-height: var(--lead-14, 14px);
   pointer-events: none;
 }
 
 .repeat-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-16, 16px);
 }
 
 .repeat-table th,
@@ -4293,8 +4293,8 @@ p {
   padding: 0;
   display: grid;
   gap: var(--space-1);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
 }
 
 .demo-checks li > span:first-child {
@@ -4318,7 +4318,7 @@ p {
 .demo-checks code {
   margin-left: var(--space-2);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-10, 10px);
   user-select: all;
 }
 
@@ -4346,7 +4346,7 @@ p {
   color: var(--night-ink);
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: var(--type-11, 11px);
   font-weight: 600;
 }
 
@@ -4371,8 +4371,8 @@ p {
 .demo-settings label {
   display: grid;
   gap: var(--space-1);
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -4405,13 +4405,13 @@ p {
 .demo-products {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: var(--type-11, 11px);
 }
 
 .demo-products th {
   text-align: left;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -4469,8 +4469,8 @@ p {
 }
 
 .demo-stats dt {
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -4479,14 +4479,14 @@ p {
 
 .demo-stats dd {
   margin: 0;
-  font-size: 19px;
-  line-height: 26px;
+  font-size: var(--type-19, 19px);
+  line-height: var(--lead-26, 26px);
   font-variant-numeric: tabular-nums;
 }
 
 .demo-question {
-  font-size: 13px;
-  line-height: 19px;
+  font-size: var(--type-13, 13px);
+  line-height: var(--lead-19, 19px);
   font-weight: 600;
   margin: var(--space-3) 0;
 }
@@ -4497,8 +4497,8 @@ p {
   padding-left: var(--space-5);
   display: grid;
   gap: var(--space-3);
-  font-size: 11px;
-  line-height: 17px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
 }
 
 .demo-script li {
@@ -4776,8 +4776,8 @@ p {
 
 .chart-insight {
   margin: var(--space-2) 0 var(--space-3);
-  font-size: 12px;
-  line-height: 18px;
+  font-size: var(--type-12, 12px);
+  line-height: var(--lead-18, 18px);
 }
 
 .chart-legend {
@@ -4787,8 +4787,8 @@ p {
   gap: var(--space-2) var(--space-4);
   margin: 0 0 var(--space-3);
   padding: 0;
-  font-size: 10px;
-  line-height: 14px;
+  font-size: var(--type-10, 10px);
+  line-height: var(--lead-14, 14px);
   color: var(--ink-muted);
 }
 
@@ -4847,8 +4847,8 @@ p {
   left: 0;
   right: 0;
   border-bottom: 1px solid var(--line);
-  font-size: 9px;
-  line-height: 12px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-12, 12px);
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
   transform: translateY(50%);
@@ -4904,8 +4904,8 @@ p {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  font-size: 9px;
-  line-height: 12px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-12, 12px);
   color: var(--ink-muted);
   white-space: nowrap;
 }
@@ -4942,8 +4942,8 @@ p {
   background: var(--night);
   color: var(--night-ink);
   border-radius: var(--radius-sm);
-  font-size: 10px;
-  line-height: 14px;
+  font-size: var(--type-10, 10px);
+  line-height: var(--lead-14, 14px);
   white-space: normal;
   pointer-events: none;
 }
@@ -4981,8 +4981,8 @@ p {
 }
 
 .pair-label {
-  font-size: 11px;
-  line-height: 15px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-15, 15px);
   text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5011,8 +5011,8 @@ p {
   position: absolute;
   top: 0;
   padding-left: 4px;
-  font-size: 9px;
-  line-height: 10px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-10, 10px);
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -5027,8 +5027,8 @@ p {
 .chart-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-16, 16px);
   font-variant-numeric: tabular-nums;
 }
 
@@ -5041,8 +5041,8 @@ p {
 
 .chart-table thead th {
   border-top: 0;
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -5091,14 +5091,14 @@ p {
   width: 100%;
   border-collapse: separate;
   border-spacing: 2px;
-  font-size: 11px;
-  line-height: 16px;
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-16, 16px);
   font-variant-numeric: tabular-nums;
 }
 
 .cohort-table th {
-  font-size: 9px;
-  line-height: 14px;
+  font-size: var(--type-9, 9px);
+  line-height: var(--lead-14, 14px);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -5112,7 +5112,7 @@ p {
   white-space: nowrap;
   text-transform: none;
   letter-spacing: 0;
-  font-size: 11px;
+  font-size: var(--type-11, 11px);
   font-weight: 500;
   color: var(--ink);
 }
@@ -5170,4 +5170,211 @@ p {
   display: grid;
   flex: 1 1 260px;
   gap: var(--space-1);
+}
+
+/* Researcher app theme: the marketing site's type, tiles, and pill buttons.
+   Sizes above read --type-N and --lead-N (N is the dense default in px) and
+   fall back to those defaults, which the Shopify app keeps. Only the
+   researcher shell and its sign-in set the larger scale. */
+.app-shell,
+.workforce-login {
+  --font-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  --font-display: var(--font-sans);
+  --font-text: var(--font-sans);
+  --font-mono: "Geist Mono", "DM Mono", ui-monospace, monospace;
+  --surface: #fffdf7;
+  --surface-sunken: #f5f1e7;
+  --line: rgb(13 35 64 / 10%);
+  --border-control: rgb(13 35 64 / 18%);
+  --ink-soft: #7a8699;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --button-radius: 999px;
+  --button-primary: var(--night);
+  --on-button-primary: #fffdf7;
+  --button-primary-hover: #1d3a5f;
+
+  --type-8: 11px;
+  --type-9: 11px;
+  --type-10: 12px;
+  --type-11: 13px;
+  --type-12: 14px;
+  --type-13: 15px;
+  --type-14: 16px;
+  --type-15: 17px;
+  --type-16: 18px;
+  --type-19: 21px;
+  --type-20: 22px;
+  --type-23: 28px;
+  --lead-10: 13px;
+  --lead-12: 15px;
+  --lead-14: 16px;
+  --lead-15: 18px;
+  --lead-16: 20px;
+  --lead-17: 20px;
+  --lead-18: 21px;
+  --lead-19: 22px;
+  --lead-20: 24px;
+  --lead-21: 24px;
+  --lead-23: 26px;
+  --lead-24: 28px;
+  --lead-26: 30px;
+  --lead-27: 32px;
+  --lead-30: 34px;
+
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A light sidebar, like the site header before it scrolls: the night tokens
+   it reads become paper and ink. */
+.app-shell .sidebar {
+  --night: var(--surface);
+  --night-raised: #f0ebdf;
+  --night-ink: var(--ink);
+  --night-muted: var(--ink-muted);
+  --night-line: var(--line);
+  border-right: 1px solid var(--line);
+}
+
+.app-shell .sidebar nav a[aria-current="page"] {
+  box-shadow: none;
+  font-weight: 500;
+}
+
+.app-shell .nav-group__toggle {
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-shell .nav-group__links {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+
+/* Small uppercase labels read like the site's mono kickers. */
+:is(.app-shell, .workforce-login)
+  :is(
+    .eyebrow,
+    .metric-card span,
+    .merchant-selection__label,
+    .merchant-selection label,
+    .prototype-banner strong,
+    label > span:first-child
+  ) {
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+:is(.app-shell, .workforce-login) h1 {
+  font-size: clamp(28px, 3vw, 36px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+:is(.app-shell, .workforce-login) h2 {
+  letter-spacing: -0.01em;
+}
+
+:is(.app-shell, .workforce-login) h3 {
+  font-weight: 600;
+}
+
+:is(.app-shell, .workforce-login) .button {
+  border-color: var(--border-control);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+:is(.app-shell, .workforce-login) .button:hover:not(:disabled) {
+  border-color: var(--border-control);
+  background: var(--surface-sunken);
+}
+
+:is(.app-shell, .workforce-login) .button-primary:hover:not(:disabled) {
+  background: var(--button-primary-hover);
+}
+
+:is(.app-shell, .workforce-login) :is(input, select, textarea) {
+  border-color: var(--border-control);
+  border-radius: 10px;
+}
+
+:is(.app-shell, .workforce-login) :is(.panel, .metric-card) {
+  border-radius: var(--radius-lg);
+}
+
+/* Call sheet and queue: white cards on paper, and a navy control bar like
+   the scrolled site header. */
+.app-shell.app-shell--console {
+  --sheet-card: #ffffff;
+  --sheet-card-alt: #f5f1e7;
+  --sheet-header: #f0ebdf;
+  --radius-card: 16px;
+  --radius-control: 10px;
+  --sheet-border: rgb(13 35 64 / 10%);
+  --sheet-border-strong: rgb(13 35 64 / 20%);
+  --bar-bg: var(--night);
+  --bar-line: #24406a;
+  --bar-muted: #a9b6c8;
+}
+
+.app-shell .console-button {
+  border-radius: 999px;
+}
+
+/* The larger type needs wider fixed queue columns. */
+.app-shell .queue-table {
+  min-width: 1080px;
+}
+
+.app-shell .queue-table th {
+  height: 34px;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.app-shell .queue-table td {
+  height: 40px;
+}
+
+.app-shell .queue-table__angle {
+  width: 16%;
+}
+
+.app-shell .queue-table__placed {
+  width: 124px;
+}
+
+.app-shell .queue-table__name,
+.app-shell .queue-table__location {
+  width: 11%;
+}
+
+.app-shell .queue-table__value {
+  width: 104px;
+}
+
+.app-shell .queue-table__sequence {
+  width: 80px;
+}
+
+.app-shell .queue-table__source {
+  width: 14%;
+}
+
+/* The sticky sidebar is one screen tall; this carries its edge down long
+   pages, on the same pixel column as its border. */
+.app-shell .workspace {
+  box-shadow: -1px 0 0 var(--line);
 }
