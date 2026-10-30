@@ -148,7 +148,7 @@ docs              Architecture, data model, plan, security review, and demo cont
 ## Product vocabulary and deliverables
 
 - **Research Angle:** a customer segment plus a question or hypothesis and its prioritized interview questions. The current implementation calls its executable configuration a `ResearchMoment`.
-- **Monthly report:** the starting $1,000 subscription includes 25 completed interviews, two hours of consented audio recordings, an executive summary, tagged-conversation visualizations, learnings and anecdotes, recommended actions/experiments, and transcripts plus authorized links.
+- **Monthly report:** the starting $2,500 subscription includes 25 completed interviews, two hours of consented audio recordings, an executive summary, tagged-conversation visualizations, learnings and anecdotes, recommended actions/experiments, and transcripts plus authorized links.
 - **Quarterly report:** a longer synthesis included with the monthly subscription; there is no separate quarterly subscription.
 - **Standalone Research Run report:** the output of a one-time, Angle-led engagement.
 

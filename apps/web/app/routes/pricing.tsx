@@ -17,7 +17,7 @@ const plans = [
   {
     kicker: "Ongoing research",
     name: "Monthly subscription",
-    price: "$1,000",
+    price: "$2,500",
     period: "/ month",
     summary:
       "Continuous customer learning for teams with evolving marketing, attribution, positioning, and product questions.",
@@ -33,7 +33,7 @@ const plans = [
   {
     kicker: "Focused engagement",
     name: "Standalone Research Run",
-    price: "$3,500",
+    price: "$5,000",
     period: undefined,
     summary:
       "A one-time investigation built around a specific Research Angle, customer segment, or business decision.",

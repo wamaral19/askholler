@@ -134,7 +134,7 @@ export default function AdminBillingRoute() {
             <input
               inputMode="decimal"
               name="amount"
-              placeholder="4800"
+              placeholder="5000"
               required
             />
           </label>
