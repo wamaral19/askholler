@@ -165,7 +165,7 @@ export default function Billing() {
       >
         <article className="shopify-app__card">
           <p className="eyebrow">Monthly subscription</p>
-          <h2>From $1,000 / month</h2>
+          <h2>From $2,500 / month</h2>
           <p>
             25 completed interviews, up to two hours of consented recorded
             research, a monthly report, and a quarterly long-form synthesis.
@@ -173,7 +173,7 @@ export default function Billing() {
         </article>
         <article className="shopify-app__card">
           <p className="eyebrow">Standalone Research Run</p>
-          <h2>From $3,500</h2>
+          <h2>From $5,000</h2>
           <p>
             At least 50 completed interviews, at least three hours of consented
             recorded research, and one evidence-backed report.

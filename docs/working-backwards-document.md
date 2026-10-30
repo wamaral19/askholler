@@ -60,9 +60,9 @@ Monthly subscriptions deliver monthly and quarterly reports. Each monthly report
 One off research runs are built on specific angles. If the customer wants to learn about a specific hypothesis or complete a one time project, they’re able to do that.
 
 How does pricing differ between the two?
-Monthly subscriptions start at $1,000 and include 25 interviews and 2 hours of recorded research a month. A monthly report is delivered in addition to the quarterly umbrella report.
+Monthly subscriptions start at $2,500 and include 25 interviews and 2 hours of recorded research a month. A monthly report is delivered in addition to the quarterly umbrella report.
 
-Standalone Research Runs start at $3,500 and include a minimum of 50 interviews and 3 hours of recorded research.
+Standalone Research Runs start at $5,000 and include a minimum of 50 interviews and 3 hours of recorded research.
 
 As a research run becomes larger the price per interview comes down.
 

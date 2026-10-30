@@ -171,7 +171,7 @@ Holler has three report contexts:
 - a quarterly long-form subscriber report; and
 - a standalone Research Run report for a one-time Angle-led engagement.
 
-The starting $1,000 monthly subscription includes 25 completed interviews and
+The starting $2,500 monthly subscription includes 25 completed interviews and
 two hours of consented audio recordings. Monthly subscribers also
 receive the quarterly long-form report; there is no separate quarterly
 subscription. Customers receive transcripts and authorized transcript links as
@@ -339,7 +339,7 @@ AI may assist with suggested tagging later, but tags must always remain auditabl
 Holler should not simply interview a random fixed sample forever.
 
 A merchant purchases a subscription or standalone Research Run with a target
-number of completed interviews. The starting $1,000 monthly subscription
+number of completed interviews. The starting $2,500 monthly subscription
 includes 25 completed interviews and two hours of consented audio recordings.
 Monthly subscribers also receive a quarterly long-form report. Targets should
 remain configurable for future packages and larger runs.

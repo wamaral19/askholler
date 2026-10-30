@@ -70,7 +70,7 @@ recommendations but does not implement those recommendations in the MVP.
 Customer deliverables use plain report language; **Earshot** and **Disco** are
 not WBD terms and are retired from the product specification.
 
-- A $1,000 starting monthly subscription includes 25 completed interviews and
+- A $2,500 starting monthly subscription includes 25 completed interviews and
   two hours of consented audio recordings each month.
 - A monthly subscriber report contains an executive summary, visualizations
   from tagged conversations, key learnings and anecdotes, recommended tactical
@@ -109,8 +109,8 @@ references and proof.
 
 ## Packaging and economics
 
-- Monthly subscriptions start at **$1,000**.
-- Standalone Research Runs start at **$3,500** and include at least 50 completed
+- Monthly subscriptions start at **$2,500**.
+- Standalone Research Runs start at **$5,000** and include at least 50 completed
   interviews and three hours of consented audio recordings.
 - Larger runs should have a lower price per completed interview.
 - Internal planning cost is approximately `$360 + $8 per completed interview`;
@@ -144,7 +144,7 @@ general-purpose rules or experimentation platform are outside the MVP.
 The product owner resolved the WBD's internally inconsistent wording on
 2026-10-15:
 
-1. The starting $1,000 monthly subscription includes 25 completed interviews
+1. The starting $2,500 monthly subscription includes 25 completed interviews
    and two hours of consented audio recordings per month.
 2. There is no separate quarterly subscription. Monthly subscribers receive a
    quarterly long-form report in addition to monthly reports.
