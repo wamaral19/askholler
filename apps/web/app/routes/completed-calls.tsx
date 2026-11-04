@@ -48,14 +48,14 @@ export default function CompletedCallsRoute() {
       className="app-shell--console"
       eyebrow="Live research"
       title="Completed calls"
-      description="Review finished calls: listen back, read the transcript, and correct prompt tags. Research angle is blank for general calls."
+      description="Review finished calls: listen back and read the transcript. Research angle is blank for general calls."
       hideHeader
     >
       <div className="call-sheet queue-sheet">
         <section className="call-bar queue-bar" aria-label="Completed calls">
           <div className="queue-bar__title">
             <strong>Completed calls</strong>
-            <span>Listen back, read the transcript, correct tags</span>
+            <span>Listen back and read the transcript</span>
           </div>
         </section>
         <section className="sheet-section">
@@ -80,9 +80,6 @@ export default function CompletedCallsRoute() {
                   <th scope="col">Outcome</th>
                   <th scope="col" className="is-numeric">
                     Length
-                  </th>
-                  <th scope="col" className="is-numeric">
-                    Prompts done
                   </th>
                   <th scope="col">Transcript</th>
                   <th scope="col">Recording</th>
@@ -122,7 +119,6 @@ export default function CompletedCallsRoute() {
                     <td className="is-numeric">
                       {durationLabel(call.durationSeconds)}
                     </td>
-                    <td className="is-numeric">{call.promptsCovered}</td>
                     <td>
                       {call.transcriptLines
                         ? `${call.transcriptLines} lines`
