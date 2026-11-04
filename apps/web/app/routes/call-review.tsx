@@ -1,19 +1,11 @@
-import { useState } from "react";
-import {
-  Link,
-  useLoaderData,
-  type ShouldRevalidateFunctionArgs,
-} from "react-router";
+import { Link, useLoaderData } from "react-router";
 
 import { AppShell } from "../components/app-shell";
 import {
   dateLabel,
   OrderBlock,
   ProfileCell,
-  promptGroups,
-  PromptRow,
   SheetSection,
-  type RowState,
 } from "../components/call-sheet";
 import {
   executeOperationsRequest,
@@ -37,45 +29,6 @@ export async function loader({
       params.interviewId,
     );
   });
-}
-
-/** Prompt rows post here; corrections are recorded as human_reviewed. */
-export async function action({
-  request,
-  params,
-}: {
-  request: Request;
-  params: { interviewId?: string };
-}) {
-  return executeOperationsRequest(async () => {
-    if (!params.interviewId)
-      throw new Response("Interview is required", { status: 400 });
-    const form = await request.formData();
-    if (form.get("intent") !== "progress")
-      throw new Response("Unsupported action", { status: 400 });
-    await getOperationsService().reviewPromptProgress(
-      await getTenantContext(request),
-      params.interviewId,
-      String(form.get("promptKey") ?? ""),
-      {
-        covered: form.get("covered") === "true",
-        selected: form.getAll("selected").map(String),
-        note: String(form.get("note") ?? ""),
-      },
-    );
-    return { intent: "progress", saved: true };
-  });
-}
-
-// Like the call sheet: a saved row keeps the page, without decrypting (and
-// auditing) the profile again.
-export function shouldRevalidate({
-  formData,
-  defaultShouldRevalidate,
-}: ShouldRevalidateFunctionArgs) {
-  return formData?.get("intent") === "progress"
-    ? false
-    : defaultShouldRevalidate;
 }
 
 export function meta() {
@@ -103,21 +56,6 @@ function clock(ms: number | null) {
 export default function CallReviewRoute() {
   const data = useLoaderData<typeof loader>();
   const { id: interviewId, assignment, profile } = data;
-  const [rows, setRows] = useState<Record<string, RowState>>(() =>
-    Object.fromEntries(
-      data.prompts.map((prompt) => [
-        prompt.key,
-        {
-          covered: prompt.covered,
-          selected: prompt.selected,
-          note: prompt.note,
-        },
-      ]),
-    ),
-  );
-  const coveredCount = data.prompts.filter(
-    (prompt) => rows[prompt.key]?.covered,
-  ).length;
 
   return (
     <AppShell
@@ -156,10 +94,8 @@ export default function CallReviewRoute() {
             </span>
           </div>
           <div className="call-bar__progress is-done">
-            <strong>
-              {coveredCount}/{data.prompts.length}
-            </strong>
-            <span>prompts covered</span>
+            <strong>{data.transcript.length}</strong>
+            <span>transcript lines</span>
           </div>
         </section>
 
@@ -233,41 +169,6 @@ export default function CallReviewRoute() {
           ) : (
             <p className="sheet-empty">Order details unavailable.</p>
           )}
-        </SheetSection>
-
-        <SheetSection
-          className="sheet-section--research"
-          index="04"
-          title="Research prompts"
-          meta="Correct tags, notes, and done marks from the recording. Changes save as reviewed."
-        >
-          {promptGroups(data.prompts, data.currentOrder).map((group) => (
-            <div
-              className={`prompt-group prompt-group--${group.scope}`}
-              key={group.key}
-            >
-              <header className="prompt-group__header">
-                <span className="prompt-group__kind">{group.kind}</span>
-                <h3>{group.title}</h3>
-              </header>
-              <div className="sheet-prompts">
-                {group.prompts.map((prompt) => (
-                  <PromptRow
-                    category={group.kind}
-                    key={prompt.key}
-                    onChange={(next) =>
-                      setRows((current) => ({
-                        ...current,
-                        [prompt.key]: next,
-                      }))
-                    }
-                    prompt={prompt}
-                    state={rows[prompt.key]!}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
         </SheetSection>
       </div>
     </AppShell>
