@@ -1010,9 +1010,9 @@ details[open] > summary .site-chevron {
 
 .site-home-hero h1 {
   margin-top: 22px;
-  font-size: clamp(40px, 5.6vw, 70px);
+  font-size: clamp(36px, 4.4vw, 54px);
   letter-spacing: -0.035em;
-  line-height: 1.02;
+  line-height: 1.04;
 }
 
 .site-home-hero h1 > span,
@@ -1021,7 +1021,7 @@ details[open] > summary .site-chevron {
 }
 
 /* Each line of the headline stays whole wherever it fits. */
-@media (min-width: 761px) {
+@media (min-width: 1100px) {
   .site-home-hero h1 > span,
   .site-home-hero h1 > em {
     white-space: nowrap;
@@ -1045,6 +1045,10 @@ details[open] > summary .site-chevron {
   color: var(--site-muted);
   font-size: clamp(17px, 1.5vw, 20px);
   line-height: 1.55;
+}
+
+.site-home-hero__lede + .site-home-hero__lede {
+  margin-top: 16px;
 }
 
 .site-home-hero .site-actions {

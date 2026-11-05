@@ -29,7 +29,7 @@ const steps = [
   {
     title: "Talk when context is fresh",
     description:
-      "A trained human researcher speaks with qualified customers at a meaningful point in their journey, such as immediately after checkout, around delivery, or after a repeat purchase.",
+      "A trained human researcher cold calls qualified customers at a meaningful point in their journey, such as immediately after checkout, around delivery, or after a repeat purchase.",
     note: "The conversation comes first. Researchers listen, follow the customer’s lead, and protect the brand experience.",
   },
   {
@@ -72,14 +72,12 @@ export default function HowItWorks() {
 
       <SiteSection>
         <figure className="site-feature">
-          <p className="site-kicker">One principle guides every interview</p>
+          <p className="site-kicker">Our operating principle</p>
           <blockquote>
-            Every customer walks away from the conversation feeling better about
-            the brand than they did going in.
+            Customers should leave every conversation feeling more connected to
+            your brand.
           </blockquote>
-          <figcaption>
-            That is why Holler uses humans, not AI interviewers.
-          </figcaption>
+          <figcaption>Human-to-human. Always.</figcaption>
         </figure>
       </SiteSection>
 

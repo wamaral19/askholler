@@ -22,6 +22,7 @@ type SitePageKey =
   | "home"
   | "use-cases"
   | "how-it-works"
+  | "what-we-believe"
   | "pricing"
   | "work-with-holler"
   | "about"
@@ -77,6 +78,12 @@ const siteNavigation: NavItem[] = [
     ],
     footer: { label: "See pricing", href: "/pricing" },
   },
+  {
+    kind: "link",
+    key: "what-we-believe",
+    label: "What We Believe",
+    href: "/what-we-believe",
+  },
   { kind: "link", key: "pricing", label: "Pricing", href: "/pricing" },
   { kind: "link", key: "about", label: "About", href: "/about" },
 ];
@@ -102,6 +109,7 @@ const footerColumns: { heading: string; links: NavLink[] }[] = [
     heading: "Company",
     links: [
       { label: "About", href: "/about" },
+      { label: "What We Believe", href: "/what-we-believe" },
       { label: "Contact", href: "/contact" },
     ],
   },
