@@ -2,7 +2,6 @@ import {
   SiteHero,
   SitePage,
   SiteSection,
-  marketingContactHref,
   marketingMeta,
 } from "../components/marketing-shell";
 
@@ -81,7 +80,7 @@ export default function Pricing() {
               </div>
               <a
                 className="site-btn site-btn--primary site-btn--block"
-                href={marketingContactHref}
+                href="/contact"
               >
                 {plan.cta}
               </a>
@@ -103,16 +102,6 @@ export default function Pricing() {
             ))}
           </ul>
         </div>
-      </SiteSection>
-
-      <SiteSection className="site-split">
-        <h2>How billing works</h2>
-        <p>
-          Shopify merchants review and approve every charge through Shopify.
-          Nothing is charged when the app is installed, and recurring plans can
-          be cancelled from Holler’s Billing page. Prices above are starting
-          prices; any custom scope and charge are shown before approval.
-        </p>
       </SiteSection>
     </SitePage>
   );
