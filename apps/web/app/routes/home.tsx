@@ -54,13 +54,17 @@ export default function Home() {
   return (
     <SitePage current="home">
       <SiteSection className="site-home-hero">
-        <p className="site-kicker">Human-led customer research for DTC brands</p>
+        <p className="site-kicker">
+          Human-led customer research for DTC brands
+        </p>
         <h1>
           <span>Conversations that build relationships.</span>
           <em>Insights that build businesses.</em>
         </h1>
         <p className="site-home-hero__lede">
-          Holler's researchers uncover the why behind your customers' decisions, turning every conversation into actionable insights and a searchable library of customer intelligence.
+          Holler's researchers uncover the why behind your customers' decisions,
+          turning every conversation into actionable insights and a searchable
+          library of customer intelligence.
         </p>
         <div className="site-actions">
           <a
@@ -108,7 +112,8 @@ export default function Home() {
         <figure className="site-feature">
           <p className="site-kicker">Our operating principle</p>
           <blockquote>
-            Customers should leave every conversation feeling more connected to your brand.
+            Customers should leave every conversation feeling more connected to
+            your brand.
           </blockquote>
           <figcaption>Human-to-human. Always.</figcaption>
         </figure>
@@ -119,7 +124,7 @@ export default function Home() {
           <p className="site-kicker">What you get with Holler</p>
           <h2>Answers, from the people who matter most.</h2>
           <p>
-            Not another dashboard. Not a transcript dump. Holler gives your team 
+            Not another dashboard. Not a transcript dump. Holler gives your team
             an evidence-backed answer to the questions you need answered.
           </p>
         </div>
