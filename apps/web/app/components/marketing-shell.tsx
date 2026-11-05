@@ -455,7 +455,13 @@ export function SiteCta({
         <p className="site-kicker">{kicker}</p>
         <h2>{title}</h2>
         {body ? <p>{body}</p> : null}
-        <a className="site-btn site-btn--primary" href={href}>
+        <a
+          className="site-btn site-btn--primary"
+          href={href}
+          {...(href.startsWith("http")
+            ? { target: "_blank", rel: "noopener noreferrer" }
+            : {})}
+        >
           {label}
         </a>
       </div>
