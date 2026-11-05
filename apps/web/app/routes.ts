@@ -9,6 +9,7 @@ export default [
   index("routes/home.tsx"),
   route("use-cases", "routes/use-cases.tsx"),
   route("how-it-works", "routes/how-it-works.tsx"),
+  route("what-we-believe", "routes/what-we-believe.tsx"),
   route("pricing", "routes/pricing.tsx"),
   route("work-with-holler", "routes/work-with-holler.tsx"),
   route("about", "routes/about.tsx"),
