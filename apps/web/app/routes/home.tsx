@@ -24,21 +24,27 @@ export function meta() {
 const valuePillars = [
   {
     number: "01",
-    title: "Answers to the questions that matter",
+    title: "Direction set by you, discovery done by us",
     description:
-      "Bring us the question your dashboard cannot answer. We turn customer conversations into a clear point of view your team can use.",
+      "Your dashboard tells you what's happening, not why. Bring us the questions your data can't answer. We turn customer conversations into a clear point of view your team can act on.",
   },
   {
     number: "02",
     title: "The right customers, not a generic panel",
     description:
-      "Holler speaks with qualified people from your own customer base: a precise cohort shaped by purchase history, product, source, or behavior.",
+      "We automatically segment and qualify your customers based on purchase history, product, acquisition source, and behavior.",
   },
   {
     number: "03",
-    title: "Research that builds brand equity",
+    title: "Human-to-human, because your brand matters",
     description:
-      "Every interview is human. Our researchers’ first job is to leave the customer feeling better about your brand. Gathering information comes second.",
+      "Every conversation is led by a human researcher whose first priority is to leave your customer feeling better about your brand. Great research and great customer experiences go hand in hand.",
+  },
+  {
+    number: "04",
+    title: "Every conversation, available to explore",
+    description:
+      "Every conversation is transcribed, tagged, and searchable. Explore the details, uncover patterns, and trace every insight back to the customers behind it.",
   },
 ];
 
@@ -50,13 +56,14 @@ export default function Home() {
           Human-led customer research for DTC brands
         </p>
         <h1>
-          <span>Conversations that build relationships.</span>
-          <em>Insights that build businesses.</em>
+          <span>Insights build businesses.</span>
+          <span>Conversations build relationships.</span>
+          <em>Holler delivers both.</em>
         </h1>
         <p className="site-home-hero__lede">
-          Holler's researchers uncover the why behind your customers' decisions,
-          turning every conversation into actionable insights and a searchable
-          library of customer intelligence.
+          Holler talks with your customers to uncover the why behind their
+          decisions, translating those conversations into actionable insights
+          and a searchable library of customer intelligence.
         </p>
         <div className="site-actions">
           <a
@@ -115,12 +122,8 @@ export default function Home() {
         <div className="site-head">
           <p className="site-kicker">What you get with Holler</p>
           <h2>Answers, from the people who matter most.</h2>
-          <p>
-            Not another dashboard. Not a transcript dump. Holler gives your team
-            an evidence-backed answer to the questions you need answered.
-          </p>
         </div>
-        <ol className="site-columns site-columns--3">
+        <ol className="site-columns site-columns--4">
           {valuePillars.map((pillar) => (
             <li key={pillar.number}>
               <span className="site-number">{pillar.number}</span>
@@ -133,12 +136,11 @@ export default function Home() {
 
       <SiteCta
         kicker="Talk with Holler"
-        title="What do you want to understand about your customers?"
-        body="Bring us one important question or build an ongoing research rhythm. We’ll help shape the right approach without a pricing page."
-        href="/contact"
+        title="What questions do you have for us?"
+        href="https://calendar.app.google/mrp9eD6VrhFgm7Hz9"
         label={
           <>
-            wyatt@withholler.com <span aria-hidden="true">↗</span>
+            Book time with us <span aria-hidden="true">↗</span>
           </>
         }
       />
