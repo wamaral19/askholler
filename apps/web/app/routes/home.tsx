@@ -42,14 +42,6 @@ const valuePillars = [
   },
 ];
 
-const methodology = [
-  "Human researchers conduct every customer interview.",
-  "Customers are selected using relevant commerce behavior.",
-  "Conversations happen while the decision is still fresh.",
-  "Every finding states its sample size and limitations.",
-  "Recommendations link back to the supporting evidence.",
-];
-
 export default function Home() {
   return (
     <SitePage current="home">
