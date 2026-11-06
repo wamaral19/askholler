@@ -233,43 +233,34 @@ export function PromptRow({
           {state.covered ? "Done" : "Complete"}
         </button>
       </header>
-      <p className="sheet-prompt__text">{prompt.prompt}</p>
-      {prompt.options.length ? (
-        <div className="sheet-prompt__options">
-          {prompt.options.map((option) => {
-            const on = state.selected.includes(option);
-            return (
-              <button
-                aria-pressed={on}
-                className={`option-chip${on ? " is-on" : ""}`}
-                key={option}
-                onClick={() =>
-                  save({
-                    ...state,
-                    selected: on
-                      ? state.selected.filter((item) => item !== option)
-                      : [...state.selected, option],
-                  })
-                }
-                type="button"
-              >
-                {option}
-              </button>
-            );
-          })}
+      {prompt.delivery ? (
+        <div className="sheet-prompt__guidance">
+          <strong>{deliveryLabel(prompt.delivery.requirement)}</strong>
+          {prompt.delivery.conditionLabel ? (
+            <span>Ask when: {prompt.delivery.conditionLabel}</span>
+          ) : null}
+          {prompt.delivery.interviewerNote ? (
+            <span>{prompt.delivery.interviewerNote}</span>
+          ) : null}
         </div>
       ) : null}
-      <textarea
-        aria-label={`Notes for ${prompt.title}`}
-        className="sheet-prompt__note"
-        defaultValue={state.note}
-        onBlur={(event) => {
-          if (event.currentTarget.value.trim() !== state.note)
-            save({ ...state, note: event.currentTarget.value.trim() });
-        }}
-        placeholder="Notes"
-        rows={1}
-      />
+      <p className="sheet-prompt__text">{prompt.prompt}</p>
+      {prompt.probes.length ? (
+        <ul className="sheet-prompt__probes">
+          {prompt.probes.map((probe) => (
+            <li key={probe}>{probe}</li>
+          ))}
+        </ul>
+      ) : null}
+      {prompt.delivery?.probeBranches?.length ? (
+        <div className="sheet-prompt__branches">
+          {prompt.delivery.probeBranches.map((branch) => (
+            <p key={branch.conditionKey}>
+              <strong>If {branch.conditionLabel}:</strong> {branch.probe}
+            </p>
+          ))}
+        </div>
+      ) : null}
       {failed ? (
         <span className="sheet-prompt__error" role="alert">
           Not saved — try again
@@ -277,6 +268,18 @@ export function PromptRow({
       ) : null}
     </article>
   );
+}
+
+function deliveryLabel(
+  requirement: NonNullable<CallSheetPrompt["delivery"]>["requirement"],
+): string {
+  return {
+    core: "Core",
+    branch: "Branch",
+    optional: "Optional",
+    conditional: "Conditional",
+    close: "Close",
+  }[requirement];
 }
 
 /** A finished prompt row, read-only: what the researcher tagged and noted. */

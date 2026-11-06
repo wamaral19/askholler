@@ -46,6 +46,20 @@ export class PostgresCohortQueryRepository implements CohortQueryRepository {
     return this.orderContainsCategory(context, row.order_id, category);
   }
 
+  async currentOrderContainsSku(
+    context: ResearchCohortQueryContext,
+    sku: string,
+  ): Promise<CohortQueryFact<boolean>> {
+    return this.currentOrderContainsLineValue(context, "sku", sku);
+  }
+
+  async currentOrderContainsSize(
+    context: ResearchCohortQueryContext,
+    size: string,
+  ): Promise<CohortQueryFact<boolean>> {
+    return this.currentOrderContainsLineValue(context, "variant_title", size);
+  }
+
   async firstOrderContainsCurrentCategory(
     context: ResearchCohortQueryContext,
     category: CurrentCategoryReference,
@@ -101,6 +115,87 @@ export class PostgresCohortQueryRepository implements CohortQueryRepository {
       : { state: "known", value: false };
   }
 
+  async distinctOrdersWithProductTitles(
+    context: ResearchCohortQueryContext,
+    productTitles: readonly string[],
+  ): Promise<CohortQueryFact<number>> {
+    const row = await this.eventOrder(context);
+    if (!row?.order_id) return unknown("order_unavailable");
+    if (!row.customer_id) return unknown("customer_unavailable");
+    if (row.history_state !== "complete") return unknown("history_incomplete");
+
+    const result = await this.db.execute(sql`
+      select
+        count(distinct o.id) filter (
+          where lower(oli.title) in (${sql.join(
+            productTitles.map((title) => sql`lower(${title})`),
+            sql`, `,
+          )})
+            and oli.quantity > oli.refunded_quantity
+            and o.financial_status in ('paid', 'authorized', 'partially_paid', 'partially_refunded')
+        )::int as order_count,
+        bool_or(o.financial_status is null) as status_incomplete
+      from orders o
+      left join order_line_items oli
+        on oli.merchant_id = o.merchant_id and oli.order_id = o.id
+      where o.merchant_id = ${context.merchantId}
+        and o.customer_id = ${row.customer_id}
+    `);
+    const count = result.rows[0] as
+      | { order_count?: number | string; status_incomplete?: boolean }
+      | undefined;
+    if (count?.status_incomplete) return unknown("order_status_unavailable");
+    return { state: "known", value: Number(count?.order_count ?? 0) };
+  }
+
+  async distinctOrdersWithCategory(
+    context: ResearchCohortQueryContext,
+    category: CurrentCategoryReference,
+  ): Promise<CohortQueryFact<number>> {
+    const row = await this.eventOrder(context);
+    if (!row?.order_id) return unknown("order_unavailable");
+    if (!row.customer_id) return unknown("customer_unavailable");
+    if (row.history_state !== "complete") return unknown("history_incomplete");
+
+    const result = await this.db.execute(sql`
+      select
+        count(distinct o.id) filter (
+          where pc.id is not null
+            and oli.quantity > oli.refunded_quantity
+            and o.financial_status in ('paid', 'authorized', 'partially_paid', 'partially_refunded')
+        )::int as order_count,
+        bool_or(o.financial_status is null) as status_incomplete,
+        bool_or(
+          oli.quantity > oli.refunded_quantity
+          and o.financial_status in ('paid', 'authorized', 'partially_paid', 'partially_refunded')
+          and (p.id is null or p.catalog_enrichment_state <> 'ready')
+        ) as catalog_incomplete
+      from orders o
+      left join order_line_items oli
+        on oli.merchant_id = o.merchant_id and oli.order_id = o.id
+      left join products p
+        on p.merchant_id = oli.merchant_id and p.id = oli.product_id
+      left join product_category_assignments pca
+        on pca.merchant_id = oli.merchant_id and pca.product_id = oli.product_id
+      left join product_categories pc
+        on pc.merchant_id = pca.merchant_id and pc.id = pca.category_id
+        and pc.source = ${category.namespace} and pc.key = ${category.key}
+      where o.merchant_id = ${context.merchantId}
+        and o.customer_id = ${row.customer_id}
+    `);
+    const count = result.rows[0] as
+      | {
+          order_count?: number | string;
+          status_incomplete?: boolean;
+          catalog_incomplete?: boolean;
+        }
+      | undefined;
+    if (count?.status_incomplete) return unknown("order_status_unavailable");
+    if (count?.catalog_incomplete)
+      return unknown("catalog_enrichment_incomplete");
+    return { state: "known", value: Number(count?.order_count ?? 0) };
+  }
+
   private async eventOrder(
     context: ResearchCohortQueryContext,
   ): Promise<EventOrderRow | undefined> {
@@ -114,6 +209,37 @@ export class PostgresCohortQueryRepository implements CohortQueryRepository {
         and ce.id = ${context.commerceEventId}
     `);
     return result.rows[0] as EventOrderRow | undefined;
+  }
+
+  private async currentOrderContainsLineValue(
+    context: ResearchCohortQueryContext,
+    column: "sku" | "variant_title",
+    value: string,
+  ): Promise<CohortQueryFact<boolean>> {
+    const row = await this.eventOrder(context);
+    if (!row?.order_id) return unknown("order_unavailable");
+    const result =
+      column === "sku"
+        ? await this.db.execute(sql`
+            select exists (
+              select 1 from order_line_items
+              where merchant_id = ${context.merchantId}
+                and order_id = ${row.order_id}
+                and lower(sku) = lower(${value})
+            ) as matched
+          `)
+        : await this.db.execute(sql`
+            select exists (
+              select 1 from order_line_items oli
+              cross join lateral unnest(string_to_array(oli.variant_title, ' / ')) option_value
+              where oli.merchant_id = ${context.merchantId}
+                and oli.order_id = ${row.order_id}
+                and lower(trim(option_value)) = lower(${value})
+            ) as matched
+          `);
+    const matched = (result.rows[0] as { matched?: boolean } | undefined)
+      ?.matched;
+    return { state: "known", value: matched === true };
   }
 
   /** A match on any enriched line wins; otherwise unenriched lines make it unknown. */

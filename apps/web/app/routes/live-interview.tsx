@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Form,
   Link,
   useActionData,
-  useFetcher,
   useLoaderData,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
@@ -172,15 +171,6 @@ export function meta() {
   return [{ title: "Call sheet · Holler" }];
 }
 
-const observationOptions = [
-  ["hesitation", "Hesitation"],
-  ["excitement", "Excitement"],
-  ["reluctance", "Reluctance"],
-  ["confusion", "Confusion"],
-  ["strong_conviction", "Strong conviction"],
-  ["follow_up_needed", "Follow up"],
-] as const;
-
 export default function CallSheetRoute() {
   const data = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
@@ -197,10 +187,13 @@ export default function CallSheetRoute() {
       ]),
     ),
   );
-  const coveredCount = data.prompts.filter(
+  const guidePrompts = data.prompts.filter(
+    (prompt) => prompt.kind === "script",
+  );
+  const coveredCount = guidePrompts.filter(
     (prompt) => rows[prompt.key]?.covered,
   ).length;
-  const requiredOpen = data.prompts.filter(
+  const requiredOpen = guidePrompts.filter(
     (prompt) => prompt.required && !rows[prompt.key]?.covered,
   ).length;
 
@@ -281,25 +274,19 @@ export default function CallSheetRoute() {
               className={`call-bar__progress ${requiredOpen ? "is-open" : "is-done"}`}
             >
               <strong>
-                {coveredCount}/{data.prompts.length}
+                {coveredCount}/{guidePrompts.length}
               </strong>
               <span>
                 {requiredOpen
-                  ? `${requiredOpen} required open`
-                  : "prompts covered"}
+                  ? `${requiredOpen} core topics open`
+                  : "guide coverage"}
               </span>
             </div>
             <div className="call-bar__outcomes">
               <Form method="post">
                 <button
                   className="console-button console-button--go"
-                  disabled={requiredOpen > 0}
                   name="intent"
-                  title={
-                    requiredOpen
-                      ? "Mark every required prompt done first"
-                      : undefined
-                  }
                   type="submit"
                   value="complete"
                 >
@@ -403,10 +390,17 @@ export default function CallSheetRoute() {
           <SheetSection
             className="sheet-section--research"
             index={sectionIndex(4)}
-            title="Research prompts"
-            meta="Mark each prompt done as you cover it. Details can come from the recording."
+            title="Conversation guide"
+            meta="Stay present. Use this as a light coverage map; all coding happens from the transcript after the call."
           >
-            {promptGroups(data.prompts, data.currentOrder).map((group) => {
+            <div className="conversation-principle">
+              <strong>Follow the story, not the order.</strong>
+              <span>
+                Ask for specific moments, allow silence, and avoid supplying
+                explanations.
+              </span>
+            </div>
+            {promptGroups(guidePrompts, data.currentOrder).map((group) => {
               const done = group.prompts.filter(
                 (prompt) => rows[prompt.key]?.covered,
               ).length;
@@ -426,18 +420,34 @@ export default function CallSheetRoute() {
                   </header>
                   <div className="sheet-prompts">
                     {group.prompts.map((prompt) => (
-                      <PromptRow
-                        category={group.kind}
-                        key={prompt.key}
-                        onChange={(next) =>
-                          setRows((current) => ({
-                            ...current,
-                            [prompt.key]: next,
-                          }))
-                        }
-                        prompt={prompt}
-                        state={rows[prompt.key]!}
-                      />
+                      <div key={prompt.key}>
+                        <PromptRow
+                          category={group.kind}
+                          onChange={(next) =>
+                            setRows((current) => ({
+                              ...current,
+                              [prompt.key]: next,
+                            }))
+                          }
+                          prompt={prompt}
+                          state={rows[prompt.key]!}
+                        />
+                        {(() => {
+                          const guide = data.script.find(
+                            (item) => `script:${item.id}` === prompt.key,
+                          );
+                          return guide?.probes?.length ? (
+                            <details className="guide-probes">
+                              <summary>Optional probes</summary>
+                              <ul>
+                                {guide.probes.map((probe) => (
+                                  <li key={probe}>{probe}</li>
+                                ))}
+                              </ul>
+                            </details>
+                          ) : null;
+                        })()}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -445,75 +455,16 @@ export default function CallSheetRoute() {
             })}
           </SheetSection>
 
-          <SheetSection index={sectionIndex(5)} title="Researcher notes">
-            <ObservationForm />
-          </SheetSection>
+          <section className="post-call-reminder">
+            <strong>After the call</strong>
+            <span>
+              Review the transcript, code evidence spans, and capture emerging
+              signals in Evidence review.
+            </span>
+          </section>
         </div>
       )}
     </AppShell>
-  );
-}
-
-function ObservationForm() {
-  const fetcher = useFetcher<{ saved?: boolean }>();
-  const [kinds, setKinds] = useState<Set<string>>(() => new Set());
-  const [detail, setDetail] = useState("");
-  const saved = fetcher.state === "idle" && fetcher.data?.saved === true;
-
-  // Clear only after the save succeeds, so a failed save keeps the text.
-  useEffect(() => {
-    if (!saved) return;
-    setKinds(new Set());
-    setDetail("");
-  }, [saved, fetcher.data]);
-
-  return (
-    <fetcher.Form className="observation-form" method="post">
-      <input name="intent" type="hidden" value="observation" />
-      <div className="observation-chips">
-        {observationOptions.map(([id, label]) => (
-          <label
-            className={`option-chip${kinds.has(id) ? " is-on" : ""}`}
-            key={id}
-          >
-            <input
-              checked={kinds.has(id)}
-              name="kind"
-              onChange={() =>
-                setKinds((current) => {
-                  const next = new Set(current);
-                  if (next.has(id)) next.delete(id);
-                  else next.add(id);
-                  return next;
-                })
-              }
-              type="checkbox"
-              value={id}
-            />
-            {label}
-          </label>
-        ))}
-      </div>
-      <textarea
-        name="detail"
-        onChange={(event) => setDetail(event.target.value)}
-        placeholder="What you heard or noticed that the recording won't show"
-        rows={3}
-        value={detail}
-      />
-      <button
-        className="console-button"
-        disabled={!detail.trim() || fetcher.state !== "idle"}
-        type="submit"
-      >
-        {fetcher.state !== "idle" ? "Saving…" : "Save note"}
-      </button>
-      {saved && !detail ? (
-        <span className="observation-form__saved" role="status">
-          Note saved
-        </span>
-      ) : null}
-    </fetcher.Form>
   );
 }
 
@@ -540,13 +491,13 @@ function OutcomePanel({
       </h2>
       <p>
         {status === "completed"
-          ? "Prompt notes and tags are saved with the interview."
+          ? "The transcript is ready for post-call evidence coding."
           : status === "no_answer"
             ? "The call is recorded as unanswered and this order leaves the queue."
             : "Any other open orders for this customer were removed from the queue."}
       </p>
-      <Link className="console-button console-button--go" to="/queue">
-        Return to queue
+      <Link className="console-button console-button--go" to="/calls">
+        Review evidence
       </Link>
     </section>
   );

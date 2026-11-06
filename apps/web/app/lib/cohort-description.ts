@@ -51,6 +51,14 @@ function describePredicate(
     const phrase = orderSequence(config, negated);
     if (phrase) return phrase;
   }
+  if (predicate === "order.contains_sku" && typeof config.sku === "string")
+    return negated
+      ? `this order does not include SKU ${config.sku}`
+      : `this order includes SKU ${config.sku}`;
+  if (predicate === "order.contains_size" && typeof config.size === "string")
+    return negated
+      ? `this order does not include size ${config.size}`
+      : `this order includes size ${config.size}`;
   if (predicate === "order.contains_current_category") {
     const label = category(config, labeler);
     if (label)

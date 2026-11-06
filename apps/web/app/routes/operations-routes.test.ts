@@ -43,6 +43,7 @@ const assignment: QueueItem = {
 
 function service(): OperationsApplicationService {
   return {
+    listCatalogProducts: vi.fn(async () => []),
     getDashboard: vi.fn(async (_context, filters) => ({
       filters,
       metrics: {

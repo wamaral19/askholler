@@ -126,6 +126,8 @@ export interface CallSheetPrompt {
   readonly lineId: string | null;
   readonly title: string;
   readonly prompt: string;
+  readonly probes: readonly string[];
+  readonly delivery?: ScriptPrompt["delivery"];
   readonly options: readonly string[];
   readonly required: boolean;
   readonly covered: boolean;
@@ -196,6 +198,11 @@ export interface CallReview extends InterviewWorkspace {
 export interface MerchantOption {
   readonly id: string;
   readonly name: string;
+}
+
+export interface CatalogProductOption {
+  readonly id: string;
+  readonly title: string;
 }
 
 /** Statuses a published moment can move between; drafts launch via saveMoment. */
@@ -285,6 +292,8 @@ export interface MomentConfiguration {
   readonly id: string;
   readonly name: string;
   readonly objective: string;
+  /** The decision-facing question; kept separate from customer-facing wording. */
+  readonly businessQuestion: string;
   readonly status: MomentStatus;
   readonly requestedByMerchant: boolean;
   readonly weeklyTarget: number;
@@ -308,6 +317,7 @@ export interface SaveMomentInput {
   readonly momentId?: string;
   readonly name: string;
   readonly objective: string;
+  readonly businessQuestion?: string;
   readonly weeklyTarget: number;
   readonly cohortExpression: unknown;
   /** In interview order. */
@@ -325,6 +335,10 @@ export interface OperationsApplicationService {
     context: TenantContext,
     filters: DashboardFilters,
   ): Promise<DashboardSnapshot>;
+  /** Products currently known in the active merchant's catalog. */
+  listCatalogProducts(
+    context: TenantContext,
+  ): Promise<readonly CatalogProductOption[]>;
   /** Newest version of each field, in the merchant's default order. */
   listResearchFields(
     context: TenantContext,

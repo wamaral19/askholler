@@ -4,6 +4,7 @@ export type CohortQueryUnknownReason =
   | "customer_unavailable"
   | "order_unavailable"
   | "order_sequence_unavailable"
+  | "order_status_unavailable"
   | "history_incomplete"
   | "first_order_unavailable"
   | "catalog_enrichment_incomplete";
@@ -45,6 +46,16 @@ export interface CohortQueryRepository {
     category: CurrentCategoryReference,
   ): Promise<CohortQueryFact<boolean>>;
 
+  currentOrderContainsSku(
+    context: ResearchCohortQueryContext,
+    sku: string,
+  ): Promise<CohortQueryFact<boolean>>;
+
+  currentOrderContainsSize(
+    context: ResearchCohortQueryContext,
+    size: string,
+  ): Promise<CohortQueryFact<boolean>>;
+
   firstOrderContainsCurrentCategory(
     context: ResearchCohortQueryContext,
     category: CurrentCategoryReference,
@@ -55,4 +66,16 @@ export interface CohortQueryRepository {
     context: ResearchCohortQueryContext,
     category: CurrentCategoryReference,
   ): Promise<CohortQueryFact<boolean>>;
+
+  /** Paid, non-refunded orders containing at least one kept unit. */
+  distinctOrdersWithProductTitles(
+    context: ResearchCohortQueryContext,
+    productTitles: readonly string[],
+  ): Promise<CohortQueryFact<number>>;
+
+  /** Paid, non-refunded orders containing a kept item in the category. */
+  distinctOrdersWithCategory(
+    context: ResearchCohortQueryContext,
+    category: CurrentCategoryReference,
+  ): Promise<CohortQueryFact<number>>;
 }

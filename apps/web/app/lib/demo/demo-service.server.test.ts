@@ -106,12 +106,11 @@ describe.skipIf(databaseUrl === undefined)("sales demo", () => {
     const context = demoContext(operator);
     const [moment] = await operations.listMoments(context);
     expect(moment).toMatchObject({
-      name: "Why Cloud Dew Moisturizer buyers come back",
+      name: "Cloud Dew Moisturizer: loyalty & cross-sell opportunity",
       status: "live",
     });
-    expect(moment!.cohortSummary).toContain(
-      "they previously ordered Cloud Dew Moisturizer",
-    );
+    expect(moment!.cohortSummary).toContain("Cloud Dew Moisturizer");
+    expect(moment!.cohortSummary).toContain("demo-opportunity");
 
     const today = new Date();
     const dashboard = await operations.getDashboard(context, {
@@ -147,7 +146,7 @@ describe.skipIf(databaseUrl === undefined)("sales demo", () => {
       (item) => item.orderNumber === prospect.orderNumber,
     );
     expect(prospectItem).toMatchObject({
-      moment: "Why Cloud Dew Moisturizer buyers come back",
+      moment: "Cloud Dew Moisturizer: loyalty & cross-sell opportunity",
       orderSequence: 2,
     });
 

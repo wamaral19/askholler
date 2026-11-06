@@ -59,6 +59,12 @@ class FakeCohortQueryRepository implements CohortQueryRepository {
       value: this.current.has(`${category.namespace}:${category.key}`),
     };
   }
+  async currentOrderContainsSku(): Promise<CohortQueryFact<boolean>> {
+    return { state: "known", value: false };
+  }
+  async currentOrderContainsSize(): Promise<CohortQueryFact<boolean>> {
+    return { state: "known", value: false };
+  }
   async firstOrderContainsCurrentCategory(
     _context: ResearchCohortQueryContext,
     category: CurrentCategoryReference,
@@ -75,6 +81,12 @@ class FakeCohortQueryRepository implements CohortQueryRepository {
     category: CurrentCategoryReference,
   ): Promise<CohortQueryFact<boolean>> {
     return this.firstOrderContainsCurrentCategory(context, category);
+  }
+  async distinctOrdersWithProductTitles(): Promise<CohortQueryFact<number>> {
+    return { state: "known", value: 0 };
+  }
+  async distinctOrdersWithCategory(): Promise<CohortQueryFact<number>> {
+    return { state: "known", value: 0 };
   }
 }
 

@@ -157,6 +157,18 @@ class CanonicalCohortRepository implements CohortQueryRepository {
       value: category.namespace === "merchant" && category.key === "skincare",
     };
   }
+  async currentOrderContainsSku(
+    context: ResearchCohortQueryContext,
+  ): Promise<CohortQueryFact<boolean>> {
+    this.assertScope(context);
+    return { state: "known", value: false };
+  }
+  async currentOrderContainsSize(
+    context: ResearchCohortQueryContext,
+  ): Promise<CohortQueryFact<boolean>> {
+    this.assertScope(context);
+    return { state: "known", value: false };
+  }
 
   async firstOrderContainsCurrentCategory(
     context: ResearchCohortQueryContext,
@@ -173,6 +185,18 @@ class CanonicalCohortRepository implements CohortQueryRepository {
     category: CurrentCategoryReference,
   ): Promise<CohortQueryFact<boolean>> {
     return this.firstOrderContainsCurrentCategory(context, category);
+  }
+  async distinctOrdersWithProductTitles(
+    context: ResearchCohortQueryContext,
+  ): Promise<CohortQueryFact<number>> {
+    this.assertScope(context);
+    return { state: "known", value: 0 };
+  }
+  async distinctOrdersWithCategory(
+    context: ResearchCohortQueryContext,
+  ): Promise<CohortQueryFact<number>> {
+    this.assertScope(context);
+    return { state: "known", value: 0 };
   }
 }
 

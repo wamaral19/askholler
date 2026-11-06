@@ -110,13 +110,13 @@ function fieldInput(form: FormData): ResearchFieldInput {
 }
 
 export function meta() {
-  return [{ title: "Research fields · Holler" }];
+  return [{ title: "Evidence taxonomy · Holler" }];
 }
 
 const valueTypeLabels: Record<EditableFieldValueType, string> = {
-  long_text: "Open answer",
-  single_select: "Single choice",
-  rating_scale: "Rating 1–5",
+  long_text: "Open code",
+  single_select: "Controlled vocabulary",
+  rating_scale: "Intensity 1–5",
 };
 
 const sourceLabels: Record<LibraryResearchField["source"], string> = {
@@ -141,8 +141,8 @@ export default function AdminResearchFieldsRoute() {
   return (
     <AppShell
       eyebrow="Admin"
-      title="Research fields"
-      description="Your library of reusable questions. Choose which fields new research runs start with, which are required, and the order researchers ask them."
+      title="Evidence taxonomy"
+      description="Reusable evidence dimensions for post-call transcript coding. Tags stay independent from the questions that happen to elicit them."
     >
       {result ? (
         <p
@@ -159,14 +159,15 @@ export default function AdminResearchFieldsRoute() {
         <section className="panel library-panel">
           <div className="panel-heading">
             <div>
-              <h2>New field</h2>
+              <h2>New evidence tag</h2>
             </div>
           </div>
           <p className="helper-copy">
-            New fields are saved to this merchant’s library and are available to
-            every future research run.
+            Add a normalized dimension, extraction guidance, and an optional
+            controlled vocabulary. Reviewers always preserve the customer’s raw
+            language and supporting transcript span.
           </p>
-          <FieldEditor submitLabel="Add to library" />
+          <FieldEditor submitLabel="Add to taxonomy" />
         </section>
       ) : null}
       {archived.length ? (
@@ -178,8 +179,7 @@ export default function AdminResearchFieldsRoute() {
             <span className="registry-label">{archived.length} fields</span>
           </div>
           <p className="helper-copy">
-            Archived fields are hidden from the moment builder. Past answers are
-            kept.
+            Archived tags are hidden from new studies. Past evidence is kept.
           </p>
           <ul className="ordered-list">
             {archived.map((field) => (
@@ -238,7 +238,7 @@ function DefaultsEditor({
     <section className="panel library-panel">
       <div className="panel-heading">
         <div>
-          <h2>Defaults for new research runs</h2>
+          <h2>Default target tags</h2>
         </div>
         <span className="registry-label">
           {rows.filter((row) => row.includedByDefault).length} of {rows.length}{" "}
@@ -246,8 +246,9 @@ function DefaultsEditor({
         </span>
       </div>
       <p className="helper-copy">
-        The moment builder starts with the included fields in this order. Each
-        run can still add, remove, reorder, or change what’s required.
+        New studies start with these evidence dimensions. Core tags should be
+        reviewed consistently across comparison groups; “not discussed” is never
+        treated as “no.”
       </p>
       <ol className="ordered-list">
         {rows.map((row, index) => (
@@ -277,7 +278,7 @@ function DefaultsEditor({
                   }
                   type="checkbox"
                 />
-                <span>Required</span>
+                <span>Core</span>
               </label>
             </div>
             {canManage ? (
@@ -322,7 +323,7 @@ function DefaultsEditor({
             ) : null}
             {editing === row.field.id ? (
               <div className="ordered-row__editor">
-                <FieldEditor field={row.field} submitLabel="Save field" />
+                <FieldEditor field={row.field} submitLabel="Save tag" />
                 <Form method="post" className="archive-form">
                   <input
                     name="fieldId"
@@ -335,7 +336,7 @@ function DefaultsEditor({
                     type="submit"
                     value="archive"
                   >
-                    Archive field
+                    Archive tag
                   </button>
                 </Form>
               </div>
@@ -381,7 +382,7 @@ function FieldSummary({ field }: { readonly field: LibraryResearchField }) {
         <span className="field-source">{valueTypeLabels[field.valueType]}</span>
         <span className="field-source">
           {promptScopeOptions.find(([value]) => value === field.scope)?.[1]}{" "}
-          question
+          evidence
         </span>
         {field.options?.length ? (
           <small>{field.options.join(" · ")}</small>
@@ -411,17 +412,17 @@ function FieldEditor({
         <input name="fieldId" type="hidden" value={field.fieldId} />
       ) : null}
       <label>
-        <span>Field name</span>
+        <span>Tag key</span>
         <input
           defaultValue={field?.label}
           maxLength={160}
           name="label"
-          placeholder="e.g. Reason for switching"
+          placeholder="e.g. repeat_purchase_trigger"
           required
         />
       </label>
       <label>
-        <span>Answer type</span>
+        <span>Coding model</span>
         <select
           name="valueType"
           onChange={(event) =>
@@ -437,7 +438,7 @@ function FieldEditor({
         </select>
       </label>
       <label>
-        <span>Asked about</span>
+        <span>Research dimension</span>
         <select defaultValue={field?.scope ?? "order"} name="scope">
           {promptScopeOptions.map(([value, label]) => (
             <option key={value} value={value}>
@@ -447,18 +448,19 @@ function FieldEditor({
         </select>
       </label>
       <label className="full-span">
-        <span>Question researchers ask</span>
+        <span>Definition and extraction guidance</span>
         <textarea
           defaultValue={field?.prompt}
           maxLength={2000}
           name="prompt"
+          placeholder="What counts as evidence, including inclusion and exclusion notes"
           required
           rows={2}
         />
       </label>
       {valueType === "single_select" ? (
         <label className="full-span">
-          <span>Options, one per line</span>
+          <span>Controlled values, one per line</span>
           <textarea
             defaultValue={field?.options?.join("\n")}
             name="options"

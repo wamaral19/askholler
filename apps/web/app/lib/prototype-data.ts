@@ -258,22 +258,50 @@ export const pinnedScript = [
     id: "intro",
     title: "Permission and context",
     prompt:
-      "Hi, this is a researcher calling on behalf of Northstar Outfitters. Is now an okay time for a short five-minute conversation about your recent order?",
+      "Hi, this is a researcher calling on behalf of Northstar Outfitters. Is now an okay time for a short five-minute conversation about your recent order? And is it okay if I record so I can capture everything accurately?",
+    core: true,
+    researchGoal: "Set context and obtain explicit recording consent.",
   },
   {
-    id: "discovery",
-    title: "Discovery",
-    prompt: "Thinking back, where did you first hear about Northstar?",
-  },
-  {
-    id: "trigger",
-    title: "Purchase trigger",
-    prompt: "What happened today that prompted you to complete this order?",
-  },
-  {
-    id: "transition",
-    title: "Category transition",
+    id: "recent-purchase",
+    title: "Reconstruct the recent purchase",
     prompt:
-      "Your first order did not include Bottoms, while this one did. What changed for you?",
+      "Take me back to when you placed this order. Walk me through what was going on that led you to shop.",
+    probes: [
+      "When did buying something first cross your mind?",
+      "What happened between that moment and placing the order?",
+      "What else, if anything, were you considering?",
+    ],
+    researchGoal:
+      "Identify the initiating trigger, context, decision timeline, and alternatives without suggesting explanations.",
+    core: true,
   },
-] as const;
+  {
+    id: "first-experience",
+    title: "Reconstruct the first product experience",
+    prompt:
+      "Think back to the last time you used something from your first order. Tell me about that occasion.",
+    probes: [
+      "Where were you, and what were you doing?",
+      "What do you remember noticing?",
+      "Was there anything that worked differently than you expected?",
+    ],
+    researchGoal:
+      "Understand concrete use cases, product performance, and expectation gaps.",
+    core: true,
+  },
+  {
+    id: "repeat-decision",
+    title: "Trace the decision to buy again",
+    prompt:
+      "Walk me through how you went from that first experience to deciding to place this order.",
+    probes: [
+      "When did you first start thinking about buying again?",
+      "What made this feel like the right purchase at the time?",
+      "How do you plan to use this compared with what you already own?",
+    ],
+    researchGoal:
+      "Reveal the mechanism behind the repeat purchase through the participant’s timeline.",
+    core: true,
+  },
+];

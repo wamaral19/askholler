@@ -12,6 +12,12 @@ export const HERO_CATEGORY = {
   key: "demo-hero",
 } as const;
 
+/** Products adjacent to the hero that the study is trying to understand. */
+export const OPPORTUNITY_CATEGORY = {
+  namespace: "merchant",
+  key: "demo-opportunity",
+} as const;
+
 export interface DemoAngleInput {
   readonly companyName: string;
   readonly heroTitle: string;
@@ -29,17 +35,11 @@ export interface DemoAngle {
 
 export function buildDemoAngle(input: DemoAngleInput): DemoAngle {
   const { companyName: company, heroTitle: hero } = input;
-  const others = input.otherTitles.slice(0, 2);
-  const catalogExamples =
-    others.length === 2
-      ? `like the ${others[0]} or the ${others[1]}`
-      : others.length === 1
-        ? `like the ${others[0]}`
-        : "in the rest of the catalog";
+  const opportunity = input.otherTitles[0] ?? "another product";
   return {
-    name: `Why ${hero} buyers come back`,
-    question: `Why does ${hero} have a higher repeat purchase rate than the rest of the ${company} catalog?`,
-    objective: `Talk to customers who previously bought ${hero} while they are placing a repeat order, to learn why they came back, what they liked about their first purchase, how they found ${company}, and what triggered today's order.`,
+    name: `${hero}: loyalty & cross-sell opportunity`,
+    question: `What contributes to repeat purchasing among ${hero} owners, and what explains whether they consider other ${company} products?`,
+    objective: `Interview repeat ${company} customers who have kept ${hero} but have never bought from the adjacent product category. Reconstruct real purchase and use episodes, compare one-time and repeat ${hero} buyers, and understand cross-sell awareness and friction without presuming a cause.`,
     cohortExpression: {
       all: [
         {
@@ -48,11 +48,32 @@ export function buildDemoAngle(input: DemoAngleInput): DemoAngle {
           config: { operator: "at_least", value: 2 },
         },
         {
-          predicate: "customer.prior_orders_contain_current_category",
+          predicate: "customer.distinct_orders_with_product",
           version: 1,
           config: {
+            operator: "at_least",
+            value: 1,
+            productTitle: hero,
+          },
+        },
+        {
+          predicate: "customer.distinct_orders_with_category",
+          version: 1,
+          config: {
+            operator: "at_least",
+            value: 1,
             namespace: HERO_CATEGORY.namespace,
             categoryKey: HERO_CATEGORY.key,
+          },
+        },
+        {
+          predicate: "customer.distinct_orders_with_category",
+          version: 1,
+          config: {
+            operator: "equals",
+            value: 0,
+            namespace: OPPORTUNITY_CATEGORY.namespace,
+            categoryKey: OPPORTUNITY_CATEGORY.key,
           },
         },
       ],
@@ -61,46 +82,178 @@ export function buildDemoAngle(input: DemoAngleInput): DemoAngle {
       {
         id: "opening",
         title: "Introduce and get consent",
-        prompt: `Hi, this is [your name] calling from ${company}. I saw you just placed another order with us, so thank you! We're talking with a few customers this week about what brings them back. Do you have five minutes? With your permission I'd like to record so I can focus on our conversation.`,
+        prompt: `Hi, this is [your name], calling on behalf of ${company}. Thanks for your recent order. We're talking with a few customers about how they shop for and use our products. This isn't a sales call and there are no right answers. Do you have about eight minutes? With your permission, may I record the conversation so I can focus on what you say?`,
+        delivery: {
+          requirement: "core",
+          interviewerNote:
+            "If recording is declined, offer to continue without recording and follow local consent requirements.",
+        },
       },
       {
-        id: "why-buy-more",
-        title: "Why buy more from us",
-        prompt: `What made you want to buy more from ${company}?`,
+        id: "rpt-001",
+        title: "Latest repeat purchase",
+        prompt: `Take me back to your most recent ${company} order. Walk me through what led up to it.`,
+        probes: [
+          "When did buying again first cross your mind?",
+          "What happened between then and placing the order?",
+        ],
+        delivery: {
+          requirement: "core",
+          conditionKey: "all_qualified",
+          conditionLabel: "the participant qualifies for the study",
+          interviewerNote:
+            "Anchor in the most recent completed order. Do not suggest promotional or marketing triggers.",
+        },
       },
       {
-        id: "first-purchase",
-        title: "What they liked the first time",
-        prompt: `Think back to your first ${hero}. What did you like about it? Anything that surprised you, good or bad?`,
+        id: "use-001",
+        title: "Last actual use",
+        prompt: `Take me through the last time you used your ${hero}. Start with what was happening before you reached for it.`,
+        probes: [
+          "Where were you and what were you doing?",
+          "Why did you reach for this product on that occasion?",
+        ],
+        delivery: {
+          requirement: "core",
+          conditionKey: "all_qualified",
+          conditionLabel: "the participant qualifies for the study",
+          interviewerNote:
+            "Explore actual context and experience through open probes; do not offer a benefit as an answer.",
+        },
       },
       {
-        id: "discovery",
-        title: "Where they first heard of us",
-        prompt: `Where did you hear about ${company} originally? Do you remember what convinced you to try it?`,
-        scope: "marketing",
+        id: "rpt-002",
+        title: "First-to-second order",
+        prompt: `Walk me through what happened between receiving your first ${hero} and deciding to order another one.`,
+        probes: [
+          "What experiences with the first one stand out?",
+          "When did getting another first become relevant?",
+        ],
+        delivery: {
+          requirement: "branch",
+          conditionKey: "hero_on_at_least_two_distinct_orders",
+          conditionLabel: `${hero} appears on at least two distinct kept orders`,
+          interviewerNote:
+            "Reconstruct progression from the first experience to the repeat purchase.",
+          branchGroup: "hero_order_count",
+        },
       },
       {
-        id: "planned-or-impulse",
-        title: "Planned or impulse",
+        id: "rpt-008",
+        title: "Habit versus special need",
+        prompt: `Thinking about your last two ${company} orders, how were the situations around them different?`,
+        probes: [
+          "What were you trying to accomplish on each occasion?",
+          "How did that shape what you ordered?",
+        ],
+        delivery: {
+          requirement: "branch",
+          conditionKey: "hero_on_one_distinct_order_only",
+          conditionLabel: `${hero} appears on exactly one kept order`,
+          interviewerNote:
+            "Use when repeat-customer status comes from another product, not a second hero-product order.",
+          branchGroup: "hero_order_count",
+        },
+      },
+      {
+        id: "rpt-003",
+        title: "Repeat product choice",
+        prompt: `On that most recent ${hero} order, how did you land on ${hero} again?`,
+        probes: [
+          "What else did you consider for that order?",
+          "What about getting this product again fit the occasion?",
+        ],
+        delivery: {
+          requirement: "optional",
+          conditionKey: "hero_repeat_reason_not_already_covered",
+          conditionLabel: `${hero} appears on at least two orders and the reason for choosing it again has not emerged`,
+          interviewerNote: "Skip if the specific reason is already clear.",
+        },
+      },
+      {
+        id: "xsl-001",
+        title: "Other-product browsing",
+        prompt: `Tell me about the last time you looked at another product from ${company}, apart from ${hero}.`,
+        probes: [
+          "What brought that other product to your attention?",
+          "What did you end up doing?",
+        ],
+        delivery: {
+          requirement: "core",
+          conditionKey: "all_qualified",
+          conditionLabel: "the participant qualifies for the study",
+          interviewerNote:
+            "If there was no browsing episode, establish unaided awareness before neutrally clarifying awareness of the adjacent category.",
+          probeBranches: [
+            {
+              conditionKey: "has_browsed_opportunity_category",
+              conditionLabel: `they have browsed ${opportunity}`,
+              probe: `Tell me about the last time you looked at ${opportunity}. What were you looking for, and what did you end up doing?`,
+            },
+            {
+              conditionKey: "has_not_browsed_opportunity_category",
+              conditionLabel: `they have not browsed ${opportunity}`,
+              probe: `Before this conversation, what did you know about ${opportunity}?`,
+            },
+            {
+              conditionKey: "decided_against_opportunity_product",
+              conditionLabel: `they mention deciding against ${opportunity}`,
+              probe: "Walk me through how you reached that decision.",
+            },
+          ],
+        },
+      },
+      {
+        id: "sel-001",
+        title: "Chosen product context",
         prompt:
-          "Were you thinking about buying this for a while, or was this more of an impulse buy for you?",
+          "Thinking about the last similar product you purchased elsewhere, walk me through how you landed on that specific item rather than another.",
+        probes: [
+          "What other item did you look at most closely?",
+          "What tipped the decision, if anything?",
+        ],
+        delivery: {
+          requirement: "conditional",
+          conditionKey: "remembers_recent_outside_category_purchase",
+          conditionLabel:
+            "they remember a recent purchase in the adjacent category outside the brand",
+          interviewerNote:
+            "Apply this to the most recent real purchase; do not presume they compared the brand.",
+        },
       },
       {
-        id: "trigger",
-        title: "What triggered today",
+        id: "xsl-003",
+        title: "Stayed with familiar",
         prompt:
-          "Did something trigger the purchase today? For example an email or text, running low, a promotion, or someone mentioning it.",
-        scope: "marketing",
+          "Think of that order when you chose something familiar over trying something new. What led to that?",
+        probes: [
+          "What was attractive about the unfamiliar option?",
+          "What made you settle on the familiar one?",
+        ],
+        delivery: {
+          requirement: "conditional",
+          conditionKey: "describes_familiar_over_new_choice",
+          conditionLabel: "they describe a specific familiar-versus-new choice",
+          interviewerNote:
+            "Ask only when a specific choice occurred. Do not manufacture a tradeoff.",
+        },
       },
       {
-        id: "rest-of-catalog",
-        title: "The rest of the catalog",
-        prompt: `Have you tried anything else from ${company}, ${catalogExamples}? What would make you try something new from us?`,
-      },
-      {
-        id: "close",
-        title: "Close",
-        prompt: `That's everything I had. Is there anything you wish ${company} knew? Thanks so much for your time.`,
+        id: "gen-005",
+        title: "Open close",
+        prompt:
+          "Before we wrap up, is there anything about your experience we haven't covered that you think is important?",
+        probes: [
+          "Was there a moment we did not get to?",
+          "Anything you would want the team to understand?",
+        ],
+        delivery: {
+          requirement: "close",
+          conditionKey: "all_qualified",
+          conditionLabel: "the interview is ready to close",
+          interviewerNote:
+            "Close with thanks. Do not turn the interview into a sales pitch.",
+        },
       },
     ],
   };
