@@ -25,6 +25,20 @@ export function ScriptEditor({
         i === index ? { ...prompt, ...patch } : prompt,
       ),
     );
+  const updateDelivery = (
+    index: number,
+    patch: Partial<NonNullable<ScriptPrompt["delivery"]>>,
+  ) => {
+    const current = prompts[index];
+    if (!current) return;
+    update(index, {
+      delivery: {
+        requirement: current.delivery?.requirement ?? "core",
+        ...current.delivery,
+        ...patch,
+      },
+    });
+  };
   return (
     <div className="prompt-editor">
       {name ? (
@@ -70,7 +84,7 @@ export function ScriptEditor({
                 </select>
               </label>
               <label>
-                <span>What the researcher says</span>
+                <span>Core question</span>
                 <textarea
                   maxLength={2000}
                   onChange={(event) =>
@@ -81,6 +95,101 @@ export function ScriptEditor({
                   rows={2}
                   value={prompt.prompt}
                 />
+              </label>
+              <label>
+                <span>Optional probes · one per line</span>
+                <textarea
+                  maxLength={6000}
+                  onChange={(event) =>
+                    update(index, {
+                      probes: event.target.value
+                        .split("\n")
+                        .map((probe) => probe.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder={"Tell me more about that.\nWhat happened next?"}
+                  readOnly={readOnly}
+                  rows={3}
+                  value={(prompt.probes ?? []).join("\n")}
+                />
+              </label>
+              <label>
+                <span>Research goal · internal</span>
+                <textarea
+                  maxLength={1000}
+                  onChange={(event) =>
+                    update(index, { researchGoal: event.target.value })
+                  }
+                  placeholder="What this part of the story should help us understand"
+                  readOnly={readOnly}
+                  rows={2}
+                  value={prompt.researchGoal ?? ""}
+                />
+              </label>
+              <label>
+                <span>Delivery</span>
+                <select
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    updateDelivery(index, {
+                      requirement: event.target.value as NonNullable<
+                        ScriptPrompt["delivery"]
+                      >["requirement"],
+                    })
+                  }
+                  value={prompt.delivery?.requirement ?? "core"}
+                >
+                  <option value="core">Core</option>
+                  <option value="branch">Branch</option>
+                  <option value="optional">Optional</option>
+                  <option value="conditional">Conditional</option>
+                  <option value="close">Close</option>
+                </select>
+              </label>
+              {prompt.delivery?.requirement === "branch" ||
+              prompt.delivery?.requirement === "conditional" ||
+              prompt.delivery?.requirement === "optional" ? (
+                <label>
+                  <span>Ask when · researcher guidance</span>
+                  <input
+                    maxLength={500}
+                    onChange={(event) =>
+                      updateDelivery(index, {
+                        conditionLabel: event.target.value || undefined,
+                      })
+                    }
+                    placeholder="e.g. This product appears on at least two kept orders"
+                    readOnly={readOnly}
+                    value={prompt.delivery.conditionLabel ?? ""}
+                  />
+                </label>
+              ) : null}
+              <label>
+                <span>Interviewer note · never read aloud</span>
+                <textarea
+                  maxLength={1000}
+                  onChange={(event) =>
+                    updateDelivery(index, {
+                      interviewerNote: event.target.value || undefined,
+                    })
+                  }
+                  placeholder="How to deliver this question without leading"
+                  readOnly={readOnly}
+                  rows={2}
+                  value={prompt.delivery?.interviewerNote ?? ""}
+                />
+              </label>
+              <label className="toggle-label prompt-core-toggle">
+                <input
+                  checked={prompt.core === true}
+                  disabled={readOnly}
+                  onChange={(event) =>
+                    update(index, { core: event.target.checked })
+                  }
+                  type="checkbox"
+                />
+                <span>Core across comparison groups</span>
               </label>
             </div>
             {readOnly ? null : (

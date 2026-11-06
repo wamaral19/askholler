@@ -475,15 +475,38 @@ function SectionHeading({
 
 function ConversationCluster() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const hovered = conversationPlotPoints.find(
-    (point) => point.conversation.id === hoveredId,
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const activePoint = conversationPlotPoints.find(
+    (point) => point.conversation.id === (hoveredId ?? selectedId),
   );
-  const tooltipStyle = hovered
+  const tooltipStyle = activePoint
     ? ({
-        "--bubble-left": `${(hovered.x / 500) * 100}%`,
-        "--bubble-top": `${(hovered.y / 500) * 100}%`,
+        "--bubble-left": `${(activePoint.x / 500) * 100}%`,
+        "--bubble-top": `${(activePoint.y / 500) * 100}%`,
       } as CSSProperties)
     : undefined;
+
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const clearSelection = (event: PointerEvent) => {
+      if (
+        !(event.target as Element).closest(
+          ".conversation-cluster__point, .conversation-cluster__tooltip",
+        )
+      ) {
+        setSelectedId(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", clearSelection);
+    return () => document.removeEventListener("pointerdown", clearSelection);
+  }, [selectedId]);
+
+  const selectConversation = (conversationId: string) => {
+    setSelectedId(conversationId);
+    setHoveredId(null);
+  };
 
   return (
     <div className="conversation-cluster">
@@ -507,10 +530,26 @@ function ConversationCluster() {
             key={conversation.id}
             role="button"
             tabIndex={0}
+            data-selected={selectedId === conversation.id ? "" : undefined}
+            data-active={
+              activePoint?.conversation.id === conversation.id ? "" : undefined
+            }
+            aria-pressed={selectedId === conversation.id}
             aria-label={`${conversation.customer}, ${conversation.length} recording, ${conversation.tags.length} tags, ${conversation.itemCount} items, ${conversation.value}, order ${conversation.orderSequence}`}
-            onFocus={() => setHoveredId(conversation.id)}
+            onClick={() => selectConversation(conversation.id)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                selectConversation(conversation.id);
+              }
+            }}
+            onFocus={() => {
+              if (selectedId !== conversation.id) setHoveredId(conversation.id);
+            }}
             onBlur={() => setHoveredId(null)}
-            onMouseEnter={() => setHoveredId(conversation.id)}
+            onMouseEnter={() => {
+              if (selectedId !== conversation.id) setHoveredId(conversation.id);
+            }}
             onMouseLeave={() => setHoveredId(null)}
           >
             <circle cx={x} cy={y} r={radius} />
@@ -525,31 +564,41 @@ function ConversationCluster() {
           <i className="is-long" /> Longer recording
         </span>
       </div>
-      {hovered ? (
+      {activePoint ? (
         <div
           className="conversation-cluster__tooltip"
-          data-placement={hovered.y < 150 ? "below" : "above"}
+          data-placement={activePoint.y < 150 ? "below" : "above"}
           role="tooltip"
           style={tooltipStyle}
         >
-          <strong>{hovered.conversation.customer}</strong>
-          <span>{hovered.conversation.length} recording</span>
+          <a
+            href={`#conversation-${activePoint.conversation.id}`}
+            aria-label={`View ${activePoint.conversation.customer} in the conversation index`}
+          >
+            <strong>{activePoint.conversation.customer}</strong>
+            <span aria-hidden="true">↗</span>
+          </a>
+          <span>{activePoint.conversation.length} recording</span>
           <dl>
-            <div>
+            <div className="conversation-cluster__tooltip-tags">
               <dt>Tags</dt>
-              <dd>{hovered.conversation.tags.length}</dd>
+              <dd>
+                {activePoint.conversation.tags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
+              </dd>
             </div>
             <div>
               <dt>Items</dt>
-              <dd>{hovered.conversation.itemCount}</dd>
+              <dd>{activePoint.conversation.itemCount}</dd>
             </div>
             <div>
               <dt>Order value</dt>
-              <dd>{hovered.conversation.value}</dd>
+              <dd>{activePoint.conversation.value}</dd>
             </div>
             <div>
               <dt>Order</dt>
-              <dd>#{hovered.conversation.orderSequence}</dd>
+              <dd>#{activePoint.conversation.orderSequence}</dd>
             </div>
           </dl>
         </div>

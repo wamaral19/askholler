@@ -18,11 +18,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { context } = await authenticateMerchant(request);
   return executeOperationsRequest(async () => {
     const service = getOperationsService();
-    const [fields, scripts] = await Promise.all([
+    const [fields, scripts, products] = await Promise.all([
       service.listResearchFields(context),
       service.listScripts(context),
+      service.listCatalogProducts(context),
     ]);
-    return { fields, scripts };
+    return { fields, scripts, products };
   });
 }
 
@@ -49,7 +50,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function AngleRequest() {
-  const { fields, scripts } = useLoaderData<typeof loader>();
+  const { fields, scripts, products } = useLoaderData<typeof loader>();
   const saved = useActionData<typeof action>();
   return (
     <>
@@ -65,6 +66,7 @@ export default function AngleRequest() {
       <AngleBuilderForm
         fields={fields}
         mode="request"
+        products={products}
         saved={saved}
         scripts={scripts}
       />

@@ -23,9 +23,10 @@ export async function loader({ request, params }: Args) {
   return executeOperationsRequest(async () => {
     const context = await getTenantContext(request);
     const service = getOperationsService();
-    const [fields, scripts, initial] = await Promise.all([
+    const [fields, scripts, products, initial] = await Promise.all([
       service.listResearchFields(context),
       service.listScripts(context),
+      service.listCatalogProducts(context),
       params.momentId
         ? service.getMomentConfiguration(context, params.momentId)
         : undefined,
@@ -33,6 +34,7 @@ export async function loader({ request, params }: Args) {
     return {
       fields,
       scripts,
+      products,
       initial,
       categories: categoryOptions,
       canManage: canManageMoments(context.roles),
@@ -67,24 +69,24 @@ async function saveMomentAction(request: Request, momentId?: string) {
 }
 
 export function meta() {
-  return [{ title: "Angle builder · Holler" }];
+  return [{ title: "Study builder · Holler" }];
 }
 
 export default function CohortBuilderRoute() {
-  const { fields, scripts, initial, canManage } =
+  const { fields, scripts, products, initial, canManage } =
     useLoaderData<typeof loader>();
   const saved = useActionData<typeof action>();
 
   return (
     <AppShell
-      eyebrow="Angle setup"
-      title={initial ? initial.name : "Angle builder"}
-      description="Choose which orders qualify, what to learn, and the script to follow. Launching makes the angle live, so new qualifying orders go straight to the queue."
+      eyebrow="Study setup"
+      title="Study builder"
+      description="Define the study, select participants, and choose questions. Launching makes the study live, so new qualifying orders go straight to the queue."
       actions={
         <>
           {initial && canManage ? <MomentStatusMenu moment={initial} /> : null}
           <Link className="button button-quiet" to="/moments">
-            Back to angles
+            Back to studies
           </Link>
         </>
       }
@@ -98,6 +100,7 @@ export default function CohortBuilderRoute() {
         {...(initial ? { initial, canManage } : {})}
         key={initial?.id ?? "new"}
         mode="staff"
+        products={products}
         saved={saved}
         scripts={scripts}
       />

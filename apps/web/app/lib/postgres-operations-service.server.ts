@@ -17,6 +17,7 @@ import {
   outboxEvents,
   productCategories,
   productCategoryAssignments,
+  products,
   qualificationEvaluations,
   recordings,
   reportRevisions,
@@ -69,6 +70,7 @@ import type {
   CallSheetOrder,
   CallSheetProfile,
   CallSheetPrompt,
+  CatalogProductOption,
   CompletedCall,
   CompletedRun,
   OperationsApplicationService,
@@ -80,6 +82,7 @@ import type {
   SaveScriptInput,
   TenantContext,
 } from "./operations-types";
+import { hollerQuestionLibrary } from "./holler-question-library";
 import {
   canManageMoments,
   canTransitionMoment,
@@ -1167,9 +1170,23 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     await this.ensureGeneralMoment(context);
   }
 
+  async listCatalogProducts(
+    context: TenantContext,
+  ): Promise<readonly CatalogProductOption[]> {
+    await this.requireMerchant(context, { allowMerchantViewer: true });
+    return this.db
+      .select({ id: products.id, title: products.title })
+      .from(products)
+      .where(eq(products.merchantId, context.merchantId))
+      .orderBy(asc(products.title), asc(products.id));
+  }
+
   async listScripts(context: TenantContext): Promise<readonly LibraryScript[]> {
     await this.requireMerchant(context, { allowMerchantViewer: true });
-    return this.scriptLibrary(this.db, context);
+    return [
+      ...(await this.scriptLibrary(this.db, context)),
+      hollerQuestionLibrary,
+    ];
   }
 
   async saveScript(context: TenantContext, input: SaveScriptInput) {
@@ -1297,6 +1314,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       id: momentId,
       name: current.momentName,
       objective: current.version.objective,
+      businessQuestion:
+        typeof allocation.businessQuestion === "string"
+          ? allocation.businessQuestion
+          : current.version.objective,
       status: momentStatusFromPersisted(
         current.momentStatus,
         current.version.publishedAt !== null,
@@ -2105,7 +2126,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           objective: input.objective,
           cohortExpression: cohort.data,
           priority: 50,
-          allocationPolicy: { weeklyCap: input.weeklyTarget },
+          allocationPolicy: {
+            weeklyCap: input.weeklyTarget,
+            businessQuestion: input.businessQuestion || input.objective,
+          },
           scriptVersionId,
           researchFieldSetVersionId: fieldSetVersionId,
           activeFrom: input.publish ? this.now() : null,
@@ -2279,6 +2303,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
       allocationPolicy: {
         ...safeJson(current.version.allocationPolicy),
         weeklyCap: input.weeklyTarget,
+        businessQuestion: input.businessQuestion || input.objective,
       },
       scriptVersionId: revision.scriptVersionId,
       researchFieldSetVersionId: fieldSetVersionId,
@@ -3214,30 +3239,14 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
     const current = await this.requireOwnedInterview(context, interviewId);
     if (current.status === "completed" || current.status === "aborted") return;
     if (outcome === "completed") {
-      const required = await this.db
-        .select({ id: researchFieldSetItems.fieldVersionId })
-        .from(researchFieldSetItems)
-        .where(
-          and(
-            eq(
-              researchFieldSetItems.fieldSetVersionId,
-              current.researchFieldSetVersionId,
-            ),
-            eq(researchFieldSetItems.required, true),
-          ),
-        );
-      const responses = await this.db
-        .select({ id: interviewResponses.researchFieldVersionId })
-        .from(interviewResponses)
-        .where(
-          and(
-            eq(interviewResponses.merchantId, context.merchantId),
-            eq(interviewResponses.interviewId, interviewId),
-            eq(interviewResponses.reviewStatus, "accepted"),
-          ),
-        );
-      // A required field counts once it has an answer or the researcher
-      // marked its row covered; details can come from the recording later.
+      const [script] = await this.db
+        .select({ content: scriptVersions.content })
+        .from(scriptVersions)
+        .where(eq(scriptVersions.id, current.scriptVersionId))
+        .limit(1);
+      const required = readScriptPrompts(script?.content)
+        .filter((prompt) => prompt.core)
+        .map((prompt) => `script:${prompt.id}`);
       const covered = await this.db
         .select({ key: interviewPromptProgress.promptKey })
         .from(interviewPromptProgress)
@@ -3248,14 +3257,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
             sql`${interviewPromptProgress.coveredAt} is not null`,
           ),
         );
-      const done = new Set([
-        ...responses.map((row) => row.id),
-        // Item prompts count once any of their items is covered.
-        ...covered.map((row) =>
-          row.key.replace(/^field:/, "").replace(/@line:.*$/, ""),
-        ),
-      ]);
-      if (required.some((row) => !done.has(row.id)))
+      const done = new Set(
+        covered.map((row) => row.key.replace(/@line:.*$/, "")),
+      );
+      if (required.some((key) => !done.has(key)))
         throw new OperationsError("INTERVIEW_INCOMPLETE", 409);
     }
     const now = this.now();
@@ -3981,8 +3986,10 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           scope: prompt.scope ?? "order",
           title: prompt.title,
           prompt: prompt.prompt,
+          probes: prompt.probes ?? [],
+          ...(prompt.delivery ? { delivery: prompt.delivery } : {}),
           options: [],
-          required: false,
+          required: prompt.core === true,
           valueType: null,
         }),
       ),
@@ -3998,6 +4005,7 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
           scope: fieldScope(definition),
           title: definition.label,
           prompt: definition.prompt,
+          probes: [],
           options:
             definition.valueType === "rating_scale"
               ? ["1", "2", "3", "4", "5"]

@@ -47,6 +47,7 @@ export function momentInputFromForm(form: FormData): SaveMomentInput {
   return {
     ...(momentId ? { momentId } : {}),
     name: String(form.get("name") ?? "").trim(),
+    businessQuestion: String(form.get("businessQuestion") ?? "").trim(),
     objective: String(form.get("objective") ?? "").trim(),
     weeklyTarget: Number(form.get("weeklyTarget") ?? 0),
     cohortExpression: jsonFormValue(form, "cohortExpression"),

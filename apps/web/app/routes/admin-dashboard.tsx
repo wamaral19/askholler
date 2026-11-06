@@ -162,16 +162,16 @@ export default function AdminDashboardRoute() {
             Copy this snapshot into a Research Moment as validated predicates.
           </p>
           <pre>{JSON.stringify(snapshot.cohortExpression, null, 2)}</pre>
-          <h2>Research setup</h2>
+          <h2>Research design</h2>
           <p className="helper-copy">
-            Edit reusable questions and library scripts.
+            Maintain the evidence taxonomy and reusable question database.
           </p>
           <div className="dashboard-links">
             <Link className="button button-small" to="/admin/research-fields">
-              Manage fields
+              Evidence taxonomy
             </Link>
             <Link className="button button-small" to="/admin/scripts">
-              Manage scripts
+              Question database
             </Link>
           </div>
         </section>

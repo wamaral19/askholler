@@ -18,7 +18,7 @@ export async function loader({ request }: { request: Request }) {
 }
 
 export function meta() {
-  return [{ title: "Completed calls · Holler" }];
+  return [{ title: "Evidence review · Holler" }];
 }
 
 const easternTime = new Intl.DateTimeFormat("en-US", {
@@ -47,20 +47,20 @@ export default function CompletedCallsRoute() {
     <AppShell
       className="app-shell--console"
       eyebrow="Live research"
-      title="Completed calls"
-      description="Review finished calls: listen back and read the transcript. Research angle is blank for general calls."
+      title="Evidence review"
+      description="Review completed transcripts, code target tags, and preserve the evidence behind every interpretation."
       hideHeader
     >
       <div className="call-sheet queue-sheet">
-        <section className="call-bar queue-bar" aria-label="Completed calls">
+        <section className="call-bar queue-bar" aria-label="Evidence review">
           <div className="queue-bar__title">
-            <strong>Completed calls</strong>
-            <span>Listen back and read the transcript</span>
+            <strong>Evidence review</strong>
+            <span>Transcript-first coding queue</span>
           </div>
         </section>
         <section className="sheet-section">
           <header className="sheet-section__header">
-            <h2>Finished calls</h2>
+            <h2>Ready for abstraction</h2>
             <span className="sheet-section__meta">
               {calls.length
                 ? `${calls.length} call${calls.length === 1 ? "" : "s"}, newest first`
@@ -96,7 +96,7 @@ export default function CompletedCallsRoute() {
                         className="queue-open"
                         to={`/calls/${call.interviewId}`}
                       >
-                        Review
+                        Code evidence
                       </Link>
                     </td>
                     <td className="queue-table__angle">{call.angle}</td>

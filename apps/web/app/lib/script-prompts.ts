@@ -13,6 +13,19 @@ export function promptsFromForm(value: unknown): ScriptPrompt[] {
       title: String(record.title ?? ""),
       prompt: String(record.prompt ?? ""),
       ...(isPromptScope(record.scope) ? { scope: record.scope } : {}),
+      ...(Array.isArray(record.probes)
+        ? { probes: record.probes.map(String).filter((probe) => probe.trim()) }
+        : {}),
+      ...(typeof record.researchGoal === "string"
+        ? { researchGoal: record.researchGoal }
+        : {}),
+      ...(typeof record.core === "boolean" ? { core: record.core } : {}),
+      ...(record.delivery && typeof record.delivery === "object"
+        ? { delivery: record.delivery as ScriptPrompt["delivery"] }
+        : {}),
+      ...(record.library && typeof record.library === "object"
+        ? { library: record.library as ScriptPrompt["library"] }
+        : {}),
     };
   });
 }
@@ -30,7 +43,7 @@ export function newPromptId(): string {
 
 export const scriptErrorMessages: Readonly<Record<string, string>> = {
   INVALID_SCRIPT:
-    "Every prompt needs a title (up to 120 characters) and text (up to 2,000). Scripts hold 1–40 prompts.",
+    "Every prompt needs a title (up to 120 characters) and text (up to 2,000). Scripts hold 1–100 prompts.",
   SCRIPT_NOT_FOUND: "That script is no longer in the library.",
   RESEARCH_MOMENT_NOT_FOUND: "That moment no longer exists.",
   MOMENT_MANAGER_ROLE_REQUIRED:

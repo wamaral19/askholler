@@ -4,6 +4,7 @@ import {
   researchFields,
   researchMoments,
 } from "./prototype-data";
+import { hollerQuestionLibrary } from "./holler-question-library";
 import type {
   CallSheetOrder,
   CallSheetPrompt,
@@ -22,7 +23,7 @@ import {
   dashboardFiltersToCohort,
 } from "./analytics";
 import { createDatabase } from "@holler/db";
-import { loadServerEnvironment } from "@holler/domain";
+import { loadServerEnvironment, type ScriptPrompt } from "@holler/domain";
 import { redirect } from "react-router";
 import {
   EnvelopePhoneDecryptor,
@@ -348,8 +349,16 @@ function createSyntheticService(): OperationsApplicationService {
           : field;
       });
     },
+    async listCatalogProducts() {
+      return [
+        ...new Set(queueAssignments.flatMap((item) => item.products)),
+      ].map((title) => ({
+        id: `synthetic:${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        title,
+      }));
+    },
     async listScripts() {
-      return scriptLibrary;
+      return [...scriptLibrary, hollerQuestionLibrary];
     },
     async saveScript(context, input) {
       requireManager(context);
@@ -436,6 +445,7 @@ function createSyntheticService(): OperationsApplicationService {
       return {
         id: moment.id,
         name: moment.name,
+        businessQuestion: moment.objective,
         objective: moment.objective,
         status: moment.status,
         requestedByMerchant: moment.requestedByMerchant === true,
@@ -552,12 +562,14 @@ function createSyntheticService(): OperationsApplicationService {
         },
         ...syntheticOrders(assignment),
         prompts: [
-          ...pinnedScript.map((prompt) => ({
+          ...(pinnedScript as readonly ScriptPrompt[]).map((prompt) => ({
             key: `script:${prompt.id}`,
             kind: "script" as const,
             scope: "order" as const,
             title: prompt.title,
             prompt: prompt.prompt,
+            probes: prompt.probes ?? [],
+            ...(prompt.delivery ? { delivery: prompt.delivery } : {}),
             options: [],
             required: false,
           })),
@@ -567,6 +579,7 @@ function createSyntheticService(): OperationsApplicationService {
             scope: field.scope ?? ("order" as const),
             title: field.label,
             prompt: field.prompt,
+            probes: [],
             options:
               field.valueType === "rating_scale"
                 ? ["1", "2", "3", "4", "5"]
@@ -647,9 +660,9 @@ function createSyntheticService(): OperationsApplicationService {
       const current = await this.getInterview(context, id);
       if (
         outcome === "completed" &&
-        current.fields.some(
-          (field) =>
-            field.required && !current.answeredFieldIds.includes(field.id),
+        current.prompts.some(
+          (prompt) =>
+            prompt.kind === "script" && prompt.required && !prompt.covered,
         )
       )
         throw new Response("Interview is missing required responses", {

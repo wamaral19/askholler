@@ -34,6 +34,7 @@ import {
 } from "../shopify-ingestion.server";
 import {
   HERO_CATEGORY,
+  OPPORTUNITY_CATEGORY,
   buildDemoAngle,
   buildSampleFindings,
   type SampleFindings,
@@ -336,7 +337,8 @@ export async function startDemo(
   const { id: researchMomentId } = await operations.saveMoment(context, {
     name: angle.name,
     objective: angle.objective,
-    weeklyTarget: 25,
+    businessQuestion: angle.question,
+    weeklyTarget: 18,
     cohortExpression: angle.cohortExpression,
     fields: fields.length
       ? fields.map((field) => ({
@@ -404,21 +406,42 @@ async function seedCatalog(
       sourceUpdatedAt: now,
     })),
   );
-  const categoryId = stableUuid(
+  const heroCategoryId = stableUuid(
     `demo-category:${DEMO_MERCHANT_ID}:${HERO_CATEGORY.key}`,
   );
-  await db.insert(productCategories).values({
-    id: categoryId,
-    merchantId: DEMO_MERCHANT_ID,
-    source: HERO_CATEGORY.namespace,
-    key: HERO_CATEGORY.key,
-    label: hero.title,
-  });
-  await db.insert(productCategoryAssignments).values({
-    merchantId: DEMO_MERCHANT_ID,
-    productId: productUuid(hero),
-    categoryId,
-  });
+  const opportunityCategoryId = stableUuid(
+    `demo-category:${DEMO_MERCHANT_ID}:${OPPORTUNITY_CATEGORY.key}`,
+  );
+  await db.insert(productCategories).values([
+    {
+      id: heroCategoryId,
+      merchantId: DEMO_MERCHANT_ID,
+      source: HERO_CATEGORY.namespace,
+      key: HERO_CATEGORY.key,
+      label: hero.title,
+    },
+    {
+      id: opportunityCategoryId,
+      merchantId: DEMO_MERCHANT_ID,
+      source: OPPORTUNITY_CATEGORY.namespace,
+      key: OPPORTUNITY_CATEGORY.key,
+      label: "Adjacent products",
+    },
+  ]);
+  await db.insert(productCategoryAssignments).values([
+    {
+      merchantId: DEMO_MERCHANT_ID,
+      productId: productUuid(hero),
+      categoryId: heroCategoryId,
+    },
+    ...config.products
+      .filter((product) => product !== hero)
+      .map((product) => ({
+        merchantId: DEMO_MERCHANT_ID,
+        productId: productUuid(product),
+        categoryId: opportunityCategoryId,
+      })),
+  ]);
 }
 
 /** Historical orders are bulk-inserted; they are past the queue window anyway. */
@@ -746,24 +769,30 @@ export async function sendLiveOrder(
           where o.customer_id = c.id and oli.merchant_id = c.merchant_id
             and oli.product_id = ${productUuid(config.products[heroIndex]!)}
         )
+        and not exists (
+          select 1
+          from order_line_items oli
+          join orders o on o.id = oli.order_id and o.merchant_id = oli.merchant_id
+          join product_category_assignments pca
+            on pca.product_id = oli.product_id and pca.merchant_id = oli.merchant_id
+          join product_categories pc
+            on pc.id = pca.category_id and pc.merchant_id = pca.merchant_id
+          where o.customer_id = c.id and oli.merchant_id = c.merchant_id
+            and pc.source = ${OPPORTUNITY_CATEGORY.namespace}
+            and pc.key = ${OPPORTUNITY_CATEGORY.key}
+            and oli.quantity > oli.refunded_quantity
+        )
       order by random() limit 1
     `);
     const returning = result.rows[0] as
       | { shopify_customer_id: string; first_order_at: Date | string }
       | undefined;
     if (returning) {
-      const extra =
-        random() < 0.3
-          ? [
-              (heroIndex + 1 + randomInt(config.products.length - 1)) %
-                config.products.length,
-            ]
-          : [];
       ingress = liveIngress({
         config,
         shopifyCustomerId: returning.shopify_customer_id,
         customerCreatedAt: new Date(returning.first_order_at),
-        productIndexes: [heroIndex, ...extra],
+        productIndexes: [heroIndex],
         channel: pickChannel(random, true),
         contact,
         orderedAt: now,
@@ -891,14 +920,13 @@ export async function addProspectOrder(
       now,
     );
   const orderNumber = await nextOrderNumber(db);
-  const other = config.products.findIndex((_, index) => index !== heroIndex);
   await ingestAndQualify(
     db,
     liveIngress({
       config,
       shopifyCustomerId,
       customerCreatedAt: createdAt,
-      productIndexes: [heroIndex, other],
+      productIndexes: [heroIndex],
       channel: "email",
       contact,
       orderedAt: now,

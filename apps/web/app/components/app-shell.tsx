@@ -83,21 +83,21 @@ export function AppShell({
           <nav aria-label="Primary navigation">
             <NavGroup label="Admin">
               <NavLink to="/admin/dashboard">Dashboard</NavLink>
-              <NavLink to="/admin/research-fields">Research fields</NavLink>
-              <NavLink to="/admin/scripts">Scripts</NavLink>
+              <NavLink to="/admin/research-fields">Evidence taxonomy</NavLink>
+              <NavLink to="/admin/scripts">Question database</NavLink>
               {layout?.showBilling ? (
                 <NavLink to="/admin/billing">Billing</NavLink>
               ) : null}
             </NavGroup>
-            <NavGroup label="Angle setup">
+            <NavGroup label="Study setup">
               <NavLink to="/moments" end>
-                Live angles
+                Live studies
               </NavLink>
-              <NavLink to="/moments/new">Angle builder</NavLink>
+              <NavLink to="/moments/new">Study builder</NavLink>
             </NavGroup>
             <NavGroup label="Live research">
               <NavLink to="/queue">Live queue</NavLink>
-              <NavLink to="/calls">Completed calls</NavLink>
+              <NavLink to="/calls">Evidence review</NavLink>
             </NavGroup>
             {layout?.showDemo ? (
               <NavGroup label="Sales">

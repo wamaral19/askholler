@@ -11,27 +11,39 @@ const input = {
 };
 
 describe("buildDemoAngle", () => {
-  it("targets repeat buyers who previously bought the hero product", () => {
+  it("targets repeat hero buyers who have never bought the opportunity category", () => {
     const angle = buildDemoAngle(input);
     expect(
       cohortExpressionSchema.safeParse(angle.cohortExpression).success,
     ).toBe(true);
-    expect(JSON.stringify(angle.cohortExpression)).toContain(
-      "customer.prior_orders_contain_current_category",
+    const rules = JSON.stringify(angle.cohortExpression);
+    expect(rules).toContain("customer.distinct_orders_with_product");
+    expect(rules).toContain("customer.distinct_orders_with_category");
+    expect(rules).toContain('"operator":"equals","value":0');
+    expect(angle.name).toBe(
+      "Cloud Dew Moisturizer: loyalty & cross-sell opportunity",
     );
-    expect(angle.name).toBe("Why Cloud Dew Moisturizer buyers come back");
   });
 
-  it("asks the five repeat-purchase questions in the company's voice", () => {
+  it("builds a valid behavioral guide with comparison branches", () => {
     const { prompts } = buildDemoAngle(input);
     expect(scriptContentV1Schema.safeParse({ prompts }).success).toBe(true);
     const text = prompts.map((prompt) => prompt.prompt).join("\n");
-    expect(text).toContain("What made you want to buy more from Juniper Row?");
-    expect(text).toContain("Think back to your first Cloud Dew Moisturizer");
-    expect(text).toContain("Where did you hear about Juniper Row originally?");
-    expect(text).toContain("impulse buy");
-    expect(text).toContain("Did something trigger the purchase today?");
-    expect(text).toContain("the Harbor Tee or the Trail Crew Socks");
+    expect(text).toContain(
+      "Take me back to your most recent Juniper Row order",
+    );
+    expect(text).toContain("last time you used your Cloud Dew Moisturizer");
+    expect(text).toContain(
+      "between receiving your first Cloud Dew Moisturizer",
+    );
+    expect(text).toContain("apart from Cloud Dew Moisturizer");
+    expect(
+      prompts.filter((prompt) => prompt.delivery?.requirement === "branch"),
+    ).toHaveLength(2);
+    expect(
+      prompts.find((prompt) => prompt.id === "xsl-001")?.delivery
+        ?.probeBranches,
+    ).toHaveLength(3);
   });
 });
 
