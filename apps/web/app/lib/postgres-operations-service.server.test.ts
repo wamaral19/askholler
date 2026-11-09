@@ -694,10 +694,10 @@ describe.skipIf(databaseUrl === undefined)(
           based_on_script_version_id: library!.versionId,
         },
       ]);
-      // Run scripts never appear in the library.
+      // Run scripts never appear in the library, which ends with Holler's own.
       expect(
         (await service.listScripts(managerA)).map((script) => script.id),
-      ).toEqual([ids.script]);
+      ).toEqual([ids.script, "holler-question-library"]);
 
       const saved = await service.saveScript(managerA, {
         scriptId: ids.script,
@@ -714,6 +714,7 @@ describe.skipIf(databaseUrl === undefined)(
           version: 2,
           prompts: [{ id: "intro" }, { id: "close" }],
         },
+        { id: "holler-question-library" },
       ]);
       // The seeded moment keeps the version it launched with.
       expect(await service.getMomentScript(managerA, ids.moment)).toMatchObject(

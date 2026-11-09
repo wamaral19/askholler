@@ -33,6 +33,39 @@ describe("describeCohort", () => {
     );
   });
 
+  it("phrases lifetime product and category order counts", () => {
+    const products = (operator: string, value: number, titles: string[]) => ({
+      predicate: "customer.distinct_orders_with_product",
+      version: 1,
+      config: { operator, value, productTitles: titles },
+    });
+    const inCategory = (operator: string, value: number, key: string) => ({
+      predicate: "customer.distinct_orders_with_category",
+      version: 1,
+      config: { operator, value, namespace: "merchant", categoryKey: key },
+    });
+    expect(
+      describeCohort({
+        all: [
+          products("at_least", 1, ["Cloud Dew"]),
+          inCategory("equals", 0, "gift-sets"),
+        ],
+      }),
+    ).toBe(
+      "They have ordered Cloud Dew and they have never ordered Gift sets.",
+    );
+    expect(describeCohort(products("at_least", 3, ["A", "B"]))).toBe(
+      "They have ordered A or B on at least 3 orders.",
+    );
+    expect(
+      describeCohort({
+        predicate: "customer.distinct_orders_with_product",
+        version: 1,
+        config: { operator: "equals", value: 1, productTitle: "Legacy" },
+      }),
+    ).toBe("They have ordered Legacy on exactly 1 order.");
+  });
+
   it("phrases order-sequence operators and alternatives plainly", () => {
     expect(describeCohort(sequence("equals", 1))).toBe(
       "The customer's first order.",

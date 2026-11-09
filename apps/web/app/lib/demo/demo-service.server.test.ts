@@ -110,7 +110,9 @@ describe.skipIf(databaseUrl === undefined)("sales demo", () => {
       status: "live",
     });
     expect(moment!.cohortSummary).toContain("Cloud Dew Moisturizer");
-    expect(moment!.cohortSummary).toContain("demo-opportunity");
+    expect(moment!.cohortSummary).toContain(
+      "they have never ordered Adjacent products",
+    );
 
     const today = new Date();
     const dashboard = await operations.getDashboard(context, {

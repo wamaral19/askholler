@@ -41,6 +41,41 @@ function category(
   return labeler(namespace, config.categoryKey);
 }
 
+/** "they have ordered X", "they have never ordered X", "… on at least 3 orders". */
+function lifetimeOrders(
+  config: Record<string, unknown>,
+  label: string,
+  negated: boolean,
+): string | undefined {
+  const value = Number(config.value);
+  if (!Number.isInteger(value) || value < 0) return undefined;
+  const operator = config.operator;
+  let phrase: string;
+  if ((operator === "equals" || operator === "at_most") && value === 0)
+    phrase = `they have never ordered ${label}`;
+  else if (operator === "at_least" && value <= 1)
+    phrase = `they have ordered ${label}`;
+  else if (operator === "at_least")
+    phrase = `they have ordered ${label} on at least ${value} orders`;
+  else if (operator === "at_most")
+    phrase = `they have ordered ${label} on at most ${value} ${value === 1 ? "order" : "orders"}`;
+  else if (operator === "equals")
+    phrase = `they have ordered ${label} on exactly ${value} ${value === 1 ? "order" : "orders"}`;
+  else return undefined;
+  return negated ? `not (${phrase})` : phrase;
+}
+
+function productTitles(config: Record<string, unknown>): string | undefined {
+  const titles = Array.isArray(config.productTitles)
+    ? config.productTitles.filter(
+        (title): title is string => typeof title === "string",
+      )
+    : typeof config.productTitle === "string"
+      ? [config.productTitle]
+      : [];
+  return titles.length ? list(titles, "or") : undefined;
+}
+
 function describePredicate(
   predicate: string,
   config: Record<string, unknown>,
@@ -79,6 +114,16 @@ function describePredicate(
       return negated
         ? `they have never ordered ${label} before`
         : `they previously ordered ${label}`;
+  }
+  if (predicate === "customer.distinct_orders_with_product") {
+    const label = productTitles(config);
+    const phrase = label && lifetimeOrders(config, label, negated);
+    if (phrase) return phrase;
+  }
+  if (predicate === "customer.distinct_orders_with_category") {
+    const label = category(config, labeler);
+    const phrase = label && lifetimeOrders(config, label, negated);
+    if (phrase) return phrase;
   }
   const fallback = humanizeKey(predicate).toLowerCase();
   return negated ? `not ${fallback}` : fallback;
