@@ -275,3 +275,105 @@ answer: only orders the merchant targets are called, opt-outs are suppressed,
 and contact data is deleted after 90 days.
 
 After approval, send merchants the listing link to install.
+
+## 9. Custom test app with full order history
+
+`shopify.app.custom.toml` (`Holler Custom Test`) is for testing
+`read_all_orders` on our own development store while the Partner app's request
+(section 7) is pending. Shopify only waives that approval for apps created in
+the Dev Dashboard **under the store's own organization**, so this app must not
+be created in the Partner organization.
+
+1. In the development store's admin → **Settings → Apps → Develop apps →
+   Build apps in Dev Dashboard**, create an app named `Holler Custom Test`.
+   Confirm the Dev Dashboard shows the store's organization, not the Partner
+   organization. Copy the client ID into `client_id` in
+   `shopify.app.custom.toml`.
+2. In that app, select **Name**, **Phone**, and **Address** under protected
+   customer data access (section 5), or order webhooks may arrive redacted.
+3. Add this app's client ID and secret to `.env.local` as
+   `SHOPIFY_CUSTOM_API_KEY` and `SHOPIFY_CUSTOM_API_SECRET`. Keep
+   `SHOPIFY_API_KEY` and `SHOPIFY_API_SECRET` as the `Holler Dev` values.
+   The server needs neither pair: `shopify app dev --config <app>` sets the
+   running app's key and secret, and those take precedence over `.env.local`.
+   Only the local scripts read them, and their `--app dev|custom` flag
+   chooses the pair.
+4. `npx shopify app dev --config custom --store <dev store>.myshopify.com`.
+   Switch back with `--config dev`. Both use port 5173, so run one at a time.
+   The CLI points the app at a tunnel, registers the order webhooks, and
+   installs the app. Approve the scopes in the store.
+5. **New orders:** place a test order in the store. The `orders/create`
+   delivery appears in the server log as `shopify.order_webhook_ingested`.
+6. **All orders:** with `shopify app dev` still running (or the session in
+   `DATABASE_URL`), run
+   `npm run shopify:read-all-orders -- --shop <dev store>.myshopify.com`.
+   It prints the granted scopes, the order count, the date range, and how many
+   orders are older than 60 days. Only counts and dates are printed.
+
+A new development store has no orders older than 60 days, so step 6 only
+proves the scope is granted. To see orders older than 60 days, use a store
+with older orders. Shopify doesn't let you backdate a new order.
+
+## 10. Without an app: store webhooks and CSV history
+
+A merchant can send Holler their orders with no app installed. New orders
+arrive through webhooks the merchant creates in their own Shopify admin, and
+history comes from their admin CSV exports. There is no App Store review, no
+protected customer data request, and no app record per merchant. The costs:
+no uninstall or `customers/redact` events (deletion requests arrive by email
+and the 90-day retention carries the load), no embedded page, no Shopify
+billing, and the merchant must keep the webhooks in place.
+
+### New orders
+
+1. Merchant: **Settings → Notifications → Webhooks → Create webhook**, event
+   **Order creation**, format **JSON**, URL
+   `https://app.withholler.com/webhooks/store`, latest API version. Then the
+   same again for **Order update**.
+2. Merchant: copy the signing key shown on that page ("Your webhooks will be
+   signed with …") and send it to Holler.
+3. Holler: add it to `SHOPIFY_STORE_WEBHOOK_KEYS` in Render, a JSON object of
+   shop domain to key:
+   `{"store-a.myshopify.com":"key-a","store-b.myshopify.com":"key-b"}`.
+   Saving restarts the service. Until the shop is listed, its deliveries get
+   401 and Shopify retries them.
+4. The first verified delivery records the store as installed. History
+   completeness counts from that moment, as with an app install. Use the
+   **Send test notification** button only after step 3.
+
+Locally, put the same JSON in `.env.local` and run
+`npm run shopify:fake-orders -- --app store --shop <shop>`, which signs with
+that shop's key and posts to `/webhooks/store`.
+
+### History from CSV exports
+
+Set up the webhooks first, so no order falls between the export and the first
+webhook.
+
+1. Merchant: **Orders → Export → All orders → CSV for Excel, Numbers, or other
+   spreadsheet programs**, and **Customers → Export → All customers** in the
+   same format. Both files arrive by email.
+2. Holler: dry run, which only parses and prints counts:
+   `npm run shopify:import-orders-csv -- --shop <shop> --orders orders_export.csv --customers customers_export.csv --dry-run`
+3. Holler: run it again without `--dry-run`, against the production
+   `DATABASE_URL`. Add `--full-history` when the export is **All orders**:
+   every customer's history is then marked complete and each order's place in
+   its customer's sequence is recomputed.
+4. Delete both export files. They contain names, emails, phones, and street
+   addresses.
+
+What the import keeps: order number and Shopify order ID, dates, statuses,
+totals, the customer's Shopify ID (linked through the customers export by
+email), and line item titles, SKUs, quantities, prices, and discounts. It
+discards names, emails, phones, and addresses, and stores no contact details,
+so imported customers can't be called until a new order arrives by webhook.
+Imported orders never enter the research queue. Orders already held, such as
+those that arrived by webhook, are left as they are, so re-running an import
+is safe. When Shopify later sends an update for an imported order, the
+webhook's line items replace the imported ones.
+
+Exports don't carry product IDs or marketing attribution, so imported lines
+have no product link and imported orders show attribution as unavailable.
+Without a customers export, orders are imported with no customer and can't
+count toward repeat-purchase analysis. Each import records its counts and date
+range as a `shopify.csv_import_completed` audit event.

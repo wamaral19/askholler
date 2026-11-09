@@ -28,6 +28,7 @@ export default [
   route("auth/login", "routes/shopify-login.tsx"),
   route("auth/*", "routes/shopify-auth.tsx"),
   route("webhooks", "routes/shopify-webhooks.tsx"),
+  route("webhooks/store", "routes/shopify-store-webhooks.ts"),
   route("login", "routes/workforce-login.tsx"),
   route("login/google", "routes/login-google.ts"),
   route("login/google/callback", "routes/login-google-callback.ts"),

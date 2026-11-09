@@ -1,0 +1,34 @@
+# Custom app ("Holler Custom Test") for testing on our own development store.
+#
+# Unlike shopify.app.dev.toml, this app is created in the Dev Dashboard under
+# the store's own organization, not the Partner organization. Shopify does not
+# require approval of read_all_orders for those apps, so it can read the store's
+# full order history before the Partner app's request is approved
+# (docs/shopify-pilot-app-setup.md, section 7). Setup steps are in that doc,
+# section 9. The CLI rewrites the URLs to a tunnel on every run.
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "cb4dc1742821623a187435d25b4bc8fd"
+name = "Holler Custom Test"
+application_url = "https://example.com"
+embedded = true
+
+[access_scopes]
+# read_all_orders only extends read_orders past its 60-day window; both are needed.
+scopes = "read_orders,read_all_orders"
+
+[auth]
+redirect_urls = [ "https://example.com/auth/callback" ]
+
+[webhooks]
+api_version = "2026-10"
+
+# Same handler as the other apps. Billing topics are omitted: a store-org app
+# can't charge through the Billing API.
+[[webhooks.subscriptions]]
+topics = [ "orders/create", "orders/updated", "app/uninstalled" ]
+uri = "/webhooks"
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true

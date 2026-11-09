@@ -6,16 +6,16 @@
  *
  *   npm run shopify:fake-orders -- --count 20 --interval 3s --install
  *
- * Reads SHOPIFY_API_SECRET (and DATABASE_URL for --install) from the shell,
+ * Signs with the secret of the app the server is running as: --app dev
+ * (default) or --app custom, matching `shopify app dev --config <app>` (see
+ * shopify-app-credentials.ts). Reads DATABASE_URL for --install from the shell,
  * falling back to .env.local. All customers, phones, and products are fictional
  * unless --phone supplies a real number for an end-to-end call test.
  */
 import { createHmac, randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-if (!process.env.SHOPIFY_API_SECRET && existsSync(".env.local"))
-  process.loadEnvFile(".env.local");
+import { selectShopifyAppCredentials } from "./shopify-app-credentials";
 
 const { values: args } = parseArgs({
   options: {
@@ -23,11 +23,12 @@ const { values: args } = parseArgs({
       type: "string",
       default: "hollers-test-store-version-zero.myshopify.com",
     },
-    url: { type: "string", default: "http://localhost:5173/webhooks" },
+    url: { type: "string" },
     count: { type: "string", default: "10" },
     interval: { type: "string", default: "2s" },
     "api-version": { type: "string", default: "2026-10" },
     install: { type: "boolean", default: false },
+    app: { type: "string", default: "dev" },
     phone: { type: "string" },
     help: { type: "boolean", default: false },
   },
@@ -36,9 +37,15 @@ const { values: args } = parseArgs({
 if (args.help) {
   console.info(`Options:
   --shop <domain>        default ${args.shop}
-  --url <webhook url>    default ${args.url}
+  --url <webhook url>    default http://localhost:5173/webhooks
+                         (/webhooks/store with --app store)
   --count <n>            orders to send (default 10)
   --interval <ms|Ns>     delay between orders (default 2s)
+  --app <dev|custom|store>
+                         whose secret signs the orders; match the app the
+                         server runs as (default dev). store signs with --shop's
+                         key from SHOPIFY_STORE_WEBHOOK_KEYS, like a webhook the
+                         merchant created in Shopify admin
   --install              record the app install for --shop in DATABASE_URL first
                          (needed if the shop never completed OAuth locally)
   --phone <+1XXXXXXXXXX> give every order a new customer with this real number
@@ -47,10 +54,30 @@ if (args.help) {
   process.exit(0);
 }
 
-const secret = process.env.SHOPIFY_API_SECRET;
-if (!secret) {
-  console.error("SHOPIFY_API_SECRET is required (shell env or .env.local).");
-  process.exit(1);
+const storeWebhook = args.app === "store";
+const url =
+  args.url ?? `http://localhost:5173/webhooks${storeWebhook ? "/store" : ""}`;
+let secret: string | undefined;
+if (storeWebhook) {
+  selectShopifyAppCredentials("dev");
+  const { parseStoreWebhookKeys } =
+    await import("../apps/web/app/lib/shopify-store-webhooks.server");
+  secret = parseStoreWebhookKeys(process.env.SHOPIFY_STORE_WEBHOOK_KEYS).get(
+    args.shop.toLowerCase(),
+  );
+  if (!secret) {
+    console.error(
+      `SHOPIFY_STORE_WEBHOOK_KEYS has no key for ${args.shop} (shell env or .env.local).`,
+    );
+    process.exit(1);
+  }
+} else {
+  selectShopifyAppCredentials(args.app);
+  secret = process.env.SHOPIFY_API_SECRET;
+  if (!secret) {
+    console.error("SHOPIFY_API_SECRET is required (shell env or .env.local).");
+    process.exit(1);
+  }
 }
 
 if (args.phone !== undefined && !/^\+[1-9]\d{7,14}$/.test(args.phone)) {
@@ -240,7 +267,7 @@ async function send(
   triggeredAt: Date,
   topic = "orders/create",
 ) {
-  const response = await fetch(args.url, {
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -280,7 +307,7 @@ if (args.install) {
 }
 
 console.info(
-  `Sending ${count} fake orders/create webhooks to ${args.url} for ${args.shop}\n`,
+  `Sending ${count} fake orders/create webhooks to ${url} for ${args.shop}\n`,
 );
 const tally = new Map<string, number>();
 for (let index = 0; index < count; index += 1) {
@@ -331,7 +358,9 @@ for (let index = 0; index < count; index += 1) {
   );
   if (status === 401) {
     console.error(
-      "\nHMAC rejected: the server's SHOPIFY_API_SECRET differs from this script's.",
+      storeWebhook
+        ? `\nRejected: the server has no SHOPIFY_STORE_WEBHOOK_KEYS entry for ${args.shop}, or a different key.`
+        : "\nHMAC rejected: the server's SHOPIFY_API_SECRET differs from this script's.",
     );
     process.exit(1);
   }

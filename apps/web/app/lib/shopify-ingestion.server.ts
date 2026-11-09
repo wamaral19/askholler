@@ -25,7 +25,10 @@ import {
   normalizeShopifyOrderIngress,
   type ShopifyOrderIngressV1,
 } from "@holler/shopify";
-import { and, eq, lt, ne, sql } from "drizzle-orm";
+import { and, eq, like, lt, ne, sql } from "drizzle-orm";
+
+/** shopify_line_item_id prefix for lines imported from a CSV export. */
+export const CSV_LINE_ITEM_PREFIX = "csv:";
 
 type Transaction = Parameters<Parameters<HollerDatabase["transaction"]>[0]>[0];
 type HistoryCompleteness = {
@@ -358,6 +361,16 @@ export async function applyShopifyOrderUpdate(
       })
       .where(
         and(eq(orders.merchantId, merchantId), eq(orders.id, existing.id)),
+      );
+    // CSV-imported lines have no Shopify IDs; the webhook's lines replace them.
+    await tx
+      .delete(orderLineItems)
+      .where(
+        and(
+          eq(orderLineItems.merchantId, merchantId),
+          eq(orderLineItems.orderId, existing.id),
+          like(orderLineItems.shopifyLineItemId, `${CSV_LINE_ITEM_PREFIX}%`),
+        ),
       );
     for (const line of order.lineItems)
       await upsertLineItem(tx, merchantId, existing.id, line, now, true);
