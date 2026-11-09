@@ -67,6 +67,10 @@ services:
       # Secrets: entered in the Render dashboard, never committed.
       - key: SHOPIFY_API_SECRET
         sync: false
+      # JSON of shop domain to signing key for merchant-created store webhooks
+      # (/webhooks/store); see docs/shopify-pilot-app-setup.md section 10.
+      - key: SHOPIFY_STORE_WEBHOOK_KEYS
+        sync: false
       - key: OIDC_AUDIENCE
         sync: false
       - key: GOOGLE_OAUTH_CLIENT_SECRET

@@ -3238,31 +3238,8 @@ export class PostgresOperationsApplicationService implements OperationsApplicati
   ) {
     const current = await this.requireOwnedInterview(context, interviewId);
     if (current.status === "completed" || current.status === "aborted") return;
-    if (outcome === "completed") {
-      const [script] = await this.db
-        .select({ content: scriptVersions.content })
-        .from(scriptVersions)
-        .where(eq(scriptVersions.id, current.scriptVersionId))
-        .limit(1);
-      const required = readScriptPrompts(script?.content)
-        .filter((prompt) => prompt.core)
-        .map((prompt) => `script:${prompt.id}`);
-      const covered = await this.db
-        .select({ key: interviewPromptProgress.promptKey })
-        .from(interviewPromptProgress)
-        .where(
-          and(
-            eq(interviewPromptProgress.merchantId, context.merchantId),
-            eq(interviewPromptProgress.interviewId, interviewId),
-            sql`${interviewPromptProgress.coveredAt} is not null`,
-          ),
-        );
-      const done = new Set(
-        covered.map((row) => row.key.replace(/@line:.*$/, "")),
-      );
-      if (required.some((key) => !done.has(key)))
-        throw new OperationsError("INTERVIEW_INCOMPLETE", 409);
-    }
+    // Completing never depends on guide coverage; open prompts stay visible
+    // in review instead of blocking the call from closing.
     const now = this.now();
     await this.db.transaction(async (tx) => {
       const [assignment] = await tx

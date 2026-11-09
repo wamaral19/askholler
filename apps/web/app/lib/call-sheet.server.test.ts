@@ -307,9 +307,6 @@ describe.skipIf(databaseUrl === undefined)("call sheet", () => {
     });
 
     await expect(
-      service.completeInterview(context, sheet.id, "completed"),
-    ).rejects.toMatchObject({ code: "INTERVIEW_INCOMPLETE" });
-    await expect(
       service.savePromptProgress(context, sheet.id, field.key, {
         covered: true,
         selected: ["Not an option"],

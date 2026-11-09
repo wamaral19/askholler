@@ -658,16 +658,6 @@ function createSyntheticService(): OperationsApplicationService {
     async completeInterview(context, id, outcome) {
       requireClaim(context, id);
       const current = await this.getInterview(context, id);
-      if (
-        outcome === "completed" &&
-        current.prompts.some(
-          (prompt) =>
-            prompt.kind === "script" && prompt.required && !prompt.covered,
-        )
-      )
-        throw new Response("Interview is missing required responses", {
-          status: 409,
-        });
       interviews.set(id, { ...current, status: outcome });
       statuses.set(id, outcome === "completed" ? "reached" : "claimed");
     },

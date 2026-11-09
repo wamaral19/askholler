@@ -1,22 +1,18 @@
 import { createHash } from "node:crypto";
 
-import { mapShopifyOrderWebhook } from "@holler/shopify";
 import type { ActionFunctionArgs } from "react-router";
-import { ZodError } from "zod";
 
 import {
   applyShopifyChargeStatus,
   resetChargesOnUninstall,
 } from "../lib/merchant-billing.server";
 import {
-  applyShopifyOrderUpdate,
   getShopifyIngestionDatabase as getDatabase,
-  ingestShopifyOrder,
   recordShopifyPrivacyRequest,
   recordShopifyUninstall,
   shopifyMerchantId,
 } from "../lib/shopify-ingestion.server";
-import { getCustomerPrivateCipher } from "../lib/customer-private.server";
+import { processShopifyOrderDelivery } from "../lib/shopify-order-delivery.server";
 import { getShopifyApp } from "../shopify.server";
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -91,50 +87,18 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
-  if (topic === "ORDERS_CREATE" || topic === "ORDERS_UPDATED") {
-    let ingress;
-    try {
-      ingress = mapShopifyOrderWebhook({
-        webhookId: context.webhookId,
-        eventId: context.eventId ?? null,
-        shopDomain: shop,
-        apiVersion: context.apiVersion,
-        triggeredAt: context.triggeredAt ?? new Date().toISOString(),
-        payload: context.payload,
-      });
-    } catch (error) {
-      if (!(error instanceof ZodError)) throw error;
-      // An authenticated but unusable order will not improve on retry.
-      console.warn(
-        JSON.stringify({
-          event: "shopify.order_webhook_rejected",
-          webhookId: context.webhookId,
-        }),
-      );
-      return new Response(null, { status: 200 });
-    }
-    // Failures propagate as 500 so Shopify redelivers; the delivery ID dedupe
-    // and stable identities make the retry safe. Updates refresh refunds and
-    // status only; they never queue an order.
-    const result =
-      topic === "ORDERS_CREATE"
-        ? await ingestShopifyOrder(
-            getDatabase(),
-            ingress,
-            bodySha256,
-            new Date(),
-            getCustomerPrivateCipher(),
-          )
-        : await applyShopifyOrderUpdate(getDatabase(), ingress, bodySha256);
-    console.info(
-      JSON.stringify({
-        event: "shopify.order_webhook_ingested",
-        webhookId: context.webhookId,
-        merchantId: result.merchantId,
-        outcome: result.outcome,
-      }),
-    );
-  }
+  if (topic === "ORDERS_CREATE" || topic === "ORDERS_UPDATED")
+    await processShopifyOrderDelivery({
+      topic: topic === "ORDERS_CREATE" ? "orders/create" : "orders/updated",
+      source: "app",
+      bodySha256,
+      webhookId: context.webhookId,
+      eventId: context.eventId ?? null,
+      shopDomain: shop,
+      apiVersion: context.apiVersion,
+      triggeredAt: context.triggeredAt ?? new Date().toISOString(),
+      payload: context.payload,
+    });
 
   return new Response(null, { status: 200 });
 }
