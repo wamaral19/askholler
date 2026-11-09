@@ -17,6 +17,8 @@ interface MomentStatusMenuProps {
   readonly general?: boolean;
   /** Where a draft launches from; omit on the setup page itself. */
   readonly launchHref?: string;
+  /** A merchant's request is declined rather than removed. */
+  readonly requestedByMerchant?: boolean;
 }
 
 /**
@@ -27,6 +29,7 @@ export function MomentStatusMenu({
   moment,
   general = false,
   launchHref,
+  requestedByMerchant = false,
 }: MomentStatusMenuProps) {
   const fetcher = useFetcher();
   const menu = useRef<HTMLDetailsElement>(null);
@@ -59,10 +62,18 @@ export function MomentStatusMenu({
             </button>
           </fetcher.Form>
         ))}
-        {moment.status === "draft" && launchHref ? (
-          <Link className="status-menu__item" to={launchHref}>
-            Launch from setup…
-          </Link>
+        {moment.status === "draft" ? (
+          <>
+            <p className="status-menu__note">
+              {requestedByMerchant ? "Awaiting review" : "Draft"}: not launched,
+              so no orders reach the queue.
+            </p>
+            {launchHref ? (
+              <Link className="status-menu__item" to={launchHref}>
+                Review and launch…
+              </Link>
+            ) : null}
+          </>
         ) : null}
         {general ? null : (
           <Form
@@ -71,7 +82,9 @@ export function MomentStatusMenu({
             onSubmit={(event) => {
               if (
                 !window.confirm(
-                  `Remove “${moment.name}”? It stops sending orders to the queue right away. Calls already made stay under Completed calls.`,
+                  moment.status === "draft"
+                    ? `${requestedByMerchant ? "Decline" : "Remove"} “${moment.name}”? It was never launched, so no calls are affected.`
+                    : `Remove “${moment.name}”? It stops sending orders to the queue right away. Calls already made stay under Completed calls.`,
                 )
               )
                 event.preventDefault();
@@ -84,7 +97,9 @@ export function MomentStatusMenu({
               className="status-menu__item status-menu__item--danger"
               type="submit"
             >
-              Remove angle
+              {moment.status === "draft" && requestedByMerchant
+                ? "Decline request"
+                : "Remove study"}
             </button>
           </Form>
         )}

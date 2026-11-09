@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "react-router";
 
-import { authenticateMerchant } from "../lib/merchant-context.server";
+import { authenticateMerchantViewer } from "../lib/merchant-context.server";
 import {
   executeOperationsRequest,
   getOperationsService,
@@ -15,7 +15,7 @@ const PLAYBACK_LINK_SECONDS = 600;
  * merchant's player. Access is checked and audited on every request.
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { context } = await authenticateMerchant(request);
+  const { context } = await authenticateMerchantViewer(request);
   return executeOperationsRequest(async () => {
     if (!params.interviewId)
       throw new Response("Interview is required", { status: 400 });

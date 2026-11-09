@@ -942,6 +942,21 @@ p {
   color: var(--ink-muted);
 }
 
+.moment-card-main .moment-card-note {
+  margin-top: var(--space-2);
+  color: var(--ink);
+  font-size: var(--type-11, 11px);
+}
+
+.status-menu__note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-muted);
+  font-size: var(--type-11, 11px);
+  line-height: var(--lead-17, 17px);
+  border-bottom: 1px solid var(--line);
+}
+
 .helper-copy {
   color: var(--ink-muted);
   font-size: var(--type-11, 11px);
@@ -1002,6 +1017,12 @@ p {
 .status-completed {
   color: var(--ink-muted);
   background: var(--surface-sunken);
+}
+
+/* Who asked for a study, not where it is: its own hue beside the status. */
+.status-request {
+  color: #5b3596;
+  background: rgb(107 63 160 / 12%);
 }
 
 .registry-label {
@@ -3113,9 +3134,9 @@ p {
 .automatic-questions p {
   margin: 0.25rem 0 0;
   color: var(--ink);
-  font-family: var(--font-serif, Georgia, serif);
-  font-size: 15px;
-  line-height: 1.4;
+  font-family: var(--font-text);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .automatic-question__title {
@@ -3249,10 +3270,10 @@ p {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   color: var(--ink);
-  font-family: var(--font-serif, Georgia, serif);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.35;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .question-list-item__meta {
@@ -3622,10 +3643,10 @@ p {
 }
 
 .review-question-list strong {
-  font-family: var(--font-serif, Georgia, serif);
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.4;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 .review-question-list small {
@@ -3693,10 +3714,10 @@ p {
 
 .question-library-list h3 {
   margin: 0;
-  font-family: var(--font-serif, Georgia, serif);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.35;
+  font-family: var(--font-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .question-library-list__disclosure {
@@ -7771,4 +7792,76 @@ p {
    pages, on the same pixel column as its border. */
 .app-shell .workspace {
   box-shadow: -1px 0 0 var(--line);
+}
+
+/* Merchant portal: the Shopify app's pages outside Shopify admin. */
+.merchant-portal__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.merchant-portal__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.merchant-portal__brand img {
+  height: 22px;
+  width: auto;
+}
+
+.merchant-portal__account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  color: var(--ink-muted);
+}
+
+.merchant-portal__account span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Admin: merchant creation */
+.merchants-table td {
+  vertical-align: top;
+}
+
+.merchants-table__meta {
+  display: block;
+  color: var(--ink-muted);
+}
+
+.merchants-table__domains {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.merchants-table__domains li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.merchants-table__add {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.merchants-table__add input {
+  min-width: 0;
+  width: 12em;
 }

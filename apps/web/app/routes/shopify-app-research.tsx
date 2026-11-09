@@ -1,7 +1,8 @@
 import { Link, useLoaderData, type LoaderFunctionArgs } from "react-router";
 
 import { describeCohortExpression } from "../components/angle-builder-form";
-import { authenticateMerchant } from "../lib/merchant-context.server";
+import { useMerchantBase } from "../lib/merchant-base";
+import { authenticateMerchantViewer } from "../lib/merchant-context.server";
 import { momentStatusLabels } from "../lib/moment-status";
 import {
   executeOperationsRequest,
@@ -9,7 +10,7 @@ import {
 } from "../lib/operations-service.server";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { context } = await authenticateMerchant(request);
+  const { context } = await authenticateMerchantViewer(request);
   return executeOperationsRequest(async () => {
     if (!params.researchId)
       throw new Response("Research is required", { status: 400 });
@@ -52,11 +53,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export default function ResearchDetail() {
   const research = useLoaderData<typeof loader>();
+  const base = useMerchantBase();
   return (
     <div className="merchant-home">
       <header className="shopify-app__header">
         <p className="eyebrow">
-          <Link to="/app">Research runs</Link> ·{" "}
+          <Link to={base}>Research runs</Link> ·{" "}
           {momentStatusLabels[research.status]}
         </p>
         <h1>{research.name}</h1>
@@ -65,7 +67,9 @@ export default function ResearchDetail() {
           {research.weeklyTarget > 0
             ? `Target: ${research.weeklyTarget} interviews a week · `
             : ""}
-          <Link to={`/app/calls?research=${encodeURIComponent(research.id)}`}>
+          <Link
+            to={`${base}/calls?research=${encodeURIComponent(research.id)}`}
+          >
             View completed calls →
           </Link>
         </p>

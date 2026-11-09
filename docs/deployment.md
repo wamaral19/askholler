@@ -101,6 +101,51 @@ Workforce pages use Google sign-in when `WORKFORCE_AUTH_PROVIDER=oidc`.
 
    Against production, run these from a Render shell on `holler-web`.
 
+## Merchant portal sign-in (Google)
+
+`https://app.withholler.com/portal` shows merchants the same pages as the
+embedded Shopify app (research runs, raw research, request research, billing)
+without going through Shopify admin. Merchants sign in with Google, and their
+**Google Workspace domain is the gate**: anyone at a domain registered to a
+merchant sees that merchant's research. Personal Google accounts are refused,
+even ones registered with a company address, because only a Workspace domain
+is authoritative for its addresses (an ex-employee's personal Google account
+would otherwise keep access).
+
+Billing in the portal is read-only: approving a charge uses Shopify Billing,
+which only works inside Shopify admin.
+
+1. In Google Cloud Console, create a **second** OAuth client for the portal.
+   The workforce client stays **Internal**; this one needs an **External**
+   consent screen so other companies' accounts can use it. It asks only for
+   `openid email`, so Google's app verification is not required; publish the
+   consent screen to **In production** so it isn't limited to test users.
+2. **Credentials → Create credentials → OAuth client ID → Web application**,
+   with authorized redirect URI
+   `https://app.withholler.com/portal/login/google/callback` (add
+   `http://localhost:5173/portal/login/google/callback` on a development
+   client).
+3. Set in Render (the portal returns 404 until both are set):
+
+   | Key                                    | Value                             |
+   | -------------------------------------- | --------------------------------- |
+   | `MERCHANT_PORTAL_GOOGLE_CLIENT_ID`     | the portal OAuth client ID        |
+   | `MERCHANT_PORTAL_GOOGLE_CLIENT_SECRET` | the portal client secret (secret) |
+
+4. Register each merchant's email domain. The merchant can be named by its
+   UUID or its `.myshopify.com` address. A domain belongs to one merchant;
+   shared mail providers (gmail.com, outlook.com, …) and `withholler.com` are
+   refused.
+
+   ```bash
+   npm run merchant-portal -- add acme.myshopify.com acme.com
+   npm run merchant-portal -- list
+   npm run merchant-portal -- remove acme.com   # ends all its sessions
+   ```
+
+Portal sessions last 7 days, and every request re-checks that the session's
+domain is still registered to the same merchant.
+
 ## First-time setup
 
 ### 1. Render

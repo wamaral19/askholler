@@ -18,7 +18,12 @@ const databaseUrl = testDatabaseUrl();
 const merchantA = "00000000-0000-7000-8000-000000004001";
 const merchantB = "00000000-0000-7000-8000-000000004002";
 const email = "researcher@withholler.com";
-const identity = { issuer: GOOGLE_ISSUER, subject: "google-sub-1", email };
+const identity = {
+  issuer: GOOGLE_ISSUER,
+  subject: "google-sub-1",
+  email,
+  hostedDomain: "withholler.com",
+};
 
 function request(token: string, merchant?: string) {
   const cookies = [`holler_workforce_session=${token}`];
@@ -133,6 +138,7 @@ describe.skipIf(databaseUrl === undefined)(
         issuer: GOOGLE_ISSUER,
         subject: "google-sub-2",
         email: "analyst@withholler.com",
+        hostedDomain: "withholler.com",
       });
       await expect(resolver.resolve(request(token))).rejects.toMatchObject({
         code: "WORKFORCE_IDENTITY_DISABLED",

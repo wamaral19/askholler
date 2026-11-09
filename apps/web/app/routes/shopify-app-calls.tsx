@@ -5,7 +5,8 @@ import {
   type LoaderFunctionArgs,
 } from "react-router";
 
-import { authenticateMerchant } from "../lib/merchant-context.server";
+import { useMerchantBase } from "../lib/merchant-base";
+import { authenticateMerchantViewer } from "../lib/merchant-context.server";
 import {
   executeOperationsRequest,
   getOperationsService,
@@ -13,7 +14,7 @@ import {
 import type { CompletedCall } from "../lib/operations-types";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { context } = await authenticateMerchant(request);
+  const { context } = await authenticateMerchantViewer(request);
   const angleId = new URL(request.url).searchParams.get("research");
   return executeOperationsRequest(async () => {
     const service = getOperationsService();
@@ -57,6 +58,7 @@ function durationLabel(seconds: number | null) {
 
 export default function RawResearch() {
   const { angle, calls } = useLoaderData<typeof loader>();
+  const base = useMerchantBase();
   const { search } = useLocation();
   return (
     <>
@@ -70,10 +72,10 @@ export default function RawResearch() {
         </p>
         {angle ? (
           <p>
-            <Link to={`/app/research/${encodeURIComponent(angle.id)}`}>
+            <Link to={`${base}/research/${encodeURIComponent(angle.id)}`}>
               Who we call and what we ask
             </Link>{" "}
-            · <Link to="/app/calls">Show calls from all research</Link>
+            · <Link to={`${base}/calls`}>Show calls from all research</Link>
           </p>
         ) : null}
       </header>
@@ -114,8 +116,8 @@ export default function RawResearch() {
                     <td className="queue-table__open">
                       <Link
                         className="queue-open"
-                        state={{ backTo: `/app/calls${search}` }}
-                        to={`/app/calls/${call.interviewId}`}
+                        state={{ backTo: `${base}/calls${search}` }}
+                        to={`${base}/calls/${call.interviewId}`}
                       >
                         Open
                       </Link>
