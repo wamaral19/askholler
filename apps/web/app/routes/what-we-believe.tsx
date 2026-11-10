@@ -18,16 +18,16 @@ const beliefs = [
     copy: "Bot fatigue is real. We've pounded zero on the support calls and typed \"agent\" 10x into the chatbot, just like you. If brands aren't willing to invest human time and effort into gathering insights, they shouldn't expect their customers to provide much.",
   },
   {
+    title: "Customers can smell authenticity.",
+    copy: "Real testimonials from real customers resonate much better than scripted content. Our content resonates because customers know it's real, and it hits harder than an emotionless written testimonial.",
+  },
+  {
     title: "Unique insights create an unfair advantage.",
     copy: "Your right to win comes from proprietary data and unique insights. We give you the tools, you make it happen.",
   },
   {
     title: "Context is everything.",
     copy: "The best time to understand a decision is right after it's made. We talk to customers at the moments when their motivations, emotions, and experiences are freshest.",
-  },
-  {
-    title: "Conversations beat surveys.",
-    copy: "Surveys capture answers to the questions you thought to ask. Conversations uncover the things you didn't know you needed to ask about.",
   },
   {
     title: "Incentives matter.",

@@ -9,17 +9,17 @@ import { useCases } from "../components/marketing-content";
 
 export function meta() {
   return marketingMeta(
-    "DTC Research Use Cases | Holler",
+    "Customer Research Questions | Holler",
     "See how DTC ecommerce teams use Holler to understand attribution, creative resonance, retention, customer segments, and product experience.",
   );
 }
 
 export default function UseCases() {
   return (
-    <SitePage current="use-cases">
+    <SitePage current="what-we-produce">
       <SiteHero
-        kicker="Use cases for DTC ecommerce"
-        title="Answer the question behind the metric."
+        kicker="Research questions for DTC ecommerce"
+        title="What do you want to learn from your customers?"
         lede="Your commerce stack shows what happened. Holler talks with the exact customers behind the pattern so your team can understand why it happened and decide what to do next."
       />
 

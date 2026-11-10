@@ -49,6 +49,7 @@ const plans = [
 
 const shared = [
   "Human-led customer interviews",
+  "At least one clip for ad content",
   "Executive summary and evidence-backed findings",
   "Tagged conversations and authorized transcripts or recordings",
   "Recommended actions and marketing experiments",

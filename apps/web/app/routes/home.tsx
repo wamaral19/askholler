@@ -1,6 +1,5 @@
 import { redirect, type LoaderFunctionArgs } from "react-router";
 import {
-  SiteCta,
   SitePage,
   SiteSection,
   marketingMeta,
@@ -16,55 +15,51 @@ export function loader({ request }: LoaderFunctionArgs) {
 
 export function meta() {
   return marketingMeta(
-    "Holler | Human customer research for DTC brands",
-    "Holler's talks with the customers who matter most, right when context is richest, and turns those conversations into evidence-backed answers.",
+    "Holler | Living customer testimonials and customer research",
+    "Holler turns timely conversations with real customers into authentic ad content, actionable insights, and a searchable research library.",
   );
 }
 
-const valuePillars = [
+const outputs = [
   {
     number: "01",
-    title: "Direction set by you, discovery done by us",
+    kicker: "Value now",
+    title: "Ad content from real customer interactions",
     description:
-      "Your dashboard tells you what's happening, not why. Bring us the questions your data can't answer. We turn customer conversations into a clear point of view your team can act on.",
+      "We talk with real customers, who deliver real, unprompted testimonials. The best moments create authentic ad content that hits harder than text based testimonials or paid UGC.",
+    href: "/ad-content",
+    link: "Explore ad content",
   },
   {
     number: "02",
-    title: "The right customers, not a generic panel",
+    kicker: "Better decisions",
+    title: "Insights your team can act on",
     description:
-      "We automatically segment and qualify your customers based on purchase history, product, acquisition source, and behavior.",
+      "We distill a large sample of conversations into actionable reports.",
+    href: "/research",
+    link: "Explore customer research",
   },
   {
     number: "03",
-    title: "Human-to-human, because your brand matters",
+    kicker: "Value that compounds",
+    title: "A searchable library of customer truth",
     description:
-      "Every conversation is led by a human researcher whose first priority is to leave your customer feeling better about your brand. Great research and great customer experiences go hand in hand.",
+      "Every conversation is transcribed and tagged, building queryable research database of qualitative insights from real individuals interacting with your brand.",
+    href: "/research#library",
+    link: "See how the library grows",
   },
-  {
-    number: "04",
-    title: "Every conversation, available to explore",
-    description:
-      "Every conversation is transcribed, tagged, and searchable. Explore the details, uncover patterns, and trace every insight back to the customers behind it.",
-  },
-];
+] as const;
 
 export default function Home() {
   return (
     <SitePage current="home">
       <SiteSection className="site-home-hero">
-        <p className="site-kicker">
-          Human-led customer research for DTC brands
-        </p>
+        <p className="site-kicker">Customer conversations for DTC brands</p>
         <h1>
-          <span>Insights build businesses.</span>
-          <span>Conversations build relationships.</span>
-          <em>Holler delivers both.</em>
+          <span>Insights that drive decisions.</span>
+          <span>Conversations that create ad content.</span>
+          <em>Holler at your customers.</em>
         </h1>
-        <p className="site-home-hero__lede">
-          Holler talks with your customers to uncover the why behind their
-          decisions, translating those conversations into actionable insights
-          and a searchable library of customer intelligence.
-        </p>
         <div className="site-actions">
           <a
             className="site-btn site-btn--primary"
@@ -74,36 +69,115 @@ export default function Home() {
           >
             Holler at us <span aria-hidden="true">↗</span>
           </a>
-          <a className="site-btn site-btn--secondary" href="/sample-report">
-            See a sample <span aria-hidden="true">→</span>
+          <a className="site-btn site-btn--secondary" href="#what-we-produce">
+            See what we produce <span aria-hidden="true">↓</span>
           </a>
         </div>
+      </SiteSection>
 
-        <div className="site-moment" aria-label="Example research moment">
-          <div className="site-moment__card">
-            <div className="site-moment__heading">
-              <span className="site-moment__dot" aria-hidden="true" />
-              <span>Hollering</span>
-              <span>05:38 elapsed</span>
-            </div>
-            <ol>
-              <li>
-                <time>12:04:14</time>
-                <strong>Order placed</strong>
-                <span>First order · last click: Google</span>
-              </li>
-              <li>
-                <time>12:04:32</time>
-                <strong>Qualified for interview</strong>
-                <span>First-time purchaser · research SKU match </span>
-              </li>
-              <li>
-                <time>12:09:52</time>
-                <strong>"Walked into your store a couple of weeks ago"</strong>
-                <span>Self-reported discovery · brick and mortar</span>
-              </li>
-            </ol>
+      <SiteSection id="what-we-produce">
+        <div className="site-head">
+          <p className="site-kicker">What we produce</p>
+          <h2>Content you can run. Research you can act on.</h2>
+        </div>
+        <div className="site-output-grid">
+          {outputs.map((output) => (
+            <article className="site-output" key={output.number}>
+              <div className="site-output__meta">
+                <span className="site-number">{output.number}</span>
+                <span>{output.kicker}</span>
+              </div>
+              <h3>{output.title}</h3>
+              <p>{output.description}</p>
+              <a href={output.href}>
+                {output.link} <span aria-hidden="true">→</span>
+              </a>
+            </article>
+          ))}
+        </div>
+      </SiteSection>
+
+      <SiteSection className="site-home-workflows">
+        <div className="site-head">
+          <p className="site-kicker">How Holler works</p>
+          <h2>From checkout to context and insight.</h2>
+        </div>
+
+        <div className="site-journey-wrap">
+          <div className="site-journey__legend" aria-label="Timeline legend">
+            <span className="is-brand">Brand POV</span>
+            <span className="is-customer">Customer POV</span>
           </div>
+          <ol className="site-journey" aria-label="Holler timeline">
+            <li className="is-brand">
+              <div className="site-journey__meta">
+                <span>Brand POV</span>
+              </div>
+              <h3>Create study</h3>
+              <p>
+                Define the who, when, and what by setting the customer segment,
+                moment for research, and questions that you want answered.
+              </p>
+            </li>
+            <li className="is-customer">
+              <div className="site-journey__meta">
+                <span>Customer POV</span>
+              </div>
+              <h3>Order placed</h3>
+              <p>The purchase is fresh and context is richest.</p>
+            </li>
+            <li className="is-neutral">
+              <div className="site-journey__meta">
+                <time>Immediately</time>
+              </div>
+              <h3>Automatically qualified</h3>
+              <p>
+                Holler&apos;s system automatically qualifies customers for the
+                right study with the correct research questions.
+              </p>
+            </li>
+            <li className="is-customer">
+              <div className="site-journey__meta">
+                <time>Seconds later</time>
+                <span>Customer POV</span>
+              </div>
+              <h3>Receive call</h3>
+              <p>
+                A Holler researcher calls the customer to congratulate them on
+                the order / delivery.
+              </p>
+            </li>
+            <li className="is-customer">
+              <div className="site-journey__meta">
+                <time>On the call</time>
+                <span>Customer POV</span>
+              </div>
+              <h3>A real conversation</h3>
+              <p>
+                The customer shares their story, answers questions for the
+                brand, and leaves feeling heard.
+              </p>
+            </li>
+            <li className="is-brand">
+              <div className="site-journey__meta">
+                <span>Brand POV</span>
+              </div>
+              <h3>Content delivered</h3>
+              <p>
+                The best clips from research are turned into social content.
+              </p>
+            </li>
+            <li className="is-brand">
+              <div className="site-journey__meta">
+                <span>Brand POV</span>
+              </div>
+              <h3>Report delivery</h3>
+              <p>
+                Research is distilled into an actionable report and a
+                searchable, tagged research database.
+              </p>
+            </li>
+          </ol>
         </div>
       </SiteSection>
 
@@ -111,39 +185,17 @@ export default function Home() {
         <figure className="site-feature">
           <p className="site-kicker">Our operating principle</p>
           <blockquote>
-            Customers should leave every conversation feeling more connected to
-            your brand.
+            Customers leave every conversation feeling more connected to your
+            brand.
           </blockquote>
           <figcaption>Human-to-human. Always.</figcaption>
         </figure>
-      </SiteSection>
-
-      <SiteSection id="what-you-get">
-        <div className="site-head">
-          <p className="site-kicker">What you get with Holler</p>
-          <h2>Answers, from the people who matter most.</h2>
+        <div className="site-feature-action">
+          <a className="site-btn site-btn--primary" href="/contact">
+            Talk with Holler <span aria-hidden="true">→</span>
+          </a>
         </div>
-        <ol className="site-columns site-columns--4">
-          {valuePillars.map((pillar) => (
-            <li key={pillar.number}>
-              <span className="site-number">{pillar.number}</span>
-              <h3>{pillar.title}</h3>
-              <p>{pillar.description}</p>
-            </li>
-          ))}
-        </ol>
       </SiteSection>
-
-      <SiteCta
-        kicker="Talk with Holler"
-        title="What questions do you have for us?"
-        href="https://calendar.app.google/mrp9eD6VrhFgm7Hz9"
-        label={
-          <>
-            Book time with us <span aria-hidden="true">↗</span>
-          </>
-        }
-      />
     </SitePage>
   );
 }

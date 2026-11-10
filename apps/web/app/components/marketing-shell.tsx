@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useCases } from "./marketing-content";
 import "../marketing.css";
 
 export const marketingContactHref =
@@ -20,6 +19,7 @@ export function marketingMeta(title: string, description: string) {
 
 type SitePageKey =
   | "home"
+  | "what-we-produce"
   | "use-cases"
   | "how-it-works"
   | "what-we-believe"
@@ -44,15 +44,22 @@ type NavItem =
 const siteNavigation: NavItem[] = [
   {
     kind: "menu",
-    key: "use-cases",
-    label: "Use Cases",
-    heading: "Answer the question behind the metric",
-    links: useCases.map((useCase) => ({
-      label: useCase.label,
-      href: `/use-cases#${useCase.slug}`,
-      description: useCase.question,
-    })),
-    footer: { label: "All use cases", href: "/use-cases" },
+    key: "what-we-produce",
+    label: "What We Produce",
+    heading: "One conversation, value you can use now and later",
+    links: [
+      {
+        label: "Ad Content",
+        href: "/ad-content",
+        description: "Living testimonials made for paid social.",
+      },
+      {
+        label: "Customer Research",
+        href: "/research",
+        description: "Actionable insights and a compounding research library.",
+      },
+    ],
+    footer: { label: "Explore research questions", href: "/use-cases" },
   },
   {
     kind: "menu",
@@ -90,11 +97,12 @@ const siteNavigation: NavItem[] = [
 
 const footerColumns: { heading: string; links: NavLink[] }[] = [
   {
-    heading: "Use Cases",
-    links: useCases.map((useCase) => ({
-      label: useCase.label,
-      href: `/use-cases#${useCase.slug}`,
-    })),
+    heading: "What We Produce",
+    links: [
+      { label: "Ad Content", href: "/ad-content" },
+      { label: "Customer Research", href: "/research" },
+      { label: "Research Questions", href: "/use-cases" },
+    ],
   },
   {
     heading: "Research",
@@ -343,9 +351,9 @@ function SiteFooter() {
           <a href="/" aria-label="Holler home">
             <img src="/brand/holler-wordmark.png" alt="Holler" />
           </a>
-          <p>Human customer research for DTC brands.</p>
+          <p>Living testimonials and customer research for DTC brands.</p>
           <p className="site-footer__ask">
-            Bring us the question behind the metric.
+            Turn customer conversations into content and insight.
           </p>
           <a className="site-footer__email" href={marketingContactHref}>
             wyatt@withholler.com
