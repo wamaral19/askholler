@@ -86,6 +86,9 @@ export function AppShell({
               <NavLink to="/admin/research-fields">Evidence taxonomy</NavLink>
               <NavLink to="/admin/scripts">Question database</NavLink>
               {layout?.showBilling ? (
+                <NavLink to="/admin/merchants">Merchant creation</NavLink>
+              ) : null}
+              {layout?.showBilling ? (
                 <NavLink to="/admin/billing">Billing</NavLink>
               ) : null}
             </NavGroup>

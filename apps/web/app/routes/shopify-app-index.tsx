@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useLoaderData, type LoaderFunctionArgs } from "react-router";
 
-import { authenticateMerchant } from "../lib/merchant-context.server";
+import { useMerchantBase } from "../lib/merchant-base";
+import { authenticateMerchantViewer } from "../lib/merchant-context.server";
 import {
   executeOperationsRequest,
   getOperationsService,
 } from "../lib/operations-service.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { context } = await authenticateMerchant(request);
+  const { context } = await authenticateMerchantViewer(request);
   return executeOperationsRequest(async () => {
     const service = getOperationsService();
     const [runs, angles] = await Promise.all([
@@ -74,6 +75,7 @@ function useRememberedOpen(key: string) {
 
 export default function CompletedResearchRuns() {
   const { runs, angles } = useLoaderData<typeof loader>();
+  const base = useMerchantBase();
   const [setupOpen, setSetupOpen] = useFirstVisitOpen();
   const [activeOpen, setActiveOpen] = useRememberedOpen(ACTIVE_COLLAPSED_KEY);
   const setupDone = 1 + (angles.length ? 1 : 0) + (runs.length ? 1 : 0);
@@ -160,7 +162,9 @@ export default function CompletedResearchRuns() {
               <li className="shopify-app__card merchant-run" key={angle.id}>
                 <div>
                   <h3>
-                    <Link to={`/app/research/${encodeURIComponent(angle.id)}`}>
+                    <Link
+                      to={`${base}/research/${encodeURIComponent(angle.id)}`}
+                    >
                       {angle.name}
                     </Link>
                   </h3>
@@ -200,7 +204,9 @@ export default function CompletedResearchRuns() {
               >
                 <div>
                   <h3>
-                    <Link to={`/app/research/${encodeURIComponent(angle.id)}`}>
+                    <Link
+                      to={`${base}/research/${encodeURIComponent(angle.id)}`}
+                    >
                       {angle.name}
                     </Link>
                   </h3>
@@ -218,13 +224,13 @@ export default function CompletedResearchRuns() {
                   />
                   <Link
                     className="merchant-run__link"
-                    to={`/app/research/${encodeURIComponent(angle.id)}`}
+                    to={`${base}/research/${encodeURIComponent(angle.id)}`}
                   >
                     Who we call and what we ask →
                   </Link>
                   <Link
                     className="merchant-run__link"
-                    to={`/app/calls?research=${encodeURIComponent(angle.id)}`}
+                    to={`${base}/calls?research=${encodeURIComponent(angle.id)}`}
                   >
                     View completed calls →
                   </Link>

@@ -27,9 +27,9 @@ beforeAll(async () => {
   keys = createLocalJWKSet({ keys: [jwk] });
 });
 
-function start(redirectTo = "/moments") {
+function start(redirectTo = "/moments", oidc: GoogleOidcConfig = config) {
   const request = new Request("https://app.holler.invalid/login/google");
-  const { location, cookie } = beginGoogleSignIn(config, request, redirectTo);
+  const { location, cookie } = beginGoogleSignIn(oidc, request, redirectTo);
   const url = new URL(location);
   const cookieValue = cookie.split(";")[0]!;
   const flow = JSON.parse(
@@ -58,6 +58,7 @@ function callback(
   cookieValue: string | undefined,
   state: string,
   token: string,
+  oidc: GoogleOidcConfig = config,
 ) {
   const fetchMock = vi.fn(async () => Response.json({ id_token: token }));
   const request = new Request(
@@ -67,7 +68,7 @@ function callback(
   return {
     fetchMock,
     result: completeGoogleSignIn(
-      config,
+      oidc,
       { fetch: fetchMock as unknown as typeof fetch, keys },
       request,
     ),
@@ -101,6 +102,7 @@ describe("Google OIDC sign-in", () => {
         issuer: "https://accounts.google.com",
         subject: "google-subject-1",
         email: "researcher@withholler.com",
+        hostedDomain: "withholler.com",
       },
       redirectTo: "/queue",
     });
@@ -157,5 +159,58 @@ describe("Google OIDC sign-in", () => {
         ).result,
       ).rejects.toMatchObject({ code: "OIDC_DOMAIN_DENIED" });
     }
+  });
+
+  describe("for any Workspace domain (merchant portal)", () => {
+    const portal: GoogleOidcConfig = {
+      ...config,
+      redirectUri: "https://app.holler.invalid/portal/login/google/callback",
+      allowedDomain: null,
+    };
+
+    it("asks Google for Workspace accounts and scopes the flow cookie to the portal", () => {
+      const { url, cookie } = start("/portal", portal);
+      expect(url.searchParams.get("hd")).toBe("*");
+      expect(url.searchParams.get("redirect_uri")).toBe(portal.redirectUri);
+      expect(cookie).toContain("Path=/portal/login/google;");
+    });
+
+    it("returns the account's own Workspace domain", async () => {
+      const { cookieValue, flow } = start("/portal/calls", portal);
+      const result = callback(
+        cookieValue,
+        flow.state,
+        await idToken({
+          nonce: flow.nonce,
+          hd: "Acme.com",
+          email: "Buyer@Acme.com",
+        }),
+        portal,
+      ).result;
+      await expect(result).resolves.toMatchObject({
+        identity: { email: "buyer@acme.com", hostedDomain: "acme.com" },
+        redirectTo: "/portal/calls",
+      });
+    });
+
+    it("rejects consumer accounts, even with a company address", async () => {
+      const { cookieValue, flow } = start("/portal", portal);
+      for (const claims of [
+        { hd: undefined, email: "someone@gmail.com" },
+        // A personal Google account registered with a work address has no hd.
+        { hd: undefined, email: "former-employee@acme.com" },
+        { hd: "acme.com", email: "someone@other.com" },
+        { hd: "acme.com", email: "a@acme.com", email_verified: false },
+      ]) {
+        await expect(
+          callback(
+            cookieValue,
+            flow.state,
+            await idToken({ nonce: flow.nonce, ...claims }),
+            portal,
+          ).result,
+        ).rejects.toMatchObject({ code: "OIDC_DOMAIN_DENIED" });
+      }
+    });
   });
 });

@@ -16,8 +16,11 @@ export interface GoogleOidcConfig {
   readonly clientSecret: string;
   /** Absolute callback URL registered on the Google OAuth client. */
   readonly redirectUri: string;
-  /** Workspace domain whose verified accounts may sign in. */
-  readonly allowedDomain: string;
+  /**
+   * Workspace domain whose verified accounts may sign in. Null admits any
+   * Google Workspace account; the caller then gates on `hostedDomain`.
+   */
+  readonly allowedDomain: string | null;
 }
 
 export interface GoogleOidcDependencies {
@@ -28,8 +31,14 @@ export interface GoogleOidcDependencies {
 export interface VerifiedGoogleIdentity {
   readonly issuer: typeof GOOGLE_ISSUER;
   readonly subject: string;
-  /** Lowercased, verified, and inside the allowed Workspace domain. */
+  /** Lowercased, verified, and inside the account's Workspace domain. */
   readonly email: string;
+  /**
+   * The Google Workspace domain (`hd` claim) that manages this account.
+   * Only a Workspace domain is authoritative for its addresses, so consumer
+   * accounts registered with a company email never get one.
+   */
+  readonly hostedDomain: string;
 }
 
 export class GoogleSignInError extends Error {
@@ -77,6 +86,26 @@ export function googleOidcConfigFromEnvironment(
   };
 }
 
+/**
+ * The merchant portal's Google client. It is separate from the workforce
+ * client because that one is Internal to withholler.com; this one is External
+ * so merchants' own Workspace accounts can use it. Null when unconfigured.
+ */
+export function merchantPortalOidcConfigFromEnvironment(
+  environment: NodeJS.ProcessEnv,
+): GoogleOidcConfig | null {
+  const clientId = environment.MERCHANT_PORTAL_GOOGLE_CLIENT_ID;
+  const clientSecret = environment.MERCHANT_PORTAL_GOOGLE_CLIENT_SECRET;
+  const baseUrl = environment.APP_BASE_URL;
+  if (!clientId || !clientSecret || !baseUrl) return null;
+  return {
+    clientId,
+    clientSecret,
+    redirectUri: new URL("/portal/login/google/callback", baseUrl).toString(),
+    allowedDomain: null,
+  };
+}
+
 let defaultKeys: JWTVerifyGetKey | undefined;
 export function defaultGoogleOidcDependencies(): GoogleOidcDependencies {
   defaultKeys ??= createRemoteJWKSet(new URL(JWKS_URI));
@@ -107,13 +136,15 @@ export function beginGoogleSignIn(
       .update(flow.verifier)
       .digest("base64url"),
     code_challenge_method: "S256",
-    // A UI hint only; the ID token's hd claim is what is enforced.
-    hd: config.allowedDomain,
+    // A UI hint only; the ID token's hd claim is what is enforced. "*"
+    // asks Google to offer only Workspace accounts.
+    hd: config.allowedDomain ?? "*",
     prompt: "select_account",
   }).toString();
   return {
     location: url.toString(),
     cookie: flowCookie(
+      config,
       request,
       Buffer.from(JSON.stringify(flow)).toString("base64url"),
       FLOW_MAX_AGE_SECONDS,
@@ -168,20 +199,31 @@ export async function completeGoogleSignIn(
     throw new GoogleSignInError("OIDC_ID_TOKEN_INVALID");
   const email =
     typeof claims.email === "string" ? claims.email.toLowerCase() : "";
+  const hostedDomain =
+    typeof claims.hd === "string" ? claims.hd.toLowerCase() : "";
   if (
     claims.email_verified !== true ||
-    claims.hd !== config.allowedDomain ||
-    !email.endsWith(`@${config.allowedDomain}`)
+    !hostedDomain ||
+    (config.allowedDomain !== null && hostedDomain !== config.allowedDomain) ||
+    !email.endsWith(`@${hostedDomain}`)
   )
     throw new GoogleSignInError("OIDC_DOMAIN_DENIED");
   return {
-    identity: { issuer: GOOGLE_ISSUER, subject: claims.sub, email },
+    identity: {
+      issuer: GOOGLE_ISSUER,
+      subject: claims.sub,
+      email,
+      hostedDomain,
+    },
     redirectTo: flow.redirectTo,
   };
 }
 
-export function clearOidcFlowCookie(request: Request): string {
-  return flowCookie(request, "", 0);
+export function clearOidcFlowCookie(
+  config: GoogleOidcConfig,
+  request: Request,
+): string {
+  return flowCookie(config, request, "", 0);
 }
 
 function readFlow(request: Request): FlowState | undefined {
@@ -210,13 +252,26 @@ function readFlow(request: Request): FlowState | undefined {
   }
 }
 
-function flowCookie(request: Request, value: string, maxAge: number): string {
+/**
+ * Scoped to the sign-in start and callback paths only, e.g. /login/google for
+ * a /login/google/callback redirect, so separate sign-ins never share a flow.
+ */
+function flowCookiePath(config: GoogleOidcConfig): string {
+  return new URL(config.redirectUri).pathname.replace(/\/callback$/, "");
+}
+
+function flowCookie(
+  config: GoogleOidcConfig,
+  request: Request,
+  value: string,
+  maxAge: number,
+): string {
   const secure =
     new URL(request.url).protocol === "https:" ||
     request.headers.get("x-forwarded-proto") === "https";
   return [
     `${OIDC_FLOW_COOKIE}=${value}`,
-    "Path=/login/google",
+    `Path=${flowCookiePath(config)}`,
     "HttpOnly",
     // Lax lets the cookie ride Google's top-level redirect back to us.
     "SameSite=Lax",

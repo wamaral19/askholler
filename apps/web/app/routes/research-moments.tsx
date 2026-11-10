@@ -92,7 +92,7 @@ export async function action({ request }: { request: Request }) {
 }
 
 export function meta() {
-  return [{ title: "Live angles · Holler" }];
+  return [{ title: "Live studies · Holler" }];
 }
 
 export default function ResearchMomentsRoute() {
@@ -100,7 +100,12 @@ export default function ResearchMomentsRoute() {
   const actionData = useActionData<typeof action>();
   const generatedReport =
     actionData && "reportId" in actionData ? actionData : undefined;
-  const liveCount = moments.filter((moment) => moment.status === "live").length;
+  // General calls are a study too: they reach the queue whenever they're live.
+  const studies = general ? [general, ...moments] : moments;
+  const liveCount = studies.filter((study) => study.status === "live").length;
+  const awaitingReview = moments.filter(
+    (moment) => moment.status === "draft",
+  ).length;
   const running = moments.filter(
     (moment) => moment.status === "live" || moment.status === "paused",
   );
@@ -115,12 +120,12 @@ export default function ResearchMomentsRoute() {
 
   return (
     <AppShell
-      eyebrow="Angle setup"
-      title="Live angles"
-      description="Live angles send new orders to the queue for researchers to call. Pause or complete an angle to stop new orders; reopen it any time."
+      eyebrow="Study setup"
+      title="Live studies"
+      description="Live studies send new orders to the queue for researchers to call. Pause or complete a study to stop new orders; reopen it any time. Drafts, including merchant requests, send nothing until you launch them."
       actions={
         <Link className="button button-primary" to="/moments/new">
-          New angle
+          New study
         </Link>
       }
     >
@@ -147,9 +152,12 @@ export default function ResearchMomentsRoute() {
 
       <section className="metric-grid" aria-label="Angle summary">
         <article className="metric-card">
-          <span>Live angles</span>
+          <span>Live studies</span>
           <strong>{liveCount}</strong>
-          <small>of {moments.length} configured</small>
+          <small>
+            of {studies.length} configured
+            {awaitingReview ? ` · ${awaitingReview} not launched` : ""}
+          </small>
         </article>
         <article className="metric-card">
           <span>Completed this week</span>
@@ -217,13 +225,31 @@ export default function ResearchMomentsRoute() {
                 <div className="moment-card-title">
                   <h3>{moment.name}</h3>
                   <span className={`status-pill status-${moment.status}`}>
-                    {momentStatusLabels[moment.status]}
+                    {moment.status === "draft" && moment.requestedByMerchant
+                      ? "Awaiting review"
+                      : momentStatusLabels[moment.status]}
                   </span>
                   {moment.requestedByMerchant ? (
-                    <span className="status-pill">Requested by merchant</span>
+                    <span className="status-pill status-request">
+                      Merchant request
+                    </span>
                   ) : null}
                 </div>
                 <p>{moment.objective}</p>
+                {moment.status === "draft" ? (
+                  <p className="moment-card-note">
+                    Not launched: no orders reach the queue.{" "}
+                    {canManage ? (
+                      <Link
+                        to={`/moments/${encodeURIComponent(moment.id)}/edit`}
+                      >
+                        {moment.requestedByMerchant
+                          ? "Review the request and launch it"
+                          : "Finish setup and launch it"}
+                      </Link>
+                    ) : null}
+                  </p>
+                ) : null}
                 {moment.status === "completed" && canManage ? (
                   <Form className="report-link-form" method="post">
                     <input name="intent" type="hidden" value="set_report_url" />
@@ -262,6 +288,7 @@ export default function ResearchMomentsRoute() {
                   <MomentStatusMenu
                     launchHref={`/moments/${encodeURIComponent(moment.id)}/edit`}
                     moment={moment}
+                    requestedByMerchant={moment.requestedByMerchant === true}
                   />
                 ) : null}
               </div>

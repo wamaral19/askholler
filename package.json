@@ -28,7 +28,8 @@
     "shopify:read-all-orders": "tsx scripts/shopify-read-all-orders.ts",
     "shopify:seed-reviewer": "tsx scripts/seed-shopify-reviewer.ts",
     "zapier:fake-hook": "tsx scripts/fake-zapier-hook.ts",
-    "workforce": "tsx scripts/workforce.ts"
+    "workforce": "tsx scripts/workforce.ts",
+    "merchant-portal": "tsx scripts/merchant-portal.ts"
   },
   "devDependencies": {
     "@shopify/cli": "^4.8.0",

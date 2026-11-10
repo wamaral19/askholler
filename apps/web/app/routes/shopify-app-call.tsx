@@ -14,7 +14,8 @@ import {
   promptGroups,
   SheetSection,
 } from "../components/call-sheet";
-import { authenticateMerchant } from "../lib/merchant-context.server";
+import { useMerchantBase } from "../lib/merchant-base";
+import { authenticateMerchantViewer } from "../lib/merchant-context.server";
 import {
   executeOperationsRequest,
   getOperationsService,
@@ -22,7 +23,7 @@ import {
 import type { CallReview, TranscriptLine } from "../lib/operations-types";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { context } = await authenticateMerchant(request);
+  const { context } = await authenticateMerchantViewer(request);
   return executeOperationsRequest(async () => {
     if (!params.interviewId)
       throw new Response("Interview is required", { status: 400 });
@@ -73,12 +74,14 @@ function clock(ms: number | null) {
 
 export default function MerchantCall() {
   const data = useLoaderData<typeof loader>();
+  const base = useMerchantBase();
   // Return to the list the merchant came from, keeping its research filter.
   const { state } = useLocation();
   const backTo =
-    typeof state?.backTo === "string" && state.backTo.startsWith("/app/calls")
+    typeof state?.backTo === "string" &&
+    state.backTo.startsWith(`${base}/calls`)
       ? state.backTo
-      : "/app/calls";
+      : `${base}/calls`;
   return (
     <div className="call-sheet">
       <section className="call-bar" aria-label="Call summary">
@@ -203,9 +206,11 @@ export default function MerchantCall() {
 
 /**
  * Asks for a short-lived recording link only when the merchant presses play.
- * App Bridge adds the session token to the request.
+ * In Shopify admin, App Bridge adds the session token to the request; in the
+ * portal, the session cookie rides along.
  */
 function RecordingPlayer({ interviewId }: { interviewId: string }) {
+  const base = useMerchantBase();
   const [state, setState] = useState<
     { status: "idle" | "loading" | "failed" } | { status: "ready"; url: string }
   >({ status: "idle" });
@@ -214,7 +219,7 @@ function RecordingPlayer({ interviewId }: { interviewId: string }) {
     setState({ status: "loading" });
     try {
       const response = await fetch(
-        `/app/calls/${encodeURIComponent(interviewId)}/recording`,
+        `${base}/calls/${encodeURIComponent(interviewId)}/recording`,
       );
       const body = (await response.json()) as { url?: string };
       setState(

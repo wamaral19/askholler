@@ -7,7 +7,7 @@ import {
 
 import { AngleBuilderForm } from "../components/angle-builder-form";
 import { angleSaveErrors, momentInputFromForm } from "../lib/angle-form";
-import { authenticateMerchant } from "../lib/merchant-context.server";
+import { authenticateMerchantViewer } from "../lib/merchant-context.server";
 import {
   executeOperationsRequest,
   getOperationsService,
@@ -15,7 +15,7 @@ import {
 import { formErrorFrom } from "../lib/route-forms";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { context } = await authenticateMerchant(request);
+  const { context } = await authenticateMerchantViewer(request);
   return executeOperationsRequest(async () => {
     const service = getOperationsService();
     const [fields, scripts, products] = await Promise.all([
@@ -29,7 +29,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 /** Saved as a draft marked as the merchant's request; nothing goes live. */
 export async function action({ request }: ActionFunctionArgs) {
-  const { context } = await authenticateMerchant(request);
+  const { context } = await authenticateMerchantViewer(request);
   try {
     return await executeOperationsRequest(async () => {
       // Merchants only send new requests; staff revise existing research.

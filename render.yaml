@@ -75,6 +75,12 @@ services:
         sync: false
       - key: GOOGLE_OAUTH_CLIENT_SECRET
         sync: false
+      # Merchant portal (/portal): a separate, External Google OAuth client so
+      # merchants' own Workspace accounts can sign in. Unset hides the portal.
+      - key: MERCHANT_PORTAL_GOOGLE_CLIENT_ID
+        sync: false
+      - key: MERCHANT_PORTAL_GOOGLE_CLIENT_SECRET
+        sync: false
       - key: PII_KMS_KEY_ID
         sync: false
       - key: TWILIO_ACCOUNT_SID

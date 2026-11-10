@@ -96,34 +96,43 @@ export async function recordShopifyInstall(
           updatedAt: now,
         },
       });
-    const scriptId = stableUuid(`default-script:${merchantId}`);
-    await tx
-      .insert(scripts)
-      .values({
-        id: scriptId,
-        merchantId,
-        name: "Default attribution interview",
-        status: "published",
-      })
-      .onConflictDoNothing();
-    const content = { prompts: ["discovery", "trigger", "influence"] };
-    await tx
-      .insert(scriptVersions)
-      .values({
-        id: stableUuid(`default-script-version:${merchantId}`),
-        scriptId,
-        merchantId,
-        version: 1,
-        status: "published",
-        content,
-        checksum: createHash("sha256")
-          .update(JSON.stringify(content))
-          .digest("hex"),
-        publishedAt: now,
-      })
-      .onConflictDoNothing();
+    await provisionDefaultScript(tx, merchantId, now);
   });
   return merchantId;
+}
+
+/** Every merchant starts with a published default script so studies can be built. */
+export async function provisionDefaultScript(
+  tx: Transaction,
+  merchantId: string,
+  now: Date,
+): Promise<void> {
+  const scriptId = stableUuid(`default-script:${merchantId}`);
+  await tx
+    .insert(scripts)
+    .values({
+      id: scriptId,
+      merchantId,
+      name: "Default attribution interview",
+      status: "published",
+    })
+    .onConflictDoNothing();
+  const content = { prompts: ["discovery", "trigger", "influence"] };
+  await tx
+    .insert(scriptVersions)
+    .values({
+      id: stableUuid(`default-script-version:${merchantId}`),
+      scriptId,
+      merchantId,
+      version: 1,
+      status: "published",
+      content,
+      checksum: createHash("sha256")
+        .update(JSON.stringify(content))
+        .digest("hex"),
+      publishedAt: now,
+    })
+    .onConflictDoNothing();
 }
 
 export async function recordShopifyUninstall(

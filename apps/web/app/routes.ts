@@ -25,6 +25,34 @@ export default [
     route("billing", "routes/shopify-app-billing.tsx"),
   ]),
   route("app/calls/:interviewId/recording", "routes/shopify-app-recording.ts"),
+  // The merchant portal: the Shopify app's pages, signed in with Google.
+  route("portal", "routes/portal.tsx", [
+    index("routes/shopify-app-index.tsx", { id: "routes/portal-index" }),
+    route("calls", "routes/shopify-app-calls.tsx", {
+      id: "routes/portal-calls",
+    }),
+    route("calls/:interviewId", "routes/shopify-app-call.tsx", {
+      id: "routes/portal-call",
+    }),
+    route("research/new", "routes/shopify-app-angle-request.tsx", {
+      id: "routes/portal-angle-request",
+    }),
+    route("research/:researchId", "routes/shopify-app-research.tsx", {
+      id: "routes/portal-research",
+    }),
+    route("billing", "routes/portal-billing.tsx"),
+  ]),
+  route(
+    "portal/calls/:interviewId/recording",
+    "routes/shopify-app-recording.ts",
+    { id: "routes/portal-recording" },
+  ),
+  route("portal/login", "routes/portal-login.tsx"),
+  route("portal/login/google", "routes/portal-login-google.ts"),
+  route(
+    "portal/login/google/callback",
+    "routes/portal-login-google-callback.ts",
+  ),
   route("auth/login", "routes/shopify-login.tsx"),
   route("auth/*", "routes/shopify-auth.tsx"),
   route("webhooks", "routes/shopify-webhooks.tsx"),
@@ -37,6 +65,7 @@ export default [
     route("admin/research-fields", "routes/admin-research-fields.tsx"),
     route("admin/scripts", "routes/admin-scripts.tsx"),
     route("admin/billing", "routes/admin-billing.tsx"),
+    route("admin/merchants", "routes/admin-merchants.tsx"),
     route("moments", "routes/research-moments.tsx"),
     route("moments/new", "routes/cohort-builder.tsx"),
     route("moments/:momentId/edit", "routes/cohort-builder.tsx", {

@@ -1206,6 +1206,56 @@ export const merchantMemberships = pgTable(
   ],
 );
 
+/**
+ * Email domains whose Google Workspace accounts may sign in to a merchant's
+ * portal. A domain belongs to at most one merchant; removing it ends access
+ * on the next request.
+ */
+export const merchantLoginDomains = pgTable(
+  "merchant_login_domains",
+  {
+    /** Lowercased domain, e.g. "acme.com". */
+    domain: text("domain").primaryKey(),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    status: text("status").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index("merchant_login_domains_merchant_idx").on(table.merchantId),
+  ],
+);
+
+/** Merchant portal sessions; the cookie carries only a random token whose hash is stored here. */
+export const merchantPortalSessions = pgTable(
+  "merchant_portal_sessions",
+  {
+    id: uuid("id").primaryKey(),
+    tokenHash: text("token_hash").notNull(),
+    merchantId: uuid("merchant_id")
+      .notNull()
+      .references(() => merchants.id),
+    /** The login domain that admitted this session; it must stay active. */
+    domain: text("domain").notNull(),
+    oidcIssuer: text("oidc_issuer").notNull(),
+    oidcSubject: text("oidc_subject").notNull(),
+    email: text("email").notNull(),
+    authenticatedAt: timestamp("authenticated_at", {
+      withTimezone: true,
+    }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("merchant_portal_sessions_token_hash_uidx").on(table.tokenHash),
+    index("merchant_portal_sessions_merchant_idx").on(table.merchantId),
+  ],
+);
+
 export const retentionPolicies = pgTable("retention_policies", {
   id: uuid("id").primaryKey(),
   merchantId: uuid("merchant_id")

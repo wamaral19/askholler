@@ -21,11 +21,12 @@ import {
 export async function loader({ request }: LoaderFunctionArgs) {
   if (!usesOidcWorkforceAuth())
     throw new Response("Not Found", { status: 404 });
+  const config = googleOidcConfigFromEnvironment(process.env);
   const headers = new Headers({ "Cache-Control": "no-store" });
-  headers.append("Set-Cookie", clearOidcFlowCookie(request));
+  headers.append("Set-Cookie", clearOidcFlowCookie(config, request));
   try {
     const { identity, redirectTo } = await completeGoogleSignIn(
-      googleOidcConfigFromEnvironment(process.env),
+      config,
       defaultGoogleOidcDependencies(),
       request,
     );
