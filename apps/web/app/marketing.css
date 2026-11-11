@@ -843,6 +843,10 @@ details[open] > summary .site-chevron {
   border-top: 1px solid var(--site-line);
 }
 
+.site-columns--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .site-columns--3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1758,6 +1762,7 @@ details[open] > summary .site-chevron {
     border-bottom: 1px dashed var(--site-line-strong);
   }
 
+  .site-columns--2,
   .site-columns--3,
   .site-columns--4,
   .site-columns--5 {

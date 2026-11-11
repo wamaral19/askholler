@@ -24,15 +24,16 @@ describe("createHostRouting", () => {
 
   it("serves public pages on the marketing host", () => {
     for (const path of [
-      "/about",
+      "/ad-content",
       "/contact",
       "/how-it-works",
       "/pricing",
       "/privacy",
       "/privacy/",
       "/sample-report",
+      "/research",
       "/use-cases",
-      "/work-with-holler",
+      "/what-we-believe",
     ]) {
       expect(resolve({ host: "withholler.com", path, method: "GET" })).toBe(
         null,
