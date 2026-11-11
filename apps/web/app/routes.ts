@@ -13,8 +13,6 @@ export default [
   route("how-it-works", "routes/how-it-works.tsx"),
   route("what-we-believe", "routes/what-we-believe.tsx"),
   route("pricing", "routes/pricing.tsx"),
-  route("work-with-holler", "routes/work-with-holler.tsx"),
-  route("about", "routes/about.tsx"),
   route("contact", "routes/contact.tsx"),
   route("privacy", "routes/privacy.tsx"),
   route("sample-report", "routes/shopify-app-sample-report.tsx"),

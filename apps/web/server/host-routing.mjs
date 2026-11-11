@@ -8,14 +8,15 @@
  * left alone. When either origin is unconfigured, routing is disabled.
  */
 const MARKETING_PATHS = new Set([
-  "/about",
+  "/ad-content",
   "/contact",
   "/how-it-works",
   "/pricing",
   "/privacy",
   "/sample-report",
+  "/research",
   "/use-cases",
-  "/work-with-holler",
+  "/what-we-believe",
 ]);
 
 export function createHostRouting({ marketingUrl, appBaseUrl }) {

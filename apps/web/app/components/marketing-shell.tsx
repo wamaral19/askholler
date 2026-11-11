@@ -24,8 +24,6 @@ type SitePageKey =
   | "how-it-works"
   | "what-we-believe"
   | "pricing"
-  | "work-with-holler"
-  | "about"
   | "contact"
   | "privacy";
 
@@ -56,10 +54,10 @@ const siteNavigation: NavItem[] = [
       {
         label: "Customer Research",
         href: "/research",
-        description: "Actionable insights and a compounding research library.",
+        description: "Answers to your questions, queryable by tag.",
       },
     ],
-    footer: { label: "Explore research questions", href: "/use-cases" },
+    footer: { label: "See a sample report", href: "/sample-report" },
   },
   {
     kind: "menu",
@@ -71,11 +69,6 @@ const siteNavigation: NavItem[] = [
         label: "How We Work",
         href: "/how-it-works",
         description: "Five steps from an important question to a report.",
-      },
-      {
-        label: "Work With Holler",
-        href: "/work-with-holler",
-        description: "A focused Research Run or ongoing research.",
       },
       {
         label: "Sample report",
@@ -92,7 +85,6 @@ const siteNavigation: NavItem[] = [
     href: "/what-we-believe",
   },
   { kind: "link", key: "pricing", label: "Pricing", href: "/pricing" },
-  { kind: "link", key: "about", label: "About", href: "/about" },
 ];
 
 const footerColumns: { heading: string; links: NavLink[] }[] = [
@@ -108,7 +100,6 @@ const footerColumns: { heading: string; links: NavLink[] }[] = [
     heading: "Research",
     links: [
       { label: "How We Work", href: "/how-it-works" },
-      { label: "Work With Holler", href: "/work-with-holler" },
       { label: "Sample report", href: "/sample-report" },
       { label: "Pricing", href: "/pricing" },
     ],
@@ -116,7 +107,6 @@ const footerColumns: { heading: string; links: NavLink[] }[] = [
   {
     heading: "Company",
     links: [
-      { label: "About", href: "/about" },
       { label: "What We Believe", href: "/what-we-believe" },
       { label: "Contact", href: "/contact" },
     ],
