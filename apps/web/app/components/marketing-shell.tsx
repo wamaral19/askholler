@@ -416,12 +416,27 @@ export function SiteHero({
   title,
   lede,
   actions,
+  centered = false,
 }: {
   kicker: string;
   title: ReactNode;
   lede: ReactNode;
   actions?: ReactNode;
+  centered?: boolean;
 }) {
+  if (centered) {
+    return (
+      <SiteSection className="site-hero site-hero--centered">
+        <div className="site-hero__title">
+          <p className="site-kicker">{kicker}</p>
+          <h1>{title}</h1>
+          <p className="site-hero__lede">{lede}</p>
+          {actions ? <div className="site-actions">{actions}</div> : null}
+        </div>
+      </SiteSection>
+    );
+  }
+
   return (
     <SiteSection className="site-hero">
       <div className="site-hero__title">

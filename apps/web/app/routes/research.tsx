@@ -17,6 +17,7 @@ export default function Research() {
   return (
     <SitePage current="what-we-produce">
       <SiteHero
+        centered
         kicker="Customer research"
         title="Your questions, answered by your customers."
         lede="You tell us what you need to know. We talk to the right customers and deliver a report you can query."
