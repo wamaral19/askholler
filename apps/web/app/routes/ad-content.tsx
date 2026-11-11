@@ -34,6 +34,7 @@ export default function AdContent() {
   return (
     <SitePage current="what-we-produce">
       <SiteHero
+        centered
         kicker="Ad content"
         title="Real customers, in their own words, ready for paid social."
         lede="Unscripted testimonials cut from real customer conversations."
