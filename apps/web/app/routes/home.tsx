@@ -56,7 +56,7 @@ export default function Home() {
       <SiteSection className="site-home-hero">
         <p className="site-kicker">Customer conversations for DTC brands</p>
         <h1>
-          <span>Get the answers</span>
+          <span>Get the answers.</span>
           <span>Capture your next great ad.</span>
           <em>Holler at your customers.</em>
         </h1>
