@@ -9,7 +9,7 @@ import {
 export function meta() {
   return marketingMeta(
     "How We Work | Holler",
-    "See how Holler turns an important DTC research question into human customer conversations, analysis, and an evidence-backed report.",
+    "See how Holler turns an important consumer research question into human customer conversations, analysis, and an evidence-backed report.",
   );
 }
 

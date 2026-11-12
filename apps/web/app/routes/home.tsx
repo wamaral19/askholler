@@ -1,3 +1,4 @@
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { redirect, type LoaderFunctionArgs } from "react-router";
 import {
   SitePage,
@@ -50,11 +51,97 @@ const outputs = [
   },
 ] as const;
 
+// Rotating word in the timeline heading. "action" holds longer, then each
+// specific moment flashes by before the wheel returns to the top.
+const actionWords = [
+  "action",
+  "download",
+  "cart abandonment",
+  "purchase",
+  "delivery",
+  "milestone",
+  "churn",
+] as const;
+const FIRST_WORD_MS = 2000;
+const OTHER_WORD_MS = 1000;
+const ROLL_MS = 300;
+
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+function ActionWheel() {
+  // The first word is repeated at the end so the last roll lands on it
+  // seamlessly before snapping back to index 0 without a transition.
+  const items = [...actionWords, actionWords[0]];
+  const [index, setIndex] = useState(0);
+  const [animate, setAnimate] = useState(true);
+  const [widths, setWidths] = useState<number[] | null>(null);
+  const itemRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  useIsomorphicLayoutEffect(() => {
+    const measure = () =>
+      setWidths(itemRefs.current.map((el) => el?.offsetWidth ?? 0));
+    measure();
+    window.addEventListener("resize", measure);
+    document.fonts?.ready.then(measure).catch(() => {});
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (index === items.length - 1) {
+      // Landed on the duplicate "action": snap back to the real first item.
+      const timer = window.setTimeout(() => {
+        setAnimate(false);
+        setIndex(0);
+      }, ROLL_MS);
+      return () => window.clearTimeout(timer);
+    }
+    const delay = index === 0 ? FIRST_WORD_MS : OTHER_WORD_MS;
+    const timer = window.setTimeout(() => {
+      setAnimate(true);
+      setIndex((current) => current + 1);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [index, items.length]);
+
+  return (
+    <span
+      className="site-action-wheel"
+      style={{
+        width: widths ? `${widths[index]}px` : undefined,
+        transition: animate ? undefined : "none",
+      }}
+    >
+      <span
+        className="site-action-wheel__track"
+        style={{
+          transform: `translateY(-${index * 1.18}em)`,
+          transition: animate ? undefined : "none",
+        }}
+      >
+        {items.map((word, i) => (
+          <span
+            key={`${word}-${i}`}
+            ref={(el) => {
+              itemRefs.current[i] = el;
+            }}
+          >
+            {word}
+          </span>
+        ))}
+      </span>
+    </span>
+  );
+}
+
 export default function Home() {
   return (
     <SitePage current="home">
       <SiteSection className="site-home-hero">
-        <p className="site-kicker">Customer conversations for DTC brands</p>
+        <p className="site-kicker">
+          Customer conversations for consumer brands
+        </p>
         <h1>
           <span>Get the answers.</span>
           <span>Capture your next great ad.</span>
@@ -70,16 +157,12 @@ export default function Home() {
             Holler at us <span aria-hidden="true">↗</span>
           </a>
           <a className="site-btn site-btn--secondary" href="#what-we-produce">
-            See what we produce <span aria-hidden="true">↓</span>
+            See what we produce
           </a>
         </div>
       </SiteSection>
 
       <SiteSection id="what-we-produce">
-        <div className="site-head">
-          <p className="site-kicker">What we produce</p>
-          <h2>Content you can run. Research you can act on.</h2>
-        </div>
         <div className="site-output-grid">
           {outputs.map((output) => (
             <article className="site-output" key={output.number}>
@@ -100,7 +183,12 @@ export default function Home() {
       <SiteSection className="site-home-workflows">
         <div className="site-head">
           <p className="site-kicker">How Holler works</p>
-          <h2>From checkout to context and insight.</h2>
+          <h2 aria-label="From action to context and insight.">
+            <span aria-hidden="true">
+              From <ActionWheel /> <span className="site-action-wheel-break" />
+              to insight.
+            </span>
+          </h2>
         </div>
 
         <div className="site-journey-wrap">
@@ -123,8 +211,8 @@ export default function Home() {
               <div className="site-journey__meta">
                 <span>Customer POV</span>
               </div>
-              <h3>Order placed</h3>
-              <p>The purchase is fresh and context is richest.</p>
+              <h3>Customer action</h3>
+              <p>The action is fresh and context is richest.</p>
             </li>
             <li className="is-neutral">
               <div className="site-journey__meta">
@@ -132,8 +220,9 @@ export default function Home() {
               </div>
               <h3>Automatically qualified</h3>
               <p>
-                Holler&apos;s system automatically qualifies customers for the
-                right study with the correct research questions.
+                Holler&apos;s system automatically qualifies customers that
+                match the criteria, using their history to deliver context rich
+                research questions.
               </p>
             </li>
             <li className="is-customer">
@@ -143,8 +232,9 @@ export default function Home() {
               </div>
               <h3>Receive call</h3>
               <p>
-                A Holler researcher calls the customer to congratulate them on
-                the order / delivery.
+                A Holler researcher calls the customer to understand the why
+                behind the action, and makes sure they leave with a positive
+                impression of the brand.
               </p>
             </li>
             <li className="is-customer">

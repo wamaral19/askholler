@@ -8,7 +8,7 @@ import {
 export function meta() {
   return marketingMeta(
     "Pricing | Holler",
-    "Monthly customer research subscriptions and standalone Research Runs for DTC ecommerce brands.",
+    "Monthly customer research subscriptions and standalone Research Runs for consumer brands.",
   );
 }
 

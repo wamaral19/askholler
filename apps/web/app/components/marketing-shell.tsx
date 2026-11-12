@@ -341,7 +341,7 @@ function SiteFooter() {
           <a href="/" aria-label="Holler home">
             <img src="/brand/holler-wordmark.png" alt="Holler" />
           </a>
-          <p>Living testimonials and customer research for DTC brands.</p>
+          <p>Living testimonials and customer research for consumer brands.</p>
           <p className="site-footer__ask">
             Turn customer conversations into content and insight.
           </p>
