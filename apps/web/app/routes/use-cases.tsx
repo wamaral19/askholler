@@ -10,7 +10,7 @@ import { useCases } from "../components/marketing-content";
 export function meta() {
   return marketingMeta(
     "Customer Research Questions | Holler",
-    "See how DTC ecommerce teams use Holler to understand attribution, creative resonance, retention, customer segments, and product experience.",
+    "See how consumer brands use Holler to understand attribution, creative resonance, retention and churn, customer segments, and product experience.",
   );
 }
 
@@ -18,9 +18,9 @@ export default function UseCases() {
   return (
     <SitePage current="what-we-produce">
       <SiteHero
-        kicker="Research questions for DTC ecommerce"
+        kicker="Research questions for consumer brands"
         title="What do you want to learn from your customers?"
-        lede="Your commerce stack shows what happened. Holler talks with the exact customers behind the pattern so your team can understand why it happened and decide what to do next."
+        lede="Your analytics show what happened. Holler talks with the exact customers behind the pattern so your team can understand why it happened and decide what to do next."
       />
 
       <SiteSection className="site-tabs-section">

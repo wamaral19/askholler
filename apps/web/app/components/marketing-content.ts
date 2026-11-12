@@ -6,10 +6,10 @@ export const useCases = [
     label: "Attribution and discovery",
     question: "Where are customers really learning about your brand?",
     description:
-      "Compare Shopify or platform attribution with the journey customers remember. Learn which channels introduce the brand, which ones close the order, and where word of mouth or creators are being missed.",
+      "Compare platform attribution with the journey customers remember. Learn which channels introduce the brand, which ones drive the download, sign-up, or purchase, and where word of mouth or creators are being missed.",
     examples: [
-      "Customers attributed to Google or Meta",
-      "Amazon purchasers who later buy direct",
+      "Customers attributed to paid search or social",
+      "Customers who found you through a marketplace or app store",
       "New regional or channel growth",
     ],
   },
@@ -17,39 +17,39 @@ export const useCases = [
     slug: "creative",
     number: "02",
     label: "Creative and positioning",
-    question: "What message made the product feel worth buying?",
+    question: "What message made your product worth trying?",
     description:
-      "Hear the words customers use for the problem, benefit, and purchase justification. Understand what they remember from an ad and what your current positioning leaves out.",
+      "Hear the words customers use for the problem, the benefit, and the reason they took the leap. Understand what they remember from an ad and what your current positioning leaves out.",
     examples: [
       "Creative that outperforms the brand norm",
       "Claims and benefits customers repeat back",
-      "Objections that product pages do not resolve",
+      "Objections your onboarding or landing pages do not resolve",
     ],
   },
   {
     slug: "retention",
     number: "03",
-    label: "Retention and repeat purchase",
-    question: "Why did they come back, and would they have returned anyway?",
+    label: "Retention and churn",
+    question: "Why do customers stay, come back, or walk away?",
     description:
-      "Talk with repeat customers while the reorder is fresh. Separate genuine loyalty and product need from the email, discount, or retargeting touchpoint that happened to capture the order.",
+      "Talk with customers right after they renew, return, hit a milestone, or cancel. Separate genuine loyalty and need from the reminder, discount, or nudge that happened to be in the way, and hear the real reason people leave.",
     examples: [
-      "First to second order conversion",
-      "New category purchases from repeat customers",
-      "Discount dependence and replenishment triggers",
+      "Customers who just cancelled or downgraded",
+      "Repeat customers and long-time subscribers",
+      "Users who abandoned before converting",
     ],
   },
   {
     slug: "product",
     number: "04",
     label: "Product experience",
-    question: "What do customers notice that returns data cannot show?",
+    question: "What do customers notice that your dashboards cannot show?",
     description:
-      "Reach customers around delivery or repeat purchase to surface expectation gaps, small irritants, standout moments, and unmet needs before they become visible in lagging metrics.",
+      "Reach customers right after first use, a key milestone, or a support moment to surface expectation gaps, small irritants, standout moments, and unmet needs before they show up in lagging metrics.",
     examples: [
       "Expectation compared with first use",
-      "Product, fit, packaging, and delivery feedback",
-      "Reasons one SKU wins over an alternative",
+      "Onboarding, feature, and service feedback",
+      "Reasons customers choose you over an alternative",
     ],
   },
   {
@@ -58,11 +58,11 @@ export const useCases = [
     label: "Segments and customer change",
     question: "How are your customers changing as the brand grows?",
     description:
-      "Compare the motivations and language of meaningful customer cohorts. See where a single persona hides important differences between first-time, repeat, high-value, or category-expanding buyers.",
+      "Compare the motivations and language of meaningful customer cohorts. See where a single persona hides important differences between new, returning, high-value, and expanding customers.",
     examples: [
-      "First-time compared with repeat customers",
-      "High AOV and growing-order cohorts",
-      "Customers entering a new product category",
+      "New compared with long-time customers",
+      "High-value and fast-growing cohorts",
+      "Customers adopting a new product or feature",
     ],
   },
 ] as const;
