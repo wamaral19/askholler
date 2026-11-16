@@ -1980,10 +1980,17 @@ export function AngleBuilderForm({
               <p className="save-notice save-notice--error" role="alert">
                 {saved.error}
               </p>
+            ) : saved && request && saved.published ? (
+              <p className="save-notice" role="status">
+                Request sent and launched. Because this is a development store,
+                it went live right away and is listed under Active research on
+                Research runs.
+              </p>
             ) : saved && request ? (
               <p className="save-notice" role="status">
-                Request sent. Holler will review it and follow up before
-                anything goes live.
+                Request sent. Holler reviews new requests within one business
+                day and follows up before anything goes live. It is listed under
+                Requests on Research runs.
               </p>
             ) : saved && launched ? (
               <p className="save-notice" role="status">

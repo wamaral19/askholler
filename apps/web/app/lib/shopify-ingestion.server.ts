@@ -65,6 +65,19 @@ export function shopifyMerchantId(shopDomain: string): string {
   return stableUuid(`shopify-shop:${shopDomain.toLowerCase()}`);
 }
 
+/** False for a shop Holler has never seen or that last uninstalled. */
+export async function hasActiveShopifyInstall(
+  db: HollerDatabase,
+  shopDomain: string,
+): Promise<boolean> {
+  const [merchant] = await db
+    .select({ status: merchants.status })
+    .from(merchants)
+    .where(eq(merchants.id, shopifyMerchantId(shopDomain)))
+    .limit(1);
+  return merchant?.status === "active";
+}
+
 /**
  * Records an install (or reinstall). `installedAt` restarts on reinstall
  * because webhooks missed while uninstalled break history completeness.

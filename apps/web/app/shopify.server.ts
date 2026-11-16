@@ -7,10 +7,9 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PostgreSQLSessionStorage } from "@shopify/shopify-app-session-storage-postgresql";
 
-import {
-  getShopifyIngestionDatabase,
-  recordShopifyInstall,
-} from "./lib/shopify-ingestion.server";
+import { getOperationsService } from "./lib/operations-service.server";
+import { getShopifyIngestionDatabase } from "./lib/shopify-ingestion.server";
+import { handleShopifyInstall } from "./lib/shopify-install.server";
 
 type ShopifyApp = ReturnType<typeof createShopifyApp>;
 
@@ -50,8 +49,13 @@ function createShopifyApp() {
       expiringOfflineAccessTokens: true,
     },
     hooks: {
-      afterAuth: async ({ session }) => {
-        await recordShopifyInstall(getShopifyIngestionDatabase(), session.shop);
+      afterAuth: async ({ session, admin }) => {
+        await handleShopifyInstall({
+          db: getShopifyIngestionDatabase(),
+          shop: session.shop,
+          admin,
+          getService: getOperationsService,
+        });
       },
     },
   });

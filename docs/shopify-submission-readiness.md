@@ -60,12 +60,17 @@ checks is not evidence that an external control is enabled.
 
 ## Reviewer-store path
 
-Use only a dedicated reviewer/development store. Install the production app,
-then run the guarded `shopify:seed-reviewer` command documented in
-`docs/shopify-pilot-app-setup.md`. It adds database-backed, explicitly synthetic
-run/request state without creating customer PII. Give the reviewer exact steps
-for the sample report, request form, pricing/billing page, and a $1 Shopify test
-charge.
+Development stores seed themselves on install: a labeled sample run and a $1
+test charge. Research requests from those stores launch immediately, so the
+reviewer never waits on staff. See "Reviewer sample data" and "Reviewer
+testing instructions" in `docs/shopify-pilot-app-setup.md`. Before
+submitting:
+
+- [ ] `OPS_ALERT_WEBHOOK_URL` is set in production, and a test install on a
+      fresh development store posted an alert.
+- [ ] That install showed the sample run and the $1 charge, and a sent
+      request appeared under Active research.
+- [ ] The testing instructions and screencast match those steps.
 
 ## Historical-data gate
 

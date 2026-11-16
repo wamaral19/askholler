@@ -71,6 +71,10 @@ services:
       # (/webhooks/store); see docs/shopify-pilot-app-setup.md section 10.
       - key: SHOPIFY_STORE_WEBHOOK_KEYS
         sync: false
+      # Google Chat or Slack incoming webhook for new-install and new-request
+      # alerts; unset skips them. See apps/web/app/lib/ops-alerts.server.ts.
+      - key: OPS_ALERT_WEBHOOK_URL
+        sync: false
       - key: OIDC_AUDIENCE
         sync: false
       - key: GOOGLE_OAUTH_CLIENT_SECRET

@@ -157,6 +157,14 @@ export default function CompletedResearchRuns() {
               <h2>Waiting for Holler review</h2>
             </div>
           </header>
+          <p className="merchant-run__meta">
+            Holler reviews new requests within one business day and follows up
+            with you before any calls start. Meanwhile,{" "}
+            <a href="/sample-report" target="_blank" rel="noreferrer">
+              explore a sample report
+            </a>{" "}
+            to see what a finished run delivers.
+          </p>
           <ul className="merchant-runs">
             {requested.map((angle) => (
               <li className="shopify-app__card merchant-run" key={angle.id}>

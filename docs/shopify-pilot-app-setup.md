@@ -204,8 +204,30 @@ not through `shopify app dev`, so you test exactly what reviewers will install.
 
 ### Reviewer sample data
 
-Use a dedicated development/reviewer store only. After that store installs the
-production app, seed two clearly labeled synthetic records into its tenant:
+App Store reviewers test on Shopify development stores and do not tell us
+when. Shopify pauses a submission when the reviewer can't finish testing, and
+a request left "Under review" counts as that (paused on 2026-11-09, reference
+146317). So on a **development store** (`shop.plan.partnerDevelopment`), the
+app does the following on its own, with no staff action:
+
+- **On install**, it adds a completed `[Sample] First-purchase attribution
+audit` run linked to the public sample report, plus a pending $1
+  `[Sample] Research run` charge. Development stores only accept test
+  charges, so approving it bills nothing.
+- **On a research request**, it launches the request right away, so it
+  moves to **Active research**. Launching only makes it eligible for the
+  researchers' queue; nothing dials on its own.
+
+Real merchant stores are unchanged: requests wait for staff review.
+
+Every new install and every research request posts an alert to
+`OPS_ALERT_WEBHOOK_URL` (a Google Chat or Slack incoming webhook; see
+`apps/web/app/lib/ops-alerts.server.ts`). Re-authentications of an
+already-installed shop don't alert. If the alert says seeding failed, run
+the manual command below.
+
+To re-seed by hand, or to add a sample merchant-requested draft as well, run
+this against a dedicated development/reviewer store only:
 
 ```bash
 HOLLER_REVIEWER_SEED_CONFIRM=synthetic-only \
@@ -259,15 +281,49 @@ create the listing:
   emergency developer contact;
 - a screencast (4.5.3) showing install, Research runs with a report, Raw
   research with a call, sending an angle request, and approving a charge;
-- testing instructions (4.5.4). Merchants have no separate Holler login, so
-  no credentials are needed. Explain that research calls are carried out by
-  Holler staff after orders arrive. A reviewer's fresh store has no research
-  and no charges. After they install, grant yourself access to their store
-  (`npm run workforce -- grant you@withholler.com <merchantId> platform_admin`;
-  the merchant ID is derived from the shop domain, see `shopifyMerchantId`),
-  then add a $1 test project charge for it under **Admin → Billing**. Say in
-  the notes that the charge will be there, and rely on the screencast for
-  research runs and raw research.
+- testing instructions (4.5.4): paste the text under **Reviewer testing
+  instructions** below. The sample run, test charge, and auto-launch
+  described in **Reviewer sample data** (section 6) make the review
+  completable without staff.
+
+### Reviewer testing instructions
+
+Paste into Partner Dashboard → **Testing instructions**:
+
+```text
+Holler is a managed customer-research service. A merchant sends a research
+request from the app; Holler's research team reviews it, calls the merchant's
+customers after they order, and delivers a report. Calls are placed by Holler
+researchers, never automatically, so your test store will not receive calls.
+
+No login or credentials are needed: the app opens inside Shopify admin.
+
+On development stores (including review stores), the full flow can be
+reviewed without waiting for our team:
+
+1. Install the app and approve the permissions. You land on "Research runs".
+   A completed run labeled "[Sample] First-purchase attribution audit" is
+   already listed under "Completed research runs". Its data is synthetic.
+2. Click "View report" on that run to see what a finished run delivers.
+3. Open "Request research". Enter a name and business question, choose which
+   customers to talk to (for example, first-time customers), pick the
+   questions, and click "Send request". On a development store the request
+   launches immediately and appears under "Active research" on "Research
+   runs". (On a merchant's live store, our team reviews it within one
+   business day before anything goes live.)
+4. Open the active research to see who we call and what we ask. "View
+   completed calls" lists calls once researchers complete them; it is empty
+   on a new store.
+5. Open "Pricing & billing". A pending $1 "[Sample] Research run" charge is listed.
+   Approve it to go through Shopify's charge approval. It is a Shopify test
+   charge, so nothing is billed.
+
+If anything looks stuck, email wyatt@withholler.com. We are alerted when
+the app is installed and when a request is sent.
+```
+
+Record the screencast (4.5.3) on a fresh development store following the
+same five steps.
 
 Set listing visibility to **Unlisted**, run the pre-submission checks, and
 submit. Expect reviewers to ask how customers consent to being called. The

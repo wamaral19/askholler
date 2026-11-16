@@ -156,13 +156,10 @@ export default function Home() {
           >
             Holler at us <span aria-hidden="true">↗</span>
           </a>
-          <a className="site-btn site-btn--secondary" href="#what-we-produce">
-            See what we produce
-          </a>
         </div>
       </SiteSection>
 
-      <SiteSection id="what-we-produce">
+      <SiteSection>
         <div className="site-output-grid">
           {outputs.map((output) => (
             <article className="site-output" key={output.number}>
@@ -177,6 +174,11 @@ export default function Home() {
               </a>
             </article>
           ))}
+        </div>
+        <div className="site-output-action">
+          <a className="site-btn site-btn--blue" href="/sample-report">
+            See a sample report <span aria-hidden="true">→</span>
+          </a>
         </div>
       </SiteSection>
 

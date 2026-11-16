@@ -175,6 +175,15 @@
   background: var(--site-tile);
 }
 
+.site-btn--blue {
+  background: var(--site-blue-ink);
+  color: var(--site-white);
+}
+
+.site-btn--blue:hover {
+  background: #1f52b3;
+}
+
 .site-btn--sm {
   height: 36px;
   padding: 0 15px;
@@ -1350,6 +1359,12 @@ details[open] > summary .site-chevron {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+}
+
+.site-output-action {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
 }
 
 .site-output {
