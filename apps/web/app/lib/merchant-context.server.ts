@@ -41,10 +41,19 @@ export function isMerchantPortalPath(pathname: string): boolean {
  * /portal authenticate with a Google portal session; pages under /app with
  * Shopify admin. Either way the viewer gets the same merchant-only context.
  */
-export async function authenticateMerchantViewer(
-  request: Request,
-): Promise<{ context: TenantContext }> {
+export async function authenticateMerchantViewer(request: Request): Promise<{
+  context: TenantContext;
+  /** Present only under /app, where Shopify admin authenticated the viewer. */
+  shopify?: {
+    readonly shop: string;
+    readonly admin: Awaited<ReturnType<typeof authenticateMerchant>>["admin"];
+  };
+}> {
   if (isMerchantPortalPath(new URL(request.url).pathname))
     return authenticatePortalMerchant(request);
-  return authenticateMerchant(request);
+  const auth = await authenticateMerchant(request);
+  return {
+    context: auth.context,
+    shopify: { shop: auth.session.shop, admin: auth.admin },
+  };
 }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { createDatabase } from "@holler/db";
 
+import { seedSampleRun } from "../apps/web/app/lib/development-store.server";
 import type { TenantContext } from "../apps/web/app/lib/operations-types";
 import {
   PostgresOperationsApplicationService,
@@ -64,23 +65,7 @@ try {
     ],
   };
 
-  const sample = await service.saveMoment(manager, {
-    ...common,
-    name: "[Sample] First-purchase attribution audit",
-    objective:
-      "Illustrate how observed attribution is compared with customer-reported discovery.",
-    publish: true,
-  });
-  const current = (await service.listMoments(manager)).find(
-    (moment) => moment.id === sample.id,
-  );
-  if (current?.status === "live")
-    await service.setMomentStatus(manager, sample.id, "completed");
-  await service.setMomentReportUrl(
-    manager,
-    sample.id,
-    "https://withholler.com/sample-report",
-  );
+  await seedSampleRun(service, merchantId);
 
   await service.saveMoment(merchant, {
     ...common,
