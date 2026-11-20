@@ -227,13 +227,15 @@ export const industries: readonly Industry[] = [
       {
         name: "Stuck in category",
         trigger: "After a repeat order in the same category",
-        signal: "One category doesn't lead to trying styles in any other category.",
+        signal:
+          "One category doesn't lead to trying styles in any other category.",
         look: [
           "Repeats by category",
           "Repeat purchase cross category penetration",
           "Time between orders",
         ],
-        qualify: "Repeat buyer, same category, never purchased outside that category.",
+        qualify:
+          "Repeat buyer, same category, never purchased outside that category.",
         ask: [
           "What brands or products do you buy for the other category?",
           "What is it you love the product in your repeat category?",
