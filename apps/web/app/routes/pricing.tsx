@@ -8,7 +8,7 @@ import {
 export function meta() {
   return marketingMeta(
     "Pricing | Holler",
-    "Monthly customer research subscriptions and standalone Research Runs for consumer brands.",
+    "Monthly customer research subscriptions, standalone Research Runs, and performance-priced ad content for consumer brands.",
   );
 }
 
@@ -16,6 +16,7 @@ const plans = [
   {
     kicker: "Ongoing research",
     name: "Monthly subscription",
+    prefix: "From",
     price: "$2,500",
     period: "/ month",
     summary:
@@ -32,6 +33,7 @@ const plans = [
   {
     kicker: "Focused engagement",
     name: "Standalone Research Run",
+    prefix: "From",
     price: "$5,000",
     period: undefined,
     summary:
@@ -43,6 +45,23 @@ const plans = [
       "Larger samples receive custom volume pricing",
     ],
     cta: "Scope a Research Run",
+    featured: false,
+  },
+  {
+    kicker: "Ad content only",
+    name: "Your first ad",
+    prefix: undefined,
+    price: "10%",
+    period: "of GMV (first ad only)",
+    summary:
+      "We turn a real customer conversation into your first ad. You pay a share of the sales it drives instead of a production fee.",
+    includes: [
+      "One ad made from a real customer conversation",
+      "10% of the GMV the ad drives, last-click attributed",
+      "Applies to your first ad only",
+      "Ads after the first are not covered by this rate",
+    ],
+    cta: "Start with one ad",
     featured: false,
   },
 ];
@@ -61,7 +80,7 @@ export default function Pricing() {
       <SiteHero
         kicker="Pricing"
         title="Customer research sized to the question."
-        lede="Start with ongoing coverage or commission a focused Research Run. Final scope and timing depend on order volume and the customer cohort you want to investigate."
+        lede="Start with ongoing coverage, commission a focused Research Run, or try your first ad for a share of the sales it drives. Research scope and timing depend on order volume and the customer cohort you want to investigate."
       />
 
       <SiteSection aria-label="Plans">
@@ -75,7 +94,8 @@ export default function Pricing() {
                 <p className="site-kicker">{plan.kicker}</p>
                 <h2>{plan.name}</h2>
                 <p className="site-plan__price">
-                  <span>From</span> <strong>{plan.price}</strong>
+                  {plan.prefix ? <span>{plan.prefix} </span> : null}
+                  <strong>{plan.price}</strong>
                   {plan.period ? <span> {plan.period}</span> : null}
                 </p>
               </div>
@@ -96,7 +116,7 @@ export default function Pricing() {
         </div>
 
         <div className="site-plans__shared">
-          <p className="site-list-label">Included in both plans</p>
+          <p className="site-list-label">Included in both research plans</p>
           <ul className="site-list site-list--grid">
             {shared.map((item) => (
               <li key={item}>{item}</li>
