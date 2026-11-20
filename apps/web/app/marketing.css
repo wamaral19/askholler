@@ -340,6 +340,18 @@ details[open] > summary .site-chevron {
   transition: background-color 120ms ease;
 }
 
+/* Links with an icon put it in a left column beside the label and blurb. */
+.site-menu__panel li a.has-icon {
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: 12px;
+}
+
+.site-menu__panel li a.has-icon > svg {
+  grid-row: span 2;
+  margin-top: 1px;
+  color: var(--site-blue-ink);
+}
+
 .site-menu__panel li a:hover {
   background: var(--site-tile);
 }
@@ -1552,7 +1564,7 @@ details[open] > summary .site-chevron {
   margin: 0 auto;
   padding: 64px var(--site-pad) 48px;
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr));
   gap: 40px 32px;
 }
 
@@ -1660,7 +1672,7 @@ details[open] > summary .site-chevron {
   }
 
   .site-footer__inner {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .site-footer__brand {
@@ -1879,6 +1891,318 @@ details[open] > summary .site-chevron {
 
   .site-footer__legal {
     font-size: 12px;
+  }
+}
+
+/* Who It's For: the three things Holler does, and the moments that
+   show them in practice. */
+.site-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.site-pillars > li {
+  padding: 24px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  border-radius: 18px;
+  background: var(--site-grain), var(--site-tile);
+}
+
+.site-pillars h3 {
+  font-size: clamp(19px, 1.9vw, 22px);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.site-pillars > li > p:not(.site-kicker) {
+  color: var(--site-muted);
+  font-size: 14px;
+}
+
+.site-studies {
+  display: grid;
+  gap: 20px;
+}
+
+.site-study {
+  padding: 28px;
+  display: grid;
+  gap: 22px;
+  border: 1px solid var(--site-line-strong);
+  border-radius: 18px;
+  background: var(--site-white);
+  box-shadow:
+    0 1px 2px rgb(13 35 64 / 6%),
+    0 18px 40px -24px rgb(13 35 64 / 24%);
+  scroll-margin-top: calc(var(--site-header) + 16px);
+}
+
+.site-study__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px 24px;
+}
+
+.site-study__head > div {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+/* Hero with the "Holler when" triggers beside the headline. */
+.site-industry-hero .site-frame {
+  align-items: center;
+}
+
+.site-industry-hero__lede {
+  max-width: 460px;
+  color: var(--site-muted);
+  font-size: 17px;
+}
+
+.site-industry-hero__when {
+  padding-block: 18px 8px;
+}
+
+.site-study__head h3 {
+  font-size: clamp(22px, 2.4vw, 28px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.site-study__trigger {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--site-tile);
+  color: var(--site-ink);
+  font-size: 13px;
+}
+
+.site-study__trigger span {
+  color: var(--site-blue-ink);
+  font-weight: 500;
+}
+
+.site-study__signal {
+  margin-top: 4px;
+  color: var(--site-muted);
+  font-size: 15px;
+}
+
+.site-study__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--site-line);
+  border-bottom: 1px solid var(--site-line);
+}
+
+.site-study__steps > section {
+  padding: 20px 24px 20px 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.site-study__steps > section + section {
+  padding-left: 24px;
+  border-left: 1px solid var(--site-line);
+}
+
+.site-study__steps > section > p:not(.site-kicker) {
+  color: var(--site-muted);
+  font-size: 14px;
+}
+
+.site-study__steps .site-list li {
+  padding-block: 7px;
+}
+
+.site-study__steps .site-list li::before {
+  top: 10px;
+}
+
+.site-study__questions {
+  display: grid;
+  gap: 10px;
+}
+
+.site-study__questions li {
+  padding-left: 12px;
+  border-left: 2px solid var(--site-blue);
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.site-study__moves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.site-study__moves ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.site-study__moves li {
+  padding: 3px 10px;
+  border: 1px solid var(--site-line-strong);
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.site-industry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.site-industry-grid a {
+  height: 100%;
+  padding: 22px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 1px solid var(--site-line-strong);
+  border-radius: 18px;
+  background: var(--site-white);
+  transition: border-color 150ms ease;
+}
+
+.site-industry-grid a:hover {
+  border-color: var(--site-blue);
+}
+
+.site-industry-grid__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--site-ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.site-industry-grid__name svg {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--site-tile);
+  color: var(--site-blue-ink);
+}
+
+.site-industry-hero__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.site-industry-hero__kicker svg {
+  color: var(--site-blue-ink);
+}
+
+.site-industry-grid h3 {
+  font-size: 21px;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.site-industry-grid p {
+  color: var(--site-muted);
+  font-size: 14px;
+}
+
+.site-industry-grid__link {
+  margin-top: auto;
+  padding-top: 8px;
+  color: var(--site-blue-ink);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.site-also {
+  margin-top: 40px;
+  padding-top: 28px;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  border-top: 1px dashed var(--site-line-strong);
+}
+
+.site-also ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.site-also a {
+  height: 38px;
+  padding: 0 16px 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--site-line-strong);
+  border-radius: 999px;
+  background: var(--site-white);
+  font-size: 14px;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.site-also a:hover {
+  border-color: var(--site-blue);
+  background: var(--site-tile);
+}
+
+.site-also svg {
+  color: var(--site-blue-ink);
+}
+
+@media (max-width: 960px) {
+  .site-pillars,
+  .site-industry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .site-industry-hero .site-frame {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .site-study__steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .site-study__steps > section,
+  .site-study__steps > section + section {
+    padding: 18px 0;
+    border-left: 0;
+  }
+
+  .site-study__steps > section + section {
+    border-top: 1px dashed var(--site-line-strong);
+  }
+}
+
+@media (max-width: 640px) {
+  .site-pillars,
+  .site-industry-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .site-study {
+    padding: 20px;
   }
 }
 
