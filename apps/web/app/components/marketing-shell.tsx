@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import "../marketing.css";
+import { IndustryIcon } from "./industry-icons";
+import { industries } from "./marketing-industries";
 
 export const marketingContactHref =
   "mailto:wyatt@withholler.com?subject=I%27d%20like%20to%20work%20with%20Holler";
@@ -21,13 +23,19 @@ type SitePageKey =
   | "home"
   | "what-we-produce"
   | "use-cases"
+  | "who-its-for"
   | "how-it-works"
   | "what-we-believe"
   | "pricing"
   | "contact"
   | "privacy";
 
-type NavLink = { label: string; href: string; description?: string };
+type NavLink = {
+  label: string;
+  href: string;
+  description?: string;
+  icon?: ReactNode;
+};
 type NavItem =
   | { kind: "link"; key: SitePageKey; label: string; href: string }
   | {
@@ -40,6 +48,19 @@ type NavItem =
     };
 
 const siteNavigation: NavItem[] = [
+  {
+    kind: "menu",
+    key: "who-its-for",
+    label: "Who It's For",
+    heading: "Analysis, qualification, and research for",
+    links: industries.map((industry) => ({
+      label: industry.name,
+      href: `/for/${industry.slug}`,
+      description: industry.summary,
+      icon: <IndustryIcon slug={industry.slug} />,
+    })),
+    footer: { label: "See who Holler is for", href: "/for" },
+  },
   {
     kind: "menu",
     key: "what-we-produce",
@@ -88,6 +109,13 @@ const siteNavigation: NavItem[] = [
 ];
 
 const footerColumns: { heading: string; links: NavLink[] }[] = [
+  {
+    heading: "Who It's For",
+    links: industries.map((industry) => ({
+      label: industry.name,
+      href: `/for/${industry.slug}`,
+    })),
+  },
   {
     heading: "What We Produce",
     links: [
@@ -249,7 +277,9 @@ function SiteHeader({ current }: { current?: SitePageKey | undefined }) {
                             <a
                               href={link.href}
                               onClick={() => setOpenMenu(null)}
+                              className={link.icon ? "has-icon" : undefined}
                             >
+                              {link.icon}
                               <strong>{link.label}</strong>
                               <span>{link.description}</span>
                             </a>
@@ -455,12 +485,15 @@ export function SiteCta({
   body,
   href,
   label,
+  footer,
 }: {
   kicker: string;
   title: ReactNode;
   body?: ReactNode;
   href: string;
   label: ReactNode;
+  /** Shown under the button, e.g. links to related pages. */
+  footer?: ReactNode;
 }) {
   return (
     <SiteSection className="site-cta-section">
@@ -477,6 +510,7 @@ export function SiteCta({
         >
           {label}
         </a>
+        {footer}
       </div>
     </SiteSection>
   );

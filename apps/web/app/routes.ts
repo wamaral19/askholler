@@ -10,6 +10,8 @@ export default [
   route("ad-content", "routes/ad-content.tsx"),
   route("research", "routes/research.tsx"),
   route("use-cases", "routes/use-cases.tsx"),
+  route("for", "routes/for.tsx"),
+  route("for/:industry", "routes/for-industry.tsx"),
   route("how-it-works", "routes/how-it-works.tsx"),
   route("what-we-believe", "routes/what-we-believe.tsx"),
   route("pricing", "routes/pricing.tsx"),
