@@ -9,6 +9,7 @@ export function meta() {
   return marketingMeta(
     "Pricing | Holler",
     "Monthly customer research subscriptions, standalone Research Runs, and performance-priced ad content for consumer brands.",
+    "/pricing",
   );
 }
 

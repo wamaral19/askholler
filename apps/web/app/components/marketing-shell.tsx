@@ -1,19 +1,38 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { MetaDescriptor } from "react-router";
 import "../marketing.css";
+import {
+  MARKETING_ORIGIN,
+  MARKETING_STRUCTURED_DATA,
+  marketingUrl,
+} from "../lib/marketing-seo";
 import { IndustryIcon } from "./industry-icons";
 import { industries } from "./marketing-industries";
 
 export const marketingContactHref =
   "mailto:wyatt@withholler.com?subject=I%27d%20like%20to%20work%20with%20Holler";
 
-export function marketingMeta(title: string, description: string) {
+export function marketingMeta(
+  title: string,
+  description: string,
+  canonicalPath: string,
+): MetaDescriptor[] {
+  const canonicalUrl = marketingUrl(canonicalPath);
+
   return [
     { title },
     { name: "description", content: description },
+    { tagName: "link", rel: "canonical", href: canonicalUrl },
     { property: "og:title", content: title },
     { property: "og:description", content: description },
+    { property: "og:type", content: "website" },
+    { property: "og:url", content: canonicalUrl },
+    { property: "og:image", content: `${MARKETING_ORIGIN}/og.png` },
+    { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: title },
     { name: "twitter:description", content: description },
+    { name: "twitter:image", content: `${MARKETING_ORIGIN}/og.png` },
+    { "script:ld+json": MARKETING_STRUCTURED_DATA },
   ];
 }
 

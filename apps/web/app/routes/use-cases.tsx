@@ -11,6 +11,7 @@ export function meta() {
   return marketingMeta(
     "Customer Research Questions | Holler",
     "See how consumer brands use Holler to understand attribution, creative resonance, retention and churn, customer segments, and product experience.",
+    "/use-cases",
   );
 }
 

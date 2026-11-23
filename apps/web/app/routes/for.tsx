@@ -13,6 +13,7 @@ export function meta() {
   return marketingMeta(
     "Who Holler Is For | Holler",
     "Holler analyzes your data, automatically qualifies the customers behind the change, and calls them to find out why. For apps, wellness and beauty, apparel, supplements, food and beverage, and ecommerce brands.",
+    "/for",
   );
 }
 

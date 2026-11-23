@@ -10,6 +10,7 @@ export function meta() {
   return marketingMeta(
     "Ad Content | Holler",
     "Real customer conversations, edited into vertical testimonials for paid social.",
+    "/ad-content",
   );
 }
 

@@ -9,6 +9,7 @@ export function meta() {
   return marketingMeta(
     "What We Believe | Holler",
     "The principles behind Holler's human-led customer research: humans want to talk to humans, unique insights create an unfair advantage, context is everything, conversations beat surveys, and incentives matter.",
+    "/what-we-believe",
   );
 }
 

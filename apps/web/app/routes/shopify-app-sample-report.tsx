@@ -12,6 +12,7 @@ export function meta() {
   return marketingMeta(
     "Sample customer research workspace | Holler",
     "An interactive, synthetic Holler research workspace with evidence linked by tag.",
+    "/sample-report",
   );
 }
 

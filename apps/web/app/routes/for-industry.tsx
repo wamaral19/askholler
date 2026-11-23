@@ -26,10 +26,16 @@ export function loader({ params }: LoaderFunctionArgs) {
 
 export const meta: MetaFunction = ({ params }) => {
   const industry = findIndustry(params.industry);
-  if (!industry) return marketingMeta("Not found | Holler", "");
+  if (!industry) {
+    return [
+      { title: "Not found | Holler" },
+      { name: "robots", content: "noindex, nofollow" },
+    ];
+  }
   return marketingMeta(
     `Holler for ${industry.name}`,
     `${industry.title} ${industry.lede}`,
+    `/for/${industry.slug}`,
   );
 };
 

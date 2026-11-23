@@ -10,11 +10,14 @@
 const MARKETING_PATHS = new Set([
   "/ad-content",
   "/contact",
+  "/for",
   "/how-it-works",
   "/pricing",
   "/privacy",
+  "/robots.txt",
   "/sample-report",
   "/research",
+  "/sitemap.xml",
   "/use-cases",
   "/what-we-believe",
 ]);
@@ -27,9 +30,9 @@ export function createHostRouting({ marketingUrl, appBaseUrl }) {
   return function resolve({ host, path, method }) {
     const hostname = (host ?? "").split(":")[0].toLowerCase();
     const url = new URL(path, "http://placeholder");
-    const isMarketingPath = MARKETING_PATHS.has(
-      url.pathname.replace(/\/+$/, ""),
-    );
+    const normalizedPath = url.pathname.replace(/\/+$/, "") || "/";
+    const isMarketingPath =
+      MARKETING_PATHS.has(normalizedPath) || normalizedPath.startsWith("/for/");
 
     if (hostname === `www.${marketing.hostname}`) {
       return { status: 308, location: `${marketing.origin}${path}` };
@@ -52,6 +55,7 @@ export function createHostRouting({ marketingUrl, appBaseUrl }) {
         !url.searchParams.has("host");
       if (isBareAppRoot)
         return { status: 302, location: `${marketing.origin}/` };
+      if (normalizedPath === "/robots.txt") return null;
       if (isMarketingPath && (method === "GET" || method === "HEAD"))
         return { status: 308, location: `${marketing.origin}${path}` };
     }

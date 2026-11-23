@@ -10,6 +10,7 @@ export function meta() {
   return marketingMeta(
     "Customer Research | Holler",
     "Customer research directed by your questions, with every conversation tagged and queryable.",
+    "/research",
   );
 }
 
