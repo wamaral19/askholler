@@ -9,6 +9,7 @@ export function meta() {
   return marketingMeta(
     "Contact Holler",
     "Get in touch with Holler founder Wyatt Amaral.",
+    "/contact",
   );
 }
 

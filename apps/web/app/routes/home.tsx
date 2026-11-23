@@ -18,6 +18,7 @@ export function meta() {
   return marketingMeta(
     "Holler | Living customer testimonials and customer research",
     "Holler turns timely conversations with real customers into authentic ad content, actionable insights, and a searchable research library.",
+    "/",
   );
 }
 

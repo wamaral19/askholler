@@ -8,6 +8,7 @@ export function meta() {
   return marketingMeta(
     "Privacy Policy | Holler",
     "How Holler collects, uses, and protects personal information, including during customer research calls.",
+    "/privacy",
   );
 }
 

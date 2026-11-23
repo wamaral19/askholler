@@ -26,12 +26,17 @@ describe("createHostRouting", () => {
     for (const path of [
       "/ad-content",
       "/contact",
+      "/for",
+      "/for/apps",
+      "/for/wellness-beauty/",
       "/how-it-works",
       "/pricing",
       "/privacy",
       "/privacy/",
+      "/robots.txt",
       "/sample-report",
       "/research",
+      "/sitemap.xml",
       "/use-cases",
       "/what-we-believe",
     ]) {
@@ -42,11 +47,28 @@ describe("createHostRouting", () => {
   });
 
   it("sends public pages on the app host to the marketing host", () => {
-    for (const path of ["/pricing", "/privacy", "/sample-report"]) {
+    for (const path of [
+      "/for",
+      "/for/apps",
+      "/pricing",
+      "/privacy",
+      "/sample-report",
+      "/sitemap.xml",
+    ]) {
       expect(
         resolve({ host: "app.withholler.com", path, method: "GET" }),
       ).toEqual({ status: 308, location: `https://withholler.com${path}` });
     }
+  });
+
+  it("serves a separate robots policy on the app host", () => {
+    expect(
+      resolve({
+        host: "app.withholler.com",
+        path: "/robots.txt",
+        method: "GET",
+      }),
+    ).toBe(null);
   });
 
   it("sends every other marketing-host path to the app host, preserving method", () => {
